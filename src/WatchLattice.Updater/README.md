@@ -41,6 +41,11 @@ without visiting GitHub by hand. It has two halves:
 7. Keeps your `appsettings.json`. The release's copy is written next to it as
    `appsettings.json.default` so you can compare them.
 8. Starts the service again, and the tray restarts itself on the new version.
+   A tray that did not start the update (for example after `--apply-update`
+   from an administrator prompt) notices within 30 seconds that its files on
+   disk are a different release and restarts on them, once its dashboard is
+   closed. Trays from 0.4.0 and earlier lack this check: after updating one of
+   those by hand, exit the tray and start it again from the Start menu.
 
 The tray is updated when it is installed next to the hub, as `…\Hub` and
 `…\Tray` (the layout of the release zip). Other layouts update the hub only.

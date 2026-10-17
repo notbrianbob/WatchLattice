@@ -2,6 +2,7 @@ using System.Diagnostics;
 using System.Security.Cryptography;
 using System.Text;
 using WatchLattice.Common.Alerts;
+using WatchLattice.Updater;
 
 namespace WatchLattice.Tray;
 
@@ -45,7 +46,9 @@ internal static class Program
         }
 
         // The single-instance mutex is closed by now, so the updated tray can claim it.
-        if (RestartRequested && Environment.ProcessPath is { } executable)
+        // Start the copy at the install path: an update moves the running files aside.
+        var installed = Path.Combine(AppContext.BaseDirectory, ReleaseLayout.TrayExecutable);
+        if (RestartRequested && (File.Exists(installed) ? installed : Environment.ProcessPath) is { } executable)
         {
             var start = new ProcessStartInfo(executable) { UseShellExecute = false };
             foreach (var arg in args) start.ArgumentList.Add(arg);

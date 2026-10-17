@@ -37,6 +37,21 @@ public sealed record ReleaseVersion(int Major, int Minor, int Patch, string? Pre
         return TryParse(informational, out var version) ? version : Development;
     }
 
+    /// <summary>
+    /// The version stamped into the assembly file now at <paramref name="path"/>,
+    /// which after an update can differ from the copy a process loaded; null
+    /// when the file is missing or carries no release version.
+    /// </summary>
+    public static ReleaseVersion? FromFile(string path)
+    {
+        if (!File.Exists(path)) return null;
+        try
+        {
+            return TryParse(System.Diagnostics.FileVersionInfo.GetVersionInfo(path).ProductVersion, out var version) ? version : null;
+        }
+        catch (Exception ex) when (ex is IOException or UnauthorizedAccessException) { return null; }
+    }
+
     public int CompareTo(ReleaseVersion? other)
     {
         if (other is null) return 1;

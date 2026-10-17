@@ -15,6 +15,7 @@ public class ReleaseLayoutCompatibilityTests
     {
         Assert.Equal("ScanAlways.Protection.Service.exe", ReleaseLayout.HubExecutable);
         Assert.Equal("ScanAlways.Tray.exe", ReleaseLayout.TrayExecutable);
+        Assert.Equal("ScanAlways.Tray.dll", ReleaseLayout.TrayAssembly);
         Assert.Equal("Hub", ReleaseLayout.HubFolder);
         Assert.Equal("Tray", ReleaseLayout.TrayFolder);
     }
