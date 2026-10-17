@@ -16,18 +16,26 @@ public sealed class UpdateMonitor
     public const string ModuleId = "Updater";
     public const string UpdateAvailableCode = "UPDATE_AVAILABLE";
 
+    /// <summary>
+    /// First wait after a failed check. It doubles on each further failure up to
+    /// the normal interval, so a hub that starts before the network is up (at
+    /// boot, say) still checks within minutes instead of half a day later.
+    /// </summary>
+    public static readonly TimeSpan FirstRetryDelay = TimeSpan.FromMinutes(1);
+
     private readonly IReleaseSource _source;
     private readonly UpdaterOptions _options;
     private readonly ILogger<UpdateMonitor> _logger;
     private readonly IAlertPublisher? _alerts;
     private readonly IUpdateStatusPublisher? _status;
     private readonly Func<DateTimeOffset> _clock;
+    private readonly Func<TimeSpan, CancellationToken, Task> _delay;
     private ReleaseVersion? _announced;
     private bool _failing;
 
     public UpdateMonitor(IReleaseSource source, IOptions<UpdaterOptions> options, ILogger<UpdateMonitor> logger,
         ReleaseVersion current, IAlertPublisher? alerts = null, IUpdateStatusPublisher? status = null,
-        Func<DateTimeOffset>? clock = null)
+        Func<DateTimeOffset>? clock = null, Func<TimeSpan, CancellationToken, Task>? delay = null)
     {
         _source = source;
         _options = options.Value;
@@ -36,11 +44,15 @@ public sealed class UpdateMonitor
         _alerts = alerts;
         _status = status;
         _clock = clock ?? (() => DateTimeOffset.UtcNow);
+        _delay = delay ?? Task.Delay;
     }
 
     public ReleaseVersion Current { get; }
 
     public UpdateCandidate? Latest { get; private set; }
+
+    /// <summary>True when the most recent check could not reach the release source.</summary>
+    public bool LastCheckFailed => _failing;
 
     public async Task RunAsync(CancellationToken cancellationToken)
     {
@@ -55,11 +67,23 @@ public sealed class UpdateMonitor
 
             var interval = TimeSpan.FromHours(Math.Max(1, _options.CheckIntervalHours));
             _logger.LogInformation("Update checker starting: WatchLattice {Version}, checking every {Interval}.", Current, interval);
-            await Task.Delay(TimeSpan.FromSeconds(Math.Max(0, _options.InitialDelaySeconds)), cancellationToken);
+            await _delay(TimeSpan.FromSeconds(Math.Max(0, _options.InitialDelaySeconds)), cancellationToken);
+            var retry = FirstRetryDelay;
             while (!cancellationToken.IsCancellationRequested)
             {
                 await CheckOnceAsync(cancellationToken);
-                await Task.Delay(interval, cancellationToken);
+                TimeSpan wait;
+                if (_failing)
+                {
+                    wait = retry < interval ? retry : interval;
+                    retry = wait * 2;
+                }
+                else
+                {
+                    wait = interval;
+                    retry = FirstRetryDelay;
+                }
+                await _delay(wait, cancellationToken);
             }
         }
         catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested)

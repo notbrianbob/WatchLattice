@@ -77,8 +77,10 @@ development build, and `1` for anything else.
 One unauthenticated HTTPS request to `api.github.com` per check (about two a
 day), sent with a `WatchLattice-Updater/<version>` user agent. No identifier,
 telemetry, or machine information is sent. Failed checks, for example when
-offline, are logged once and retried at the next interval; they are not
-raised as protection alerts.
+offline or when the hub starts at boot before the network is up, are logged
+once and retried after 1 minute, then 2, 4, 8 and so on, up to the normal
+interval; once a check succeeds the normal interval applies again. They are
+not raised as protection alerts.
 
 ## Honest limits
 

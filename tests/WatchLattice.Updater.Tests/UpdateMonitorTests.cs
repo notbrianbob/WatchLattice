@@ -118,6 +118,55 @@ public class UpdateMonitorTests
     }
 
     [Fact]
+    public async Task Run_RetriesSoonAfterAFailedCheck_ThenReturnsToTheInterval()
+    {
+        // Offline for the first four checks (a hub that starts before the network), then online.
+        var calls = 0;
+        var source = new FakeReleaseSource
+        {
+            Next = () => ++calls <= 4 ? throw new HttpRequestException("offline") : Releases.Make("0.2.0"),
+        };
+        var recorder = new Recorder();
+        var waits = new List<TimeSpan>();
+        using var cancel = new CancellationTokenSource();
+        var monitor = new UpdateMonitor(source, Options.Create(new UpdaterOptions { InitialDelaySeconds = 30, CheckIntervalHours = 1 }),
+            NullLogger<UpdateMonitor>.Instance, ReleaseVersion.Parse("0.1.0"), recorder, recorder,
+            delay: (wait, _) =>
+            {
+                waits.Add(wait);
+                if (waits.Count == 8) cancel.Cancel();
+                return cancel.IsCancellationRequested ? Task.FromCanceled(cancel.Token) : Task.CompletedTask;
+            });
+
+        await monitor.RunAsync(cancel.Token);
+
+        Assert.Equal(new[] { 30.0, 60, 120, 240, 480, 3600, 3600, 3600 }, waits.Select(w => w.TotalSeconds));
+        Assert.Single(recorder.Alerts);
+        Assert.False(monitor.LastCheckFailed);
+    }
+
+    [Fact]
+    public async Task Run_CapsTheRetryDelayAtTheCheckInterval()
+    {
+        var source = new FakeReleaseSource { Next = () => throw new HttpRequestException("offline") };
+        var waits = new List<TimeSpan>();
+        using var cancel = new CancellationTokenSource();
+        var monitor = new UpdateMonitor(source, Options.Create(new UpdaterOptions { InitialDelaySeconds = 0, CheckIntervalHours = 1 }),
+            NullLogger<UpdateMonitor>.Instance, ReleaseVersion.Parse("0.1.0"),
+            delay: (wait, _) =>
+            {
+                waits.Add(wait);
+                if (waits.Count == 10) cancel.Cancel();
+                return cancel.IsCancellationRequested ? Task.FromCanceled(cancel.Token) : Task.CompletedTask;
+            });
+
+        await monitor.RunAsync(cancel.Token);
+
+        Assert.Equal(new[] { 0.0, 1, 2, 4, 8, 16, 32, 60, 60, 60 }, waits.Select(w => w.TotalMinutes));
+        Assert.True(monitor.LastCheckFailed);
+    }
+
+    [Fact]
     public void Module_IsDiscovered_AndBindsItsOptions()
     {
         var module = Assert.Single(ModuleCatalog.Discover(typeof(UpdaterModule).Assembly).Modules);
