@@ -44,7 +44,7 @@ public static class InstallIntegrityChecker
         var root = Path.GetDirectoryName(hubDirectory.TrimEnd(Path.DirectorySeparatorChar, Path.AltDirectorySeparatorChar))
             ?? hubDirectory;
         var none = Array.Empty<string>();
-        var manifestPath = Path.Combine(hubDirectory, ReleaseLayout.FileManifestName);
+        var manifestPath = Path.Join(hubDirectory, ReleaseLayout.FileManifestName);
         if (!File.Exists(manifestPath))
             return new(IntegrityState.ManifestMissing, root, null, none, none, none, none, 0,
                 $"{ReleaseLayout.FileManifestName} is missing from {hubDirectory}.");
@@ -65,7 +65,7 @@ public static class InstallIntegrityChecker
 
         var ignored = new HashSet<string>(options.IgnoredFiles.Where(f => !string.IsNullOrWhiteSpace(f))
             .Select(InstallManifest.Normalize), StringComparer.OrdinalIgnoreCase);
-        var trayInstalled = Directory.Exists(Path.Combine(root, ReleaseLayout.TrayFolder));
+        var trayInstalled = Directory.Exists(Path.Join(root, ReleaseLayout.TrayFolder));
         var changed = new List<string>();
         var missing = new List<string>();
         var unreadable = new List<string>();
@@ -77,7 +77,7 @@ public static class InstallIntegrityChecker
             // Hub-only layouts (a tray installed elsewhere, or none) only check the hub.
             if (!trayInstalled && relative.StartsWith(ReleaseLayout.TrayFolder + "/", StringComparison.OrdinalIgnoreCase)) continue;
 
-            var path = Path.Combine(root, relative.Replace('/', Path.DirectorySeparatorChar));
+            var path = Path.Join(root, relative.Replace('/', Path.DirectorySeparatorChar));
             if (!File.Exists(path))
             {
                 missing.Add(relative);
@@ -101,7 +101,7 @@ public static class InstallIntegrityChecker
         }
 
         var unexpected = options.ReportUnexpectedBinaries
-            ? FindUnexpectedBinaries(root, trayInstalled, manifest, ignored)
+            ? FindUnexpectedBinaries(root, trayInstalled, manifest, ignored, unreadable)
             : new List<string>();
         var state = changed.Count + missing.Count + unexpected.Count > 0 ? IntegrityState.Modified : IntegrityState.Verified;
         return new(state, root, manifest.Version, changed, missing, unexpected, unreadable, checkedCount);
@@ -111,31 +111,30 @@ public static class InstallIntegrityChecker
         BinaryExtensions.Contains(Path.GetExtension(path), StringComparer.OrdinalIgnoreCase);
 
     private static List<string> FindUnexpectedBinaries(string root, bool trayInstalled, InstallManifest manifest,
-        HashSet<string> ignored)
+        HashSet<string> ignored, List<string> unreadable)
     {
         var found = new List<string>();
         var folders = trayInstalled ? new[] { ReleaseLayout.HubFolder, ReleaseLayout.TrayFolder } : new[] { ReleaseLayout.HubFolder };
         foreach (var folder in folders)
         {
             var pending = new Stack<string>();
-            pending.Push(Path.Combine(root, folder));
+            pending.Push(Path.Join(root, folder));
             while (pending.Count > 0)
             {
                 var directory = pending.Pop();
                 try
                 {
-                    foreach (var file in Directory.EnumerateFiles(directory))
-                    {
-                        if (!IsBinary(file)) continue;
-                        var relative = InstallManifest.Normalize(Path.GetRelativePath(root, file));
-                        if (!manifest.Files.ContainsKey(relative) && !ignored.Contains(relative)) found.Add(relative);
-                    }
-                    foreach (var child in Directory.EnumerateDirectories(directory))
-                    {
-                        if (!IsWorkingFolder(Path.GetFileName(child))) pending.Push(child);
-                    }
+                    found.AddRange(Directory.EnumerateFiles(directory).Where(IsBinary)
+                        .Select(file => InstallManifest.Normalize(Path.GetRelativePath(root, file)))
+                        .Where(relative => !manifest.Files.ContainsKey(relative) && !ignored.Contains(relative)));
+                    foreach (var child in Directory.EnumerateDirectories(directory).Where(c => !IsWorkingFolder(Path.GetFileName(c))))
+                        pending.Push(child);
                 }
-                catch (Exception ex) when (ex is IOException or UnauthorizedAccessException) { }
+                catch (Exception ex) when (ex is IOException or UnauthorizedAccessException)
+                {
+                    // A folder that can't be listed can't be cleared either; report it with the unreadable files.
+                    unreadable.Add(InstallManifest.Normalize(Path.GetRelativePath(root, directory)) + "/");
+                }
             }
         }
         found.Sort(StringComparer.OrdinalIgnoreCase);

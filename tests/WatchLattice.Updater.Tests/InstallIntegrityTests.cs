@@ -59,11 +59,11 @@ public sealed class InstallManifestTests
     public void ReleaseWorkflow_WritesTheManifestTheHubReads()
     {
         var root = Installs.RepositoryRoot();
-        var script = File.ReadAllText(Path.Combine(root, ".github", "scripts", "Write-InstallManifest.ps1"));
+        var script = File.ReadAllText(Path.Join(root, ".github", "scripts", "Write-InstallManifest.ps1"));
         Assert.Contains($"Hub/{ReleaseLayout.FileManifestName}", script);
         Assert.Contains($"Hub/{ReleaseLayout.HubSettingsFile}", script);
         Assert.Contains(InstallManifest.HeaderPrefix.Trim(), script);
-        Assert.Contains("Write-InstallManifest.ps1", File.ReadAllText(Path.Combine(root, ".github", "workflows", "release.yml")));
+        Assert.Contains("Write-InstallManifest.ps1", File.ReadAllText(Path.Join(root, ".github", "workflows", "release.yml")));
     }
 }
 
@@ -418,7 +418,7 @@ internal static class Installs
     {
         for (var dir = new DirectoryInfo(AppContext.BaseDirectory); dir is not null; dir = dir.Parent)
         {
-            if (File.Exists(Path.Combine(dir.FullName, "WatchLattice.sln"))) return dir.FullName;
+            if (File.Exists(Path.Join(dir.FullName, "WatchLattice.sln"))) return dir.FullName;
         }
         throw new DirectoryNotFoundException("Could not find WatchLattice.sln above the test output folder.");
     }

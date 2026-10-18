@@ -46,14 +46,15 @@ public sealed record InstallManifest(ReleaseVersion Version, IReadOnlyDictionary
         var lines = new List<string> { HeaderPrefix + version };
         foreach (var folder in new[] { ReleaseLayout.HubFolder, ReleaseLayout.TrayFolder })
         {
-            var directory = Path.Combine(installRoot, folder);
+            var directory = Path.Join(installRoot, folder);
             if (!Directory.Exists(directory)) continue;
-            foreach (var file in Directory.EnumerateFiles(directory, "*", SearchOption.AllDirectories).Order(StringComparer.Ordinal))
+            var files = Directory.EnumerateFiles(directory, "*", SearchOption.AllDirectories).Order(StringComparer.Ordinal)
+                .Select(file => (Path: file, Relative: Normalize(Path.GetRelativePath(installRoot, file))))
+                .Where(file => !IsExcluded(file.Relative));
+            foreach (var file in files)
             {
-                var relative = Normalize(Path.GetRelativePath(installRoot, file));
-                if (IsExcluded(relative)) continue;
-                using var stream = File.OpenRead(file);
-                lines.Add($"{Sha256Sums.Compute(stream)}  {relative}");
+                using var stream = File.OpenRead(file.Path);
+                lines.Add($"{Sha256Sums.Compute(stream)}  {file.Relative}");
             }
         }
         return string.Join("\n", lines) + "\n";
