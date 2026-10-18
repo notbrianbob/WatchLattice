@@ -96,3 +96,21 @@ jobs:
       - name: Install, reinstall and uninstall
         shell: powershell
         run: tests/installer/Test-Installer.ps1 -Package (Join-Path $env:RUNNER_TEMP 'package')
+
+  changelog:
+    name: Changelog
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+
+      # The release workflow turns a tag's CHANGELOG.md section into its
+      # release notes; check every released version's section still reads.
+      - name: Every version has release notes
+        shell: pwsh
+        run: |
+          $versions = Select-String -LiteralPath CHANGELOG.md -Pattern '^## \[(\d+\.\d+\.\d+[^\]]*)\]' | ForEach-Object { $_.Matches[0].Groups[1].Value }
+          if (-not $versions) { throw 'CHANGELOG.md has no version sections.' }
+          foreach ($version in $versions) {
+            .github/scripts/Get-ReleaseNotes.ps1 -Version $version -OutFile (Join-Path $env:RUNNER_TEMP "notes-$version.md")
+            if ($LASTEXITCODE -ne 0) { throw "No release notes for $version." }
+          }

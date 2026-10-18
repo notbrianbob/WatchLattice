@@ -150,7 +150,8 @@ dotnet run -c Release --project src/WatchLattice.Hub -- --list-modules
 ### Install a release
 
 Download the latest [release](https://github.com/notbrianbob/WatchLattice/releases)
-zip, extract it, and double-click **Install.cmd**. It installs the hub as a
+zip, extract it, and double-click **Install.cmd**. What changed in each
+version is in [CHANGELOG.md](CHANGELOG.md). It installs the hub as a
 service, starts the tray at sign-in, asks which folders to protect, and adds
 an uninstaller under Settings > Apps. See [installing WatchLattice](docs/installing.md).
 
@@ -235,6 +236,7 @@ overridden with an environment variable or a command-line switch, for example
 
 ```
 WatchLattice.sln
+├── CHANGELOG.md                        # What changed in each release
 ├── src/
 │   ├── WatchLattice.Common/            # Shared library: module contract, hub supervisor, decoy engine, rolling log
 │   ├── WatchLattice.Hub/               # The hub executable (console app / Windows service)
@@ -252,7 +254,9 @@ WatchLattice.sln
 │   ├── WatchLattice.DefenderWatchdog.Tests/
 │   ├── WatchLattice.FirewallWatchdog.Tests/
 │   ├── WatchLattice.Persistence.Tests/
-│   └── WatchLattice.Updater.Tests/
+│   ├── WatchLattice.Updater.Tests/
+│   └── installer/                    # Install, reinstall and uninstall test run by CI
+├── installer/                        # Install.cmd, install.ps1, uninstall.ps1 (shipped in the release zip)
 ├── demos/
 │   ├── WatchLattice.Demos/           # Demo and measurement harness (not shipped)
 │   ├── scripts/                      # Windows script that observes the real hub process
@@ -260,9 +264,11 @@ WatchLattice.sln
 └── docs/
     ├── adding-a-tool.md              # How to write a new module
     ├── alerts-and-tray.md            # Shared alerts and tray deployment
+    ├── code-signing.md               # Signing releases through SignPath
     ├── dashboard.md                  # The dashboard and its settings editor
     ├── event-log.md                  # Alerts in the Windows Event Log, with event IDs
     ├── install-integrity.md          # The hub checking its own installed files
+    ├── installing.md                 # Installing a release with Install.cmd
     └── releasing.md                  # Cutting a release the updater can install
 ```
 
