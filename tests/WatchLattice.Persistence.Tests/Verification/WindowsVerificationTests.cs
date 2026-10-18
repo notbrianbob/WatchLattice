@@ -140,7 +140,10 @@ public sealed class WindowsVerificationTests
     public async Task ReferenceScenario_SvcRestartTask_PassesWithOnlyTheTriggerTimeChanged()
     {
         if (!OperatingSystem.IsWindows()) return;
-        var provider = new WindowsPersistenceProvider(Options.Create(new PersistenceOptions { WatchRegistry = false, WatchStartupFolders = false }));
+        var provider = new WindowsPersistenceProvider(Options.Create(new PersistenceOptions
+        {
+            WatchRegistry = false, WatchStartupFolders = false, WatchServices = false, WatchWmiSubscriptions = false,
+        }));
         var source = Assert.Single(await provider.ReadAsync(default));
         Assert.True(source.Error is null, source.Error);
         var entry = source.Entries.Single(e => string.Equals(e.Id, TaskScenarios.TaskPath, StringComparison.OrdinalIgnoreCase));
