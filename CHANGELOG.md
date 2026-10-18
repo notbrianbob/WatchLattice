@@ -42,6 +42,9 @@ notes, followed by GitHub's generated list of pull requests. See
   marked online until it went stale, because Hosting 10 may never run the
   delivery loop whose clean-up marked it offline. The feed is now marked
   offline when the service stops. (#36)
+- **State files**: writing the alert feed or another state file retries a
+  replace that Windows briefly refuses while a reader or a scan has the
+  file open, instead of skipping that write. (#36)
 
 ## [0.6.0] - 2026-10-18
 

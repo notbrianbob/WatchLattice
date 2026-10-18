@@ -39,11 +39,32 @@ public static class AtomicJsonFile
                 stream.Write(bytes);
                 stream.Flush(flushToDisk: true);
             }
-            File.Move(temporary, path, overwrite: true);
+            Replace(temporary, path);
         }
         finally
         {
             if (File.Exists(temporary)) File.Delete(temporary);
+        }
+    }
+
+    /// <summary>
+    /// Windows can refuse a replace for a moment while another process (a reader, or an
+    /// antivirus scan of the new file) has one of the two files open, so a few quick retries
+    /// keep a busy moment from counting as a failed write.
+    /// </summary>
+    private static void Replace(string temporary, string path)
+    {
+        for (var attempt = 1; ; attempt++)
+        {
+            try
+            {
+                File.Move(temporary, path, overwrite: true);
+                return;
+            }
+            catch (Exception ex) when (attempt < 5 && ex is UnauthorizedAccessException or IOException)
+            {
+                Thread.Sleep(10 * attempt);
+            }
         }
     }
 }
