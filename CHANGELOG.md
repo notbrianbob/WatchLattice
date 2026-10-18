@@ -14,7 +14,8 @@ notes, followed by GitHub's generated list of pull requests. See
 ### Changed
 
 - **Dependencies**: Microsoft.Extensions.* and System.Diagnostics.EventLog
-  10.0.13 (from 8.0.x), Microsoft.NET.Test.Sdk 18.11.0 and
+  10.0.13 (from 8.0.x), plus System.Threading.AccessControl 10.0.13, which
+  EventLog 10 needs on .NET 8 but does not pull in. Microsoft.NET.Test.Sdk 18.11.0 and
   xunit.runner.visualstudio 4.0.1. All of them ship .NET 8 builds, so
   WatchLattice still targets and runs on the .NET 8 runtime; the installer's
   requirement is unchanged. The alert feed now restores its history and
