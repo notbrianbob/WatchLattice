@@ -47,6 +47,10 @@ Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "WatchLattice.HostsProxyWatc
 EndProject
 Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "WatchLattice.HostsProxyWatchdog.Tests", "tests\WatchLattice.HostsProxyWatchdog.Tests\WatchLattice.HostsProxyWatchdog.Tests.csproj", "{68580AFD-E56D-4449-9635-0F1DFF6BBE9D}"
 EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "WatchLattice.BrowserExtensionWatchdog", "src\WatchLattice.BrowserExtensionWatchdog\WatchLattice.BrowserExtensionWatchdog.csproj", "{D872739C-B362-4047-AA54-3B98C881C49D}"
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "WatchLattice.BrowserExtensionWatchdog.Tests", "tests\WatchLattice.BrowserExtensionWatchdog.Tests\WatchLattice.BrowserExtensionWatchdog.Tests.csproj", "{257DD3E1-1D7C-4A9A-8A14-9B6FDD026957}"
+EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
 		Debug|Any CPU = Debug|Any CPU
@@ -132,6 +136,14 @@ Global
 		{68580AFD-E56D-4449-9635-0F1DFF6BBE9D}.Debug|Any CPU.Build.0 = Debug|Any CPU
 		{68580AFD-E56D-4449-9635-0F1DFF6BBE9D}.Release|Any CPU.ActiveCfg = Release|Any CPU
 		{68580AFD-E56D-4449-9635-0F1DFF6BBE9D}.Release|Any CPU.Build.0 = Release|Any CPU
+		{D872739C-B362-4047-AA54-3B98C881C49D}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{D872739C-B362-4047-AA54-3B98C881C49D}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{D872739C-B362-4047-AA54-3B98C881C49D}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{D872739C-B362-4047-AA54-3B98C881C49D}.Release|Any CPU.Build.0 = Release|Any CPU
+		{257DD3E1-1D7C-4A9A-8A14-9B6FDD026957}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{257DD3E1-1D7C-4A9A-8A14-9B6FDD026957}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{257DD3E1-1D7C-4A9A-8A14-9B6FDD026957}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{257DD3E1-1D7C-4A9A-8A14-9B6FDD026957}.Release|Any CPU.Build.0 = Release|Any CPU
 	EndGlobalSection
 	GlobalSection(NestedProjects) = preSolution
 		{35BE1A69-3A68-4758-B875-0DBEFA5ECF29} = {58108381-0033-46B2-9AC9-0D7DC1BF8836}
@@ -153,5 +165,7 @@ Global
 		{8C99880A-5F5D-4D6F-9E57-834F0B9DD1F4} = {C4252B1A-F5D1-410F-99F1-0296A07FDABC}
 		{FD3F326A-28CE-4A62-A02E-89FA74416F42} = {58108381-0033-46B2-9AC9-0D7DC1BF8836}
 		{68580AFD-E56D-4449-9635-0F1DFF6BBE9D} = {AFF5D81C-4459-4B9A-B35C-C87B27194823}
+		{D872739C-B362-4047-AA54-3B98C881C49D} = {58108381-0033-46B2-9AC9-0D7DC1BF8836}
+		{257DD3E1-1D7C-4A9A-8A14-9B6FDD026957} = {AFF5D81C-4459-4B9A-B35C-C87B27194823}
 	EndGlobalSection
 EndGlobal

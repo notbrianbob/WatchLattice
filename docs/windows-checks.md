@@ -3,7 +3,7 @@
 CI builds and tests everything on a Windows runner and installs a
 release-shaped package, but the dashboard windows, real Windows settings
 changes and a real update can only be checked on a Windows 11 PC. This is
-one list of those checks for the features added in 0.5.0, 0.6.0 and 0.7.0, in an
+one list of those checks for the features added in 0.5.0 to 0.8.0, in an
 order that works on one machine. Each step links to the detailed version.
 
 Use a PC you can undo changes on. Every step below changes something
@@ -21,6 +21,7 @@ update host.
 2. Do the [0.5.0 checks](#050), then update to 0.6.0 the same way and do the
    [0.6.0 checks](#060), then update to 0.7.0 the same way and do the
    [0.7.0 checks](#070). The 0.7.0 checks end by moving the PC to the MSI.
+   Then update to 0.8.0 and do the [0.8.0 checks](#080).
 
 ## 0.5.0
 
@@ -151,6 +152,32 @@ update host.
    release's MSI, checks its hash and installs it like step 4. Leave it
    installed, or uninstall from Settings > Apps. Do not submit anything to
    winget unless you have decided to publish.
+
+## 0.8.0
+
+1. **Browser extension watchdog** (#39). Within five minutes of the update
+   the first check records a baseline (event 10001) listing how many Edge,
+   Chrome and Firefox profiles and extensions it found, and raises nothing
+   else. Check the counts look right for each browser you use.
+2. Install any extension you trust from Edge Add-ons (or the Chrome Web
+   Store, or addons.mozilla.org). Within five minutes there is a **New
+   browser extension** warning (10002) with its name, ID and version, the
+   browser, profile and your account, *from the store*, and *Installed by
+   policy: no*. Remove the extension: the next check shows
+   `EXTENSION_REMOVED` as Info (10004).
+3. Add a force-install policy for an extension that doesn't exist, as in
+   [Run](../src/WatchLattice.BrowserExtensionWatchdog/README.md#run) in its
+   README. The next check raises `POLICY_EXTENSION_ADDED` (10006) for *this
+   computer (all users)*, and `edge://policy` lists the entry. Remove it
+   (and the key, if you created it): `POLICY_EXTENSION_REMOVED` is Info
+   (10008).
+4. Create a new Edge or Chrome profile. The next check shows
+   `PROFILE_ADDED` as Info (10010) with the extensions it came with, not one
+   warning each. Delete the profile: `PROFILE_REMOVED` (10011).
+5. In the dashboard's Settings tab, **Browser Extension Watchdog** lists its
+   settings with their defaults. Turning `WatchFirefox` off and back on
+   shows Firefox's profiles as new (Info) instead of reporting their
+   extensions as added.
 
 ## Already covered
 

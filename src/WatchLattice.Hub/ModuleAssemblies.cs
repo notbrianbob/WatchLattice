@@ -1,4 +1,5 @@
 using System.Reflection;
+using WatchLattice.BrowserExtensionWatchdog;
 using WatchLattice.Canary;
 using WatchLattice.Decoy;
 using WatchLattice.DefenderWatchdog;
@@ -22,6 +23,7 @@ internal static class ModuleAssemblies
         typeof(DefenderWatchdogModule).Assembly,
         typeof(FirewallWatchdogModule).Assembly,
         typeof(HostsProxyWatchdogModule).Assembly,
+        typeof(BrowserExtensionWatchdogModule).Assembly,
         typeof(PersistenceModule).Assembly,
         typeof(UpdaterModule).Assembly,
     };

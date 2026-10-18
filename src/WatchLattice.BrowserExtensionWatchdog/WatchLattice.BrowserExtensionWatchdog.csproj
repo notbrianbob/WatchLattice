@@ -1,0 +1,17 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup>
+    <TargetFramework>net8.0</TargetFramework>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <Nullable>enable</Nullable>
+    <LangVersion>latest</LangVersion>
+    <RootNamespace>WatchLattice.BrowserExtensionWatchdog</RootNamespace>
+    <AssemblyName>WatchLattice.BrowserExtensionWatchdog</AssemblyName>
+    <Description>Read-only browser extension watchdog (Edge, Chrome, Firefox) for the WatchLattice suite. Runs as a module inside the WatchLattice hub.</Description>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="..\WatchLattice.Common\WatchLattice.Common.csproj" />
+  </ItemGroup>
+
+</Project>
