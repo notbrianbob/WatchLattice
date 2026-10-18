@@ -11,6 +11,23 @@ notes, followed by GitHub's generated list of pull requests. See
 
 ## [Unreleased]
 
+### Added
+
+- **Browser extension watchdog** (`BrowserExtensionWatchdog` module, on by
+  default): every five minutes it inventories the extensions in every Edge,
+  Chrome and Firefox profile of every user on the PC (from each profile's
+  `Preferences`, `Secure Preferences` and `extensions.json`), and the
+  policies and registry entries that install extensions from outside the
+  browser (`ExtensionInstallForcelist`, `ExtensionSettings`, Firefox
+  `Extensions\Install`, and the `Software\...\Extensions` registrations
+  other programs write). The first check records a baseline; after that each
+  extension added is a warning naming its ID, name, version, browser, profile
+  and user, how it was installed (store, policy, another program, unpacked)
+  and whether by policy, and each policy added is a warning too. Removals,
+  new profiles and deleted profiles are Info. Read-only; it never disables or
+  removes an extension. New Event IDs 10001 to 10015. See its
+  [README](src/WatchLattice.BrowserExtensionWatchdog/README.md).
+
 ## [0.7.0] - 2026-10-18
 
 ### Added

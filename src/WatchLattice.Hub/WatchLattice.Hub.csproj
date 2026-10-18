@@ -21,6 +21,7 @@
 
   <ItemGroup>
     <ProjectReference Include="..\WatchLattice.Common\WatchLattice.Common.csproj" />
+    <ProjectReference Include="..\WatchLattice.BrowserExtensionWatchdog\WatchLattice.BrowserExtensionWatchdog.csproj" />
     <ProjectReference Include="..\WatchLattice.Canary\WatchLattice.Canary.csproj" />
     <ProjectReference Include="..\WatchLattice.Decoy\WatchLattice.Decoy.csproj" />
     <ProjectReference Include="..\WatchLattice.DefenderWatchdog\WatchLattice.DefenderWatchdog.csproj" />

@@ -233,6 +233,33 @@ event at ID + 500. See the
 | 8008 | `STATE_SAVE_FAILED` | Warning | The watchdog could not save its baseline. |
 | 8009 | `STATE_UNREADABLE` | Warning | The watchdog's saved baseline could not be read. |
 
+### Browser extension watchdog (10000)
+
+The 9000 block is not used by a module, because 9900–9902 are the
+unknown-module fallback IDs. Standing findings (10012, 10013, 10014) have a
+`_CLEARED` recovery event at ID + 500. Resource is
+`<browser>/<user>/<profile folder>/<extension ID>` for an extension and
+`<browser>/<scope>/<extension ID>` for a policy. See the
+[module README](../src/WatchLattice.BrowserExtensionWatchdog/README.md).
+
+| ID | Code | Level | Meaning |
+|---|---|---|---|
+| 10001 | `BASELINE_CREATED` | Information | First inventory of browser profiles, extensions and extension install policies recorded. |
+| 10002 | `EXTENSION_ADDED` | Warning or Information | An extension appeared in an Edge, Chrome or Firefox profile. The message has its name, ID, version, browser, profile, user, how it was installed and whether by policy. Information only for an extension the browser installs by default. |
+| 10003 | `EXTENSIONS_ADDED` | Warning or Information | More than `MaxIndividualAlerts` extensions appeared in one check, summarized. |
+| 10004 | `EXTENSION_REMOVED` | Information | An extension was removed from a profile. |
+| 10005 | `EXTENSIONS_REMOVED` | Information | Several extensions removed in one check, summarized. |
+| 10006 | `POLICY_EXTENSION_ADDED` | Warning | A force-install or install policy (`ExtensionInstallForcelist`, `ExtensionSettings`, Firefox `Extensions\Install`) or an external install registration (`Software\Google\Chrome\Extensions` and the like) was added for the machine or a user. |
+| 10007 | `POLICY_EXTENSIONS_ADDED` | Warning | Several policy entries added in one check, summarized. |
+| 10008 | `POLICY_EXTENSION_REMOVED` | Information | A policy entry or registration was removed. |
+| 10009 | `POLICY_EXTENSIONS_REMOVED` | Information | Several policy entries removed in one check, summarized. |
+| 10010 | `PROFILE_ADDED` | Information | A browser profile seen for the first time (a new profile, user or browser), with the extensions it already has. |
+| 10011 | `PROFILE_REMOVED` | Information | A browser profile was deleted, with the extensions it had. |
+| 10012 | `PROFILE_UNREADABLE` | Warning | A browser profile, or a browser's list of profiles, could not be read. Its last inventory is kept. |
+| 10013 | `POLICY_UNAVAILABLE` | Warning | Extension policies could not be read. |
+| 10014 | `STATE_SAVE_FAILED` | Warning | The watchdog could not save its inventory. |
+| 10015 | `STATE_UNREADABLE` | Warning | The watchdog's saved inventory could not be read. |
+
 ## Relationship to the hub's own log messages
 
 Separately from these alerts, .NET's service host writes the hub's own

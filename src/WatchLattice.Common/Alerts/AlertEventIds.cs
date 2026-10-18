@@ -32,6 +32,8 @@ public static class AlertEventIds
         ["Updater"] = 6000,
         ["InstallIntegrity"] = 7000,
         ["HostsProxyWatchdog"] = 8000,
+        // 9000 is left alone: 9900-9902 are the unknown-module fallback IDs.
+        ["BrowserExtensionWatchdog"] = 10000,
     };
 
     // The supervisor raises these under each module's own ID.
@@ -124,6 +126,22 @@ public static class AlertEventIds
         [("HostsProxyWatchdog", "BASELINE_CREATED")] = 8007,
         [("HostsProxyWatchdog", "STATE_SAVE_FAILED")] = 8008,
         [("HostsProxyWatchdog", "STATE_UNREADABLE")] = 8009,
+
+        [("BrowserExtensionWatchdog", "BASELINE_CREATED")] = 10001,
+        [("BrowserExtensionWatchdog", "EXTENSION_ADDED")] = 10002,
+        [("BrowserExtensionWatchdog", "EXTENSIONS_ADDED")] = 10003,
+        [("BrowserExtensionWatchdog", "EXTENSION_REMOVED")] = 10004,
+        [("BrowserExtensionWatchdog", "EXTENSIONS_REMOVED")] = 10005,
+        [("BrowserExtensionWatchdog", "POLICY_EXTENSION_ADDED")] = 10006,
+        [("BrowserExtensionWatchdog", "POLICY_EXTENSIONS_ADDED")] = 10007,
+        [("BrowserExtensionWatchdog", "POLICY_EXTENSION_REMOVED")] = 10008,
+        [("BrowserExtensionWatchdog", "POLICY_EXTENSIONS_REMOVED")] = 10009,
+        [("BrowserExtensionWatchdog", "PROFILE_ADDED")] = 10010,
+        [("BrowserExtensionWatchdog", "PROFILE_REMOVED")] = 10011,
+        [("BrowserExtensionWatchdog", "PROFILE_UNREADABLE")] = 10012,
+        [("BrowserExtensionWatchdog", "POLICY_UNAVAILABLE")] = 10013,
+        [("BrowserExtensionWatchdog", "STATE_SAVE_FAILED")] = 10014,
+        [("BrowserExtensionWatchdog", "STATE_UNREADABLE")] = 10015,
     };
 
     // Codes that carry a variable part after a fixed prefix, e.g. BROAD_EXCLUSION:Path:C:\.

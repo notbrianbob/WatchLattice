@@ -64,6 +64,7 @@ detection and removal, and WatchLattice adds friction and tripwires around it.
 | **Defender Health Watchdog** ([`src/WatchLattice.DefenderWatchdog`](src/WatchLattice.DefenderWatchdog/)) | Available | Checks every few minutes that Defender's real-time protection, tamper protection and signatures are actually on and current, and alerts when something turns them off. Also reports new Defender exclusions, weakened attack surface reduction rules, and cloud-delivered protection turned off or down. Read-only. See its [README](src/WatchLattice.DefenderWatchdog/README.md). |
 | **Firewall Health Watchdog** ([`src/WatchLattice.FirewallWatchdog`](src/WatchLattice.FirewallWatchdog/)) | Available | Reports disabled Windows Firewall profiles, profiles that allow unsolicited inbound traffic by default, and every change to a profile's default inbound action. Optionally (off by default) reports newly introduced inbound allow rules. A separate layer from the Defender watchdog. Read-only. See its [README](src/WatchLattice.FirewallWatchdog/README.md). |
 | **Hosts File & Proxy Watchdog** ([`src/WatchLattice.HostsProxyWatchdog`](src/WatchLattice.HostsProxyWatchdog/)) | Available | Records a baseline of the hosts file and the proxy settings Windows and most apps use (WinINET per user and per machine, WinHTTP, and `HTTP_PROXY`-style variables), then reports every change with before and after. Hosts entries that block or redirect Windows Update, Defender or WatchLattice's update hosts are critical. Read-only. See its [README](src/WatchLattice.HostsProxyWatchdog/README.md). |
+| **Browser Extension Watchdog** ([`src/WatchLattice.BrowserExtensionWatchdog`](src/WatchLattice.BrowserExtensionWatchdog/)) | Available | Records which extensions are installed in every Edge, Chrome and Firefox profile on the PC, and the policies and registry entries that install extensions from outside the browser, then reports each extension or policy added or removed with its ID, name, browser, profile and how it was installed (store, policy, another program, unpacked). Read-only. See its [README](src/WatchLattice.BrowserExtensionWatchdog/README.md). |
 | **Persistence & Autostart Auditor** ([`src/WatchLattice.Persistence`](src/WatchLattice.Persistence/)) | Available | Records a baseline of Run/RunOnce keys, Startup files, visible scheduled tasks, auto-start services and permanent WMI event subscriptions, then reports additions, changes, removals, and gaps in coverage. Changed scheduled tasks and services are verified automatically (current definition, COM registration or service DLL, target file location, signature and hash, trusted baseline). Read-only. See its [README](src/WatchLattice.Persistence/README.md). |
 
 The **Windows tray companion** opens the **dashboard**: hub and module status,
@@ -102,6 +103,7 @@ ScanAlways.Protection.Service.exe  (the hub: one process, console or Windows ser
     ├── DefenderWatchdog  ── Modules:DefenderWatchdog:Enabled
     ├── FirewallWatchdog  ── Modules:FirewallWatchdog:Enabled
     ├── HostsProxyWatchdog ── Modules:HostsProxyWatchdog:Enabled
+    ├── BrowserExtensionWatchdog ── Modules:BrowserExtensionWatchdog:Enabled
     ├── Persistence       ── Modules:Persistence:Enabled
     ├── InstallIntegrity  ── Modules:InstallIntegrity:Enabled (checks its own files)
     └── Updater           ── Modules:Updater:Enabled (checks only)
@@ -210,6 +212,7 @@ overridden with an environment variable or a command-line switch, for example
     "DefenderWatchdog": { "Enabled": true },
     "FirewallWatchdog": { "Enabled": true },
     "HostsProxyWatchdog": { "Enabled": true },
+    "BrowserExtensionWatchdog": { "Enabled": true },
     "Persistence":      { "Enabled": true },
     "Updater":          { "Enabled": true },
     "InstallIntegrity": { "Enabled": true }
@@ -220,6 +223,7 @@ overridden with an environment variable or a command-line switch, for example
   "DefenderWatchdog": { },
   "FirewallWatchdog": { },
   "HostsProxyWatchdog": { },
+  "BrowserExtensionWatchdog": { },
   "Persistence": { },
   "Updater": { },
   "InstallIntegrity": { },
@@ -231,7 +235,7 @@ overridden with an environment variable or a command-line switch, for example
 ## Honest limits
 
 - WatchLattice **does not detect or remove malware**. The canary watcher and
-  the Defender, firewall, and hosts and proxy watchdogs raise alarms; they do not stop anything. If something is
+  the Defender, firewall, hosts and proxy, and browser extension watchdogs raise alarms; they do not stop anything. If something is
   already running on your machine, use Defender or another real scanner.
 - Deception only works on malware that checks for the signals we emulate. Many
   threats do not check, and those will not be slowed down.
@@ -253,6 +257,7 @@ WatchLattice.sln
 │   ├── WatchLattice.DefenderWatchdog/  # Module: Defender health watchdog
 │   ├── WatchLattice.FirewallWatchdog/  # Module: Windows Firewall health watchdog
 │   ├── WatchLattice.HostsProxyWatchdog/ # Module: hosts file and proxy settings watchdog
+│   ├── WatchLattice.BrowserExtensionWatchdog/ # Module: browser extension watchdog
 │   ├── WatchLattice.Persistence/       # Module: persistence and autostart auditor
 │   ├── WatchLattice.Updater/           # Modules + installer: update checks, verified installs, install integrity
 │   └── WatchLattice.Tray/              # Windows tray companion and dashboard
@@ -263,6 +268,7 @@ WatchLattice.sln
 │   ├── WatchLattice.DefenderWatchdog.Tests/
 │   ├── WatchLattice.FirewallWatchdog.Tests/
 │   ├── WatchLattice.HostsProxyWatchdog.Tests/
+│   ├── WatchLattice.BrowserExtensionWatchdog.Tests/
 │   ├── WatchLattice.Persistence.Tests/
 │   ├── WatchLattice.Updater.Tests/
 │   └── installer/                    # Install, upgrade and uninstall tests (zip and MSI) run by CI
@@ -323,6 +329,7 @@ their canaries and baselines. See
 - [x] Auto-start services and WMI event subscriptions in the persistence auditor
 - [x] Alert export (CSV and JSON) and a daily alert summary
 - [x] MSI installer for double-click and unattended installs
+- [x] Browser extension watchdog (Edge, Chrome, Firefox)
 - [ ] winget package (each release carries validated manifests; [submitting them](docs/releasing.md#publishing-to-winget) is a manual step)
 - [ ] Code-signed releases (the release workflow and updater are ready; signing starts once the SignPath setup in [docs/code-signing.md](docs/code-signing.md) is done)
 - [x] Reproducible demos and measured overhead
