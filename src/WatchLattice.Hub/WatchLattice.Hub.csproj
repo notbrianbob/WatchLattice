@@ -25,6 +25,7 @@
     <ProjectReference Include="..\WatchLattice.Decoy\WatchLattice.Decoy.csproj" />
     <ProjectReference Include="..\WatchLattice.DefenderWatchdog\WatchLattice.DefenderWatchdog.csproj" />
     <ProjectReference Include="..\WatchLattice.FirewallWatchdog\WatchLattice.FirewallWatchdog.csproj" />
+    <ProjectReference Include="..\WatchLattice.HostsProxyWatchdog\WatchLattice.HostsProxyWatchdog.csproj" />
     <ProjectReference Include="..\WatchLattice.Persistence\WatchLattice.Persistence.csproj" />
     <ProjectReference Include="..\WatchLattice.Updater\WatchLattice.Updater.csproj" />
   </ItemGroup>

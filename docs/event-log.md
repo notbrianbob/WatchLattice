@@ -214,6 +214,24 @@ Both findings have a `_CLEARED` recovery event at ID + 500. See
 | 7001 | `INSTALL_MODIFIED` | Error or Warning | WatchLattice's installed files differ from the release: a file changed or is missing, or an unexpected program file is present (Error when an `.exe` or `.dll` changed or appeared). |
 | 7002 | `MANIFEST_UNAVAILABLE` | Warning | The release's file list next to the hub is missing or unreadable, so the install cannot be checked. |
 
+### Hosts file and proxy watchdog (8000)
+
+Standing findings (8001, 8002, 8003, 8005, 8008) have a `_CLEARED` recovery
+event at ID + 500. See the
+[module README](../src/WatchLattice.HostsProxyWatchdog/README.md).
+
+| ID | Code | Level | Meaning |
+|---|---|---|---|
+| 8001 | `HOSTS_UNAVAILABLE` | Warning | The hosts file could not be read (or is over `MaxHostsFileBytes`). |
+| 8002 | `PROTECTED_HOST_OVERRIDDEN` | Error | The hosts file blocks or redirects a Windows Update, Defender, SmartScreen or WatchLattice update host. The message lists them. |
+| 8003 | `HOSTS_PATH_MOVED` | Warning | Windows reads its hosts file from a non-default folder (Tcpip `DataBasePath`). Resource is the folder. |
+| 8004 | `HOSTS_CHANGED` | Error, Warning or Information | Hosts entries were added, changed or removed, with before and after. Error when a protected host is involved, Warning for other additions and changes, Information for removals only. |
+| 8005 | `PROXY_UNAVAILABLE` | Warning | Proxy settings could not be read. |
+| 8006 | `PROXY_CHANGED` | Warning or Information | Proxy settings changed for one user, the machine, or WinHTTP, with before and after. Warning when a proxy, auto-config script or proxy policy was turned on or pointed somewhere new; Information when settings were only cleared, or only bypass lists or auto-detection changed. Resource is the scope (`User:<SID>`, `Machine` or `WinHTTP`). |
+| 8007 | `BASELINE_CREATED` | Information | First hosts file and proxy baseline recorded. |
+| 8008 | `STATE_SAVE_FAILED` | Warning | The watchdog could not save its baseline. |
+| 8009 | `STATE_UNREADABLE` | Warning | The watchdog's saved baseline could not be read. |
+
 ## Relationship to the hub's own log messages
 
 Separately from these alerts, .NET's service host writes the hub's own

@@ -63,6 +63,7 @@ detection and removal, and WatchLattice adds friction and tripwires around it.
 | **Canary File Watcher** ([`src/WatchLattice.Canary`](src/WatchLattice.Canary/)) | Available | Plants decoy files in Desktop, Documents and Pictures and alerts the moment anything modifies, renames, or deletes one: an early ransomware tripwire. See its [README](src/WatchLattice.Canary/README.md). |
 | **Defender Health Watchdog** ([`src/WatchLattice.DefenderWatchdog`](src/WatchLattice.DefenderWatchdog/)) | Available | Checks every few minutes that Defender's real-time protection, tamper protection and signatures are actually on and current, and alerts when something turns them off. Also reports new Defender exclusions, weakened attack surface reduction rules, and cloud-delivered protection turned off or down. Read-only. See its [README](src/WatchLattice.DefenderWatchdog/README.md). |
 | **Firewall Health Watchdog** ([`src/WatchLattice.FirewallWatchdog`](src/WatchLattice.FirewallWatchdog/)) | Available | Reports disabled Windows Firewall profiles, profiles that allow unsolicited inbound traffic by default, and every change to a profile's default inbound action. Optionally (off by default) reports newly introduced inbound allow rules. A separate layer from the Defender watchdog. Read-only. See its [README](src/WatchLattice.FirewallWatchdog/README.md). |
+| **Hosts File & Proxy Watchdog** ([`src/WatchLattice.HostsProxyWatchdog`](src/WatchLattice.HostsProxyWatchdog/)) | Available | Records a baseline of the hosts file and the proxy settings Windows and most apps use (WinINET per user and per machine, WinHTTP, and `HTTP_PROXY`-style variables), then reports every change with before and after. Hosts entries that block or redirect Windows Update, Defender or WatchLattice's update hosts are critical. Read-only. See its [README](src/WatchLattice.HostsProxyWatchdog/README.md). |
 | **Persistence & Autostart Auditor** ([`src/WatchLattice.Persistence`](src/WatchLattice.Persistence/)) | Available | Records a baseline of Run/RunOnce keys, Startup files, and visible scheduled tasks, then reports additions, changes, removals, and gaps in coverage. Changed scheduled tasks are verified automatically (current definition, COM registration, target file signature and hash, trusted baseline). Read-only. See its [README](src/WatchLattice.Persistence/README.md). |
 
 The **Windows tray companion** opens the **dashboard**: hub and module status,
@@ -99,6 +100,7 @@ ScanAlways.Protection.Service.exe  (the hub: one process, console or Windows ser
     ├── Canary            ── Modules:Canary:Enabled
     ├── DefenderWatchdog  ── Modules:DefenderWatchdog:Enabled
     ├── FirewallWatchdog  ── Modules:FirewallWatchdog:Enabled
+    ├── HostsProxyWatchdog ── Modules:HostsProxyWatchdog:Enabled
     ├── Persistence       ── Modules:Persistence:Enabled
     ├── InstallIntegrity  ── Modules:InstallIntegrity:Enabled (checks its own files)
     └── Updater           ── Modules:Updater:Enabled (checks only)
@@ -204,6 +206,7 @@ overridden with an environment variable or a command-line switch, for example
     "Canary":           { "Enabled": true },
     "DefenderWatchdog": { "Enabled": true },
     "FirewallWatchdog": { "Enabled": true },
+    "HostsProxyWatchdog": { "Enabled": true },
     "Persistence":      { "Enabled": true },
     "Updater":          { "Enabled": true },
     "InstallIntegrity": { "Enabled": true }
@@ -213,6 +216,7 @@ overridden with an environment variable or a command-line switch, for example
   "Canary": { },
   "DefenderWatchdog": { },
   "FirewallWatchdog": { },
+  "HostsProxyWatchdog": { },
   "Persistence": { },
   "Updater": { },
   "InstallIntegrity": { },
@@ -223,7 +227,7 @@ overridden with an environment variable or a command-line switch, for example
 ## Honest limits
 
 - WatchLattice **does not detect or remove malware**. The canary watcher and
-  the Defender and firewall watchdogs raise alarms; they do not stop anything. If something is
+  the Defender, firewall, and hosts and proxy watchdogs raise alarms; they do not stop anything. If something is
   already running on your machine, use Defender or another real scanner.
 - Deception only works on malware that checks for the signals we emulate. Many
   threats do not check, and those will not be slowed down.
@@ -244,6 +248,7 @@ WatchLattice.sln
 │   ├── WatchLattice.Canary/            # Module: canary file watcher (ransomware tripwire)
 │   ├── WatchLattice.DefenderWatchdog/  # Module: Defender health watchdog
 │   ├── WatchLattice.FirewallWatchdog/  # Module: Windows Firewall health watchdog
+│   ├── WatchLattice.HostsProxyWatchdog/ # Module: hosts file and proxy settings watchdog
 │   ├── WatchLattice.Persistence/       # Module: persistence and autostart auditor
 │   ├── WatchLattice.Updater/           # Modules + installer: update checks, verified installs, install integrity
 │   └── WatchLattice.Tray/              # Windows tray companion and dashboard
@@ -253,6 +258,7 @@ WatchLattice.sln
 │   ├── WatchLattice.Canary.Tests/
 │   ├── WatchLattice.DefenderWatchdog.Tests/
 │   ├── WatchLattice.FirewallWatchdog.Tests/
+│   ├── WatchLattice.HostsProxyWatchdog.Tests/
 │   ├── WatchLattice.Persistence.Tests/
 │   ├── WatchLattice.Updater.Tests/
 │   └── installer/                    # Install, reinstall and uninstall test run by CI
@@ -307,6 +313,7 @@ their canaries and baselines. See
 - [x] Dashboard with activity, module switches and an administrator-only settings editor
 - [x] Grouped repeat alerts with per-user acknowledge and dismiss
 - [x] Install integrity self-check against per-file release hashes
+- [x] Hosts file and proxy settings watchdog
 - [ ] Code-signed releases (the release workflow and updater are ready; signing starts once the SignPath setup in [docs/code-signing.md](docs/code-signing.md) is done)
 - [x] Reproducible demos and measured overhead
 
