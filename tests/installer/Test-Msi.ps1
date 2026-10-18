@@ -128,7 +128,7 @@ Check 'event source has a message file that exists' ($messageFile -and (Test-Pat
 Check 'canaries are planted' (Wait-Until { (Get-Canaries $canaryFolder).Count -ge 3 })
 Check 'tray starts at sign-in' ("$((Get-ItemProperty -LiteralPath $RunKey -Name 'WatchLattice Tray' -ErrorAction SilentlyContinue).'WatchLattice Tray')" -like '*ScanAlways.Tray.exe*--feed*')
 Check 'Start menu shortcut exists' (Test-Path -LiteralPath $Shortcut)
-$entries = Get-MsiEntries
+$entries = @(Get-MsiEntries)
 Check 'listed once in Settings > Apps' ($entries.Count -eq 1)
 Check 'no Install.cmd entry next to it' (-not (Test-Path -LiteralPath $ScriptUninstallKey))
 $state = Get-State
@@ -147,7 +147,7 @@ $code = Invoke-Msiexec 'upgrade' @('/i', "`"$UpgradeMsi`"")
 Check 'msiexec upgrade exits 0' ($code -eq 0)
 Check 'upgrade keeps the user''s settings' ((Get-Content -Raw -LiteralPath $Settings | ConvertFrom-Json).Alerts.HistoryLimit -eq 123)
 Check 'upgrade keeps the first-run choices' ((@((Get-Content -Raw -LiteralPath $Settings | ConvertFrom-Json).Canary.Folders) -join '|') -eq $canaryFolder)
-$entries = Get-MsiEntries
+$entries = @(Get-MsiEntries)
 Check 'still listed once, as the new version' ($entries.Count -eq 1 -and $entries[0].DisplayVersion -eq '0.0.2')
 Check 'install-state.json has the new product code' ($entries.Count -eq 1 -and (Get-State).ProductCode -eq $entries[0].PSChildName)
 Check 'service is running again' (Wait-Until { (Get-Service -Name $ServiceName).Status -eq 'Running' })
@@ -157,7 +157,7 @@ Check 'feed folder is kept' (Test-Path -LiteralPath "$FeedDir\alerts.json.heartb
 Write-Host '== Install a rebuild of the same version over it'
 $code = Invoke-Msiexec 'reinstall' @('/i', "`"$RebuiltMsi`"")
 Check 'msiexec reinstall exits 0' ($code -eq 0)
-$entries = Get-MsiEntries
+$entries = @(Get-MsiEntries)
 Check 'still listed once' ($entries.Count -eq 1)
 Check 'reinstall keeps the user''s settings' ((Get-Content -Raw -LiteralPath $Settings | ConvertFrom-Json).Alerts.HistoryLimit -eq 123)
 Check 'service is running after the reinstall' (Wait-Until { (Get-Service -Name $ServiceName).Status -eq 'Running' })
@@ -182,7 +182,7 @@ Check 'hub data is gone' (-not (Test-Path -LiteralPath $SystemData))
 Check 'sign-in entry is gone' ($null -eq (Get-ItemProperty -LiteralPath $RunKey -Name 'WatchLattice Tray' -ErrorAction SilentlyContinue))
 Check 'Start menu shortcut is gone' (-not (Test-Path -LiteralPath $Shortcut))
 Check 'event log source is gone' (-not [Diagnostics.EventLog]::SourceExists('WatchLattice'))
-Check 'Settings > Apps entry is gone' ((Get-MsiEntries).Count -eq 0)
+Check 'Settings > Apps entry is gone' (@(Get-MsiEntries).Count -eq 0)
 
 Remove-Item -LiteralPath $Scratch -Recurse -Force -ErrorAction SilentlyContinue
 if ($failures) { throw "$failures MSI check(s) failed." }
