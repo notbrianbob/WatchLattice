@@ -7,6 +7,8 @@ using System.Text;
 using System.Text.Json;
 using Microsoft.Extensions.Options;
 using Microsoft.Win32;
+using WatchLattice.Persistence.Verification;
+using WatchLattice.Persistence.Verification.Windows;
 
 namespace WatchLattice.Persistence;
 
@@ -34,6 +36,8 @@ public sealed class WindowsPersistenceProvider : IPersistenceProvider
             }
         }
         if (_options.WatchScheduledTasks) sources.Add(await ReadScheduledTasksAsync(cancellationToken));
+        if (_options.WatchServices) sources.Add(ReadServices(cancellationToken));
+        if (_options.WatchWmiSubscriptions) sources.Add(await ReadWmiSubscriptionsAsync(cancellationToken));
         return sources;
     }
 
@@ -150,18 +154,79 @@ public sealed class WindowsPersistenceProvider : IPersistenceProvider
         ConvertTo-Json -InputObject $entries -Depth 4 -Compress
         """;
 
+    /// <summary>
+    /// Projects every permanent WMI event subscription in root\subscription:
+    /// filters, consumers (every consumer class, with all its own properties)
+    /// and the bindings that connect them. CreatorSID is shown as a SID.
+    /// Queries only; nothing is registered, removed or triggered.
+    /// </summary>
+    public const string WmiSubscriptionScript = """
+        $ErrorActionPreference = 'Stop'
+        [Console]::OutputEncoding = New-Object System.Text.UTF8Encoding($false)
+        $ns = 'root\subscription'
+        function Ref($instance) { [string]$instance.CimSystemProperties.ClassName + '/' + [string]$instance.Name }
+        function Props($instance) {
+            $values = [ordered]@{}
+            foreach ($p in @($instance.CimInstanceProperties | Sort-Object Name)) {
+                if ($p.Name -like '__*' -or $p.Name -eq 'Name') { continue }
+                $v = $p.Value
+                if ($p.Name -eq 'CreatorSID' -and $v -is [byte[]]) {
+                    try { $v = ([System.Security.Principal.SecurityIdentifier]::new([byte[]]$v, 0)).Value } catch { $v = [Convert]::ToBase64String([byte[]]$v) }
+                } elseif ($v -is [Microsoft.Management.Infrastructure.CimInstance]) { $v = Ref $v }
+                $values[$p.Name] = $v
+            }
+            $values
+        }
+        $entries = @()
+        $entries += @(Get-CimInstance -Namespace $ns -ClassName __EventFilter -ErrorAction Stop | ForEach-Object {
+            [pscustomobject]@{ Id = 'Filter/' + $_.Name; Command = (ConvertTo-Json -InputObject (Props $_) -Depth 6 -Compress) }
+        })
+        $entries += @(Get-CimInstance -Namespace $ns -ClassName __EventConsumer -ErrorAction Stop | ForEach-Object {
+            [pscustomobject]@{ Id = 'Consumer/' + (Ref $_); Command = (ConvertTo-Json -InputObject (Props $_) -Depth 6 -Compress) }
+        })
+        $entries += @(Get-CimInstance -Namespace $ns -ClassName __FilterToConsumerBinding -ErrorAction Stop | ForEach-Object {
+            [pscustomobject]@{ Id = 'Binding/' + (Ref $_.Filter) + ' -> ' + (Ref $_.Consumer); Command = (ConvertTo-Json -InputObject (Props $_) -Depth 6 -Compress) }
+        })
+        ConvertTo-Json -InputObject @($entries) -Depth 4 -Compress
+        """;
+
+    /// <summary>Source ID prefix for WMI subscriptions; the namespace follows it.</summary>
+    public const string WmiSourcePrefix = "WmiSubscriptions/";
+
     [SupportedOSPlatform("windows")]
     private static async Task<PersistenceSource> ReadScheduledTasksAsync(CancellationToken cancellationToken)
     {
         using var identity = WindowsIdentity.GetCurrent();
         var id = "ScheduledTasks/" + (identity.User?.Value ?? Environment.UserName);
+        return await RunInventoryScriptAsync(id, "Scheduled task", ScheduledTaskScript, ParseScheduledTasks, cancellationToken);
+    }
+
+    [SupportedOSPlatform("windows")]
+    private static Task<PersistenceSource> ReadWmiSubscriptionsAsync(CancellationToken cancellationToken) =>
+        RunInventoryScriptAsync(WmiSourcePrefix + "root/subscription", "WMI subscription", WmiSubscriptionScript, ParseWmiSubscriptions, cancellationToken);
+
+    [SupportedOSPlatform("windows")]
+    private static PersistenceSource ReadServices(CancellationToken cancellationToken)
+    {
+        try { return new(ServiceVerifier.SourceId, WindowsServiceRegistry.ReadAutoStartServices(cancellationToken)); }
+        catch (Exception ex) when (ex is IOException or UnauthorizedAccessException or SecurityException)
+        {
+            return new(ServiceVerifier.SourceId, Array.Empty<PersistenceEntry>(), ex.Message);
+        }
+    }
+
+    /// <summary>Runs a read-only inventory script in the in-box Windows PowerShell with a time limit and bounded output.</summary>
+    [SupportedOSPlatform("windows")]
+    private static async Task<PersistenceSource> RunInventoryScriptAsync(string id, string what, string script,
+        Func<string, IReadOnlyList<PersistenceEntry>> parse, CancellationToken cancellationToken)
+    {
         var start = new ProcessStartInfo(Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.System),
             "WindowsPowerShell", "v1.0", "powershell.exe"))
         {
             RedirectStandardOutput = true, RedirectStandardError = true, UseShellExecute = false, CreateNoWindow = true,
             StandardOutputEncoding = Encoding.UTF8, StandardErrorEncoding = Encoding.UTF8,
         };
-        foreach (var argument in new[] { "-NoProfile", "-NonInteractive", "-EncodedCommand", Convert.ToBase64String(Encoding.Unicode.GetBytes(ScheduledTaskScript)) })
+        foreach (var argument in new[] { "-NoProfile", "-NonInteractive", "-EncodedCommand", Convert.ToBase64String(Encoding.Unicode.GetBytes(script)) })
             start.ArgumentList.Add(argument);
 
         using var timeout = CancellationTokenSource.CreateLinkedTokenSource(cancellationToken);
@@ -183,8 +248,8 @@ public sealed class WindowsPersistenceProvider : IPersistenceProvider
                 var text = await output;
                 var errorText = await error;
                 if (process.ExitCode != 0) return new(id, Array.Empty<PersistenceEntry>(),
-                    $"Scheduled task inventory failed ({process.ExitCode}): {errorText.Trim()}");
-                return new(id, ParseScheduledTasks(text));
+                    $"{what} inventory failed ({process.ExitCode}): {errorText.Trim()}");
+                return new(id, parse(text));
             }
             finally
             {
@@ -196,7 +261,7 @@ public sealed class WindowsPersistenceProvider : IPersistenceProvider
         }
         catch (OperationCanceledException) when (!cancellationToken.IsCancellationRequested)
         {
-            return new(id, Array.Empty<PersistenceEntry>(), "Scheduled task inventory timed out.");
+            return new(id, Array.Empty<PersistenceEntry>(), $"{what} inventory timed out.");
         }
         catch (Exception ex) when (ex is IOException or InvalidDataException or UnauthorizedAccessException or System.ComponentModel.Win32Exception or JsonException)
         {
@@ -204,12 +269,16 @@ public sealed class WindowsPersistenceProvider : IPersistenceProvider
         }
     }
 
-    public static IReadOnlyList<PersistenceEntry> ParseScheduledTasks(string json)
+    public static IReadOnlyList<PersistenceEntry> ParseScheduledTasks(string json) => ParseEntries(json, "Scheduled task");
+
+    public static IReadOnlyList<PersistenceEntry> ParseWmiSubscriptions(string json) => ParseEntries(json, "WMI subscription");
+
+    private static IReadOnlyList<PersistenceEntry> ParseEntries(string json, string what)
     {
         var entries = JsonSerializer.Deserialize<PersistenceEntry[]>(json, new JsonSerializerOptions { PropertyNameCaseInsensitive = true });
         if (entries is null || entries.Any(e => e is null || string.IsNullOrWhiteSpace(e.Id) || e.Command is null)
             || entries.Select(e => e.Id).Distinct(StringComparer.OrdinalIgnoreCase).Count() != entries.Length)
-            throw new InvalidDataException("Scheduled task inventory was incomplete or invalid.");
+            throw new InvalidDataException($"{what} inventory was incomplete or invalid.");
         return entries;
     }
 
@@ -220,7 +289,7 @@ public sealed class WindowsPersistenceProvider : IPersistenceProvider
         int count;
         while ((count = await reader.ReadAsync(buffer.AsMemory(), cancellationToken)) > 0)
         {
-            if (result.Length + count > limit) throw new InvalidDataException("Scheduled task output exceeds the size limit.");
+            if (result.Length + count > limit) throw new InvalidDataException("Inventory output exceeds the size limit.");
             result.Append(buffer, 0, count);
         }
         return result.ToString();

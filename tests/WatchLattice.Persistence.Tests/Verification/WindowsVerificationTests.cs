@@ -189,4 +189,43 @@ public sealed class WindowsVerificationTests
             Assert.Equal(CheckStatus.Pass, run.Check("known-configuration").Status);
         }
     }
+
+    [Fact]
+    public async Task Services_AreInventoried_AndEventLogVerifiesAgainstItsServiceDll()
+    {
+        if (!OperatingSystem.IsWindows()) return;
+        var provider = new WindowsPersistenceProvider(Options.Create(new PersistenceOptions
+        {
+            WatchRegistry = false, WatchStartupFolders = false, WatchScheduledTasks = false, WatchServices = true, WatchWmiSubscriptions = false,
+        }));
+        var source = Assert.Single(await provider.ReadAsync(default));
+        Assert.True(source.Error is null, source.Error);
+        _output.WriteLine($"{source.Entries.Count} auto-start services");
+        var eventLog = ServiceDefinition.TryParse(Assert.Single(source.Entries, e => e.Id == "EventLog").Command);
+        Assert.NotNull(eventLog);
+        Assert.EndsWith("wevtsvc.dll", eventLog!.ServiceDll, StringComparison.OrdinalIgnoreCase);
+
+        var observation = new PersistenceObservation(ServiceVerifier.SourceId, "EventLog", PersistenceChangeKind.Added, null, eventLog.ToProjection(), DateTimeOffset.UtcNow);
+        var run = await VerificationFactory.CreateEngine().VerifyAsync(observation, VerificationTrigger.Manual, default);
+        _output.WriteLine(run.Describe());
+        Assert.DoesNotContain(run.Checks, c => c.Status == CheckStatus.Fail);
+        Assert.Equal(CheckStatus.Pass, run.Check("service.location").Status);
+        Assert.Equal(CheckStatus.Pass, run.Check("service.signature").Status);
+        Assert.Equal(CheckStatus.Pass, run.Check("since-alert").Status);
+    }
+
+    [Fact]
+    public async Task WmiSubscriptions_AreInventoried()
+    {
+        if (!OperatingSystem.IsWindows()) return;
+        var provider = new WindowsPersistenceProvider(Options.Create(new PersistenceOptions
+        {
+            WatchRegistry = false, WatchStartupFolders = false, WatchScheduledTasks = false, WatchServices = false, WatchWmiSubscriptions = true,
+        }));
+        var source = Assert.Single(await provider.ReadAsync(default));
+        Assert.True(source.Error is null, source.Error);
+        Assert.StartsWith(WindowsPersistenceProvider.WmiSourcePrefix, source.Id);
+        foreach (var entry in source.Entries) _output.WriteLine($"{entry.Id}: {entry.Command}");
+        Assert.All(source.Entries, e => Assert.Matches("^(Filter|Consumer|Binding)/", e.Id));
+    }
 }

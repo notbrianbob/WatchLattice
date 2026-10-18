@@ -20,12 +20,32 @@ default and runs inside the hub alongside the other modules.
   principal, enabled setting, and common trigger fields. Transient runtime
   state is excluded. This is not a full comparison of task XML or every task
   setting. Each query has a 60-second timeout and bounded output.
+- **Services:** every Win32 service under
+  `HKLM\SYSTEM\CurrentControlSet\Services` that starts automatically,
+  including per-user service templates. Records the type, start type,
+  `ImagePath`, `ServiceDll` (for services hosted in `svchost.exe`),
+  account (`ObjectName`) and failure command, without expanding variables.
+  A service switched to start automatically appears as added; one switched
+  to manual or disabled appears as removed. Per-user service instances
+  (the `_1a2b3c` copies Windows creates at each sign-in) and kernel drivers
+  are left out. Read from the registry only; the Service Control Manager is
+  not opened.
+- **WMI event subscriptions:** permanent subscriptions in
+  `root\subscription`, queried with the in-box Windows PowerShell like
+  scheduled tasks: every `__EventFilter` (query, namespace), every
+  `__EventConsumer` of any class with all its own properties (for example a
+  `CommandLineEventConsumer`'s command or an `ActiveScriptEventConsumer`'s
+  script), and every `__FilterToConsumerBinding`. The creator's SID is
+  recorded. Entries are named `Filter/<name>`, `Consumer/<class>/<name>` and
+  `Binding/<filter> -> <consumer>`. Windows itself ships a few (such as
+  *SCM Event Log Filter*); they become part of the first baseline.
 
 The first successful inventory of each source becomes its baseline, with an
 informational entry. Existing entries are **not certified safe**. Subsequent
 checks report additions and changes as warnings, and removals as information,
-including previous and current values. The one exception is a scheduled task
-whose trigger timing is the only thing that changed; see
+including previous and current values. The exceptions are WMI subscriptions
+and services in user-writable folders, which are critical, and routine task
+rescheduling and service version updates, which are informational; see
 [How alerts are graded](#how-alerts-are-graded). The baseline advances automatically
 after observing changes; it is a last-observed inventory, not an approved list.
 It survives hub restarts. Polling defaults to five minutes.
@@ -39,9 +59,11 @@ The tray companion displays warnings and critical alerts as Windows balloons.
 ## Verifying changed scheduled tasks
 
 An alert says *that* an entry changed. Verification collects evidence about
-*what* changed and whether it looks expected. When a scheduled task is added
-or changed, the hub verifies it automatically (on by default) and raises one
-more alert with the outcome:
+*what* changed and whether it looks expected. When a scheduled task or a
+service is added or changed, the hub verifies it automatically (on by
+default) and raises one more alert with the outcome. Services are covered in
+[verifying changed services](#verifying-changed-services); the rest of this
+section describes scheduled tasks.
 
 | Outcome | Alert | Meaning |
 |---|---|---|
@@ -58,13 +80,17 @@ raises `ENTRY_CHANGED`, is stored with its evidence, and is verified.
 | What changed | `ENTRY_*` alert | Verification alert |
 |---|---|---|
 | Only trigger timing (start or end time, delay, repetition, days or months) of an existing trigger | `ENTRY_CHANGED` as **Info**, titled *schedule timing only* | Usually `VERIFY_PASSED` (Info) for signed Windows tasks; any failed check still raises Warning or Critical |
-| A new task, Run value or Startup file | `ENTRY_ADDED` (Warning) | Tasks only: the outcome, as above |
+| A new task, Run value, Startup file or service | `ENTRY_ADDED` (Warning) | Tasks and services: the outcome, as above |
+| A new or changed WMI event subscription (filter, consumer or binding) | `ENTRY_ADDED` / `ENTRY_CHANGED` as **Critical**, titled *WMI event subscription* | Not verified |
+| A new or changed service whose program or DLL is in a user-writable folder (a user profile, ProgramData, Public, `C:\Windows\Temp`) | `ENTRY_ADDED` / `ENTRY_CHANGED` as **Critical**, titled *service runs from a user-writable folder* | `VERIFY_SUSPICIOUS` (Critical) |
+| Only the folder of a service's program or DLL, same file name, both inside Windows, Program Files or Defender's platform folder (how Defender and many updaters install new versions) | `ENTRY_CHANGED` as **Info**, titled *service updated in place* | Usually `VERIFY_PASSED` (Info); any failed check still raises Warning or Critical |
 | What a task does or what starts it: arguments, account, a re-enabled task, a trigger added or removed or changed in type, event or user | `ENTRY_CHANGED` (Warning) | `VERIFY_NEEDS_REVIEW` (Warning) or worse |
 | The program or COM class a task runs, a gain of privileges (highest privileges, SYSTEM, Administrators), an invalid signature, a mismatch with the trusted baseline | `ENTRY_CHANGED` (Warning) | `VERIFY_SUSPICIOUS` (Critical) |
 
-The timing-only downgrade applies only when automatic verification will
-follow (`AutoVerifyAlerts` on, a scheduled task). With it off, or for Run keys
-and Startup files, which are not verified, every change stays a warning. The
+The timing-only and updated-in-place downgrades apply only when automatic
+verification will follow (`AutoVerifyAlerts` on, a scheduled task or
+service). With it off, or for Run keys and Startup files, which are not
+verified, those changes stay warnings. The critical grades apply either way. The
 grade comes from the before/after definitions the auditor logged, which cover
 the fields listed under *Coverage*; a change to a task setting outside them is
 not seen at all. A Critical outcome is a strong reason to look, not proof of
@@ -99,6 +125,21 @@ often raises `ENTRY_CHANGED`; verification reports that only
 registration, the DLL and its Microsoft Windows catalog signature. The
 Windows CI job runs this scenario against the real APIs.
 
+### Verifying changed services
+
+A new or changed auto-start service is verified the same way, with these
+checks:
+
+| Check | How |
+|---|---|
+| Change in the alert | The logged definitions, field by field. A different program or service DLL fails, unless only its version folder changed inside protected folders; a switch to LocalSystem fails; changed arguments, account, failure command or type need review. |
+| Current service | Read again from the registry. A removed service needs review, and so does one that no longer starts automatically. |
+| Current service vs. alert | Has it changed again since the alert? A different program or DLL fails. |
+| Location | Where the program (or `ServiceDll`) is. Windows and Program Files folders pass; a user profile, ProgramData, Public or a Windows temp folder fails; anywhere else needs review. Folder permissions are not read, so a Program Files folder with loosened permissions is not caught. |
+| Program / service DLL, signature, publisher | As for scheduled tasks: hash, version, Authenticode (embedded or catalog), and Microsoft or a `FamiliarPublishers` entry. |
+| Host program | A service that runs `cmd`, `powershell` and similar needs review, with its arguments. |
+| Failure command | A program Windows runs when the service fails is shown and needs review; it is not inspected. |
+
 ### Findings and history
 
 Findings are stored next to the alert feed, in `alerts.json.verifications.json`
@@ -119,7 +160,7 @@ entry can be verified later.
 ### In the dashboard
 
 The [dashboard](../../docs/dashboard.md)'s Alerts tab has a **Verification**
-column for scheduled-task alerts and their outcome alerts, and the selected
+column for scheduled-task and service alerts and their outcome alerts, and the selected
 alert's details show the latest outcome, every check that did not pass, the
 change logged with the alert and anything changed since. Two buttons work on
 the selected alert:
@@ -140,8 +181,9 @@ the selected alert:
 
 ### What verification never does
 
-It never runs the task, activates the COM class, or loads or executes the
-target file; it reads task XML, registry keys and file bytes only. It never
+It never runs the task, starts or reconfigures the service, activates the COM
+class, or loads or executes the target file; it reads task XML, registry
+keys and file bytes only. It never
 disables tasks, deletes or quarantines files, or changes anything else;
 there is no automatic remediation. Entry data is never put into a shell
 command: task paths, CLSIDs, SIDs and file paths are validated and passed to
@@ -164,9 +206,10 @@ Verification is built around `IEntryVerifier` (in `Verification/VerificationEngi
 `AppliesTo` picks entries by source (for example `Registry/…`, `Startup/…`),
 `VerifyAsync` returns checks, field changes and per-target evidence, and the
 engine handles time limits, errors and the overall outcome. A new mechanism
-(Run keys, services, Startup shortcuts, WMI event subscriptions) adds one
-verifier to `VerificationFactory` and reuses `WindowsPath`, `FileInspector`
-and the Authenticode inspector. Only scheduled tasks are verified today.
+(Run keys, Startup shortcuts, WMI event subscriptions) adds one verifier to
+`VerificationFactory` and reuses `WindowsPath`, `FileInspector`, `FileChecks`
+and the Authenticode inspector. Scheduled tasks (`ScheduledTaskVerifier`)
+and services (`ServiceVerifier`) are verified today.
 
 ## Configuration
 
@@ -178,11 +221,13 @@ Settings live in the hub's `appsettings.json`, under `Persistence`:
 | `WatchRegistry` | `true` | Inventory Run and RunOnce keys. |
 | `WatchStartupFolders` | `true` | Inventory Startup folder contents. |
 | `WatchScheduledTasks` | `true` | Query accessible scheduled tasks. |
+| `WatchServices` | `true` | Inventory auto-start services from the registry. |
+| `WatchWmiSubscriptions` | `true` | Query permanent WMI event subscriptions in `root\subscription`. |
 | `StartupFolders` | `[]` | Empty uses the account's Startup and common Startup folders; explicit paths replace those defaults. |
 | `IgnoredEntries` | `[]` | Case-insensitive `*` / `?` patterns matching the full source/entry identity shown in alerts. Suppresses change alerts only; coverage failures remain visible. |
 | `BaselinePath` | `null` | Defaults to `%LOCALAPPDATA%\ScanAlways\persistence-baseline.json`. |
 | `MaxStartupFileBytes` | `4194304` | Per-file hashing limit; clamped to 4 KiB–16 MiB. |
-| `AutoVerifyAlerts` | `true` | Verify a scheduled task when an alert reports it added or changed, and raise a `VERIFY_*` alert. Never remediates. |
+| `AutoVerifyAlerts` | `true` | Verify a scheduled task or service when an alert reports it added or changed, and raise a `VERIFY_*` alert. Never remediates. |
 | `FamiliarPublishers` | `[]` | Certificate common names or organizations (for example `Google LLC`) whose signatures pass the publisher check, besides Microsoft. Other checks still apply. |
 
 Example suppression for a known updater in a Run key:
@@ -224,8 +269,11 @@ but it does not change which HKCU hive is read. Machine entries and visible
 scheduled tasks are still checked. Setting up a shared tray feed does not change
 the auditor's account or permissions.
 
-This version does not inventory services, drivers, WMI subscriptions, browser
-extensions, every registry autostart location, or all user profiles. Changes
+This version does not inventory kernel drivers, services that start only on
+a trigger or on demand, WMI subscriptions outside `root\subscription`, browser
+extensions, every registry autostart location, or all user profiles. Reading
+`root\subscription` needs administrator rights, which the hub has as
+LocalSystem. Changes
 made and undone between checks can be missed. The baseline and alert feed are
 local files, not tamper-proof evidence; protect their directories with normal
 Windows permissions. Command lines can contain sensitive data, so restrict
@@ -234,8 +282,9 @@ the module reports that limitation rather than claiming a healthy result.
 
 ### Verification limits
 
-- Only scheduled tasks are verified. Run keys, Startup files, services and WMI
-  subscriptions are not yet.
+- Only scheduled tasks and services are verified. Run keys, Startup files and
+  WMI subscriptions are not yet; a new WMI subscription is graded critical
+  instead.
 - Verification sees the task as it is when the check runs. A task changed and
   changed back between the alert and the check looks unchanged, though the
   alert's own before/after evidence is kept and compared.

@@ -8,8 +8,8 @@ public sealed record VerifierResult(IReadOnlyList<VerificationCheck> Checks, IRe
     IReadOnlyList<string> Errors);
 
 /// <summary>
-/// Verifies one kind of persistence entry (scheduled tasks today; Run keys,
-/// services, Startup folders and WMI subscriptions can each add their own).
+/// Verifies one kind of persistence entry (scheduled tasks and services today;
+/// Run keys, Startup folders and WMI subscriptions can each add their own).
 /// Implementations must be read-only: they look entries up through
 /// structured APIs and never execute, load, register, disable or delete
 /// anything, and never pass entry data to a shell.

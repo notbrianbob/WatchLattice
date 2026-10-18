@@ -16,12 +16,14 @@ public sealed class PersistenceAuditor
     private readonly ILogger<PersistenceAuditor> _logger;
     private readonly IAlertPublisher? _alerts;
     private readonly IChangeEvidenceSink? _evidence;
+    private readonly SystemPaths _paths;
     private readonly Dictionary<string, string> _problems = new(StringComparer.OrdinalIgnoreCase);
     private PersistenceBaseline? _baseline;
 
     public PersistenceAuditor(IPersistenceProvider provider, IOptions<PersistenceOptions> options,
-        ILogger<PersistenceAuditor> logger, IAlertPublisher? alerts = null, IChangeEvidenceSink? evidence = null)
+        ILogger<PersistenceAuditor> logger, IAlertPublisher? alerts = null, IChangeEvidenceSink? evidence = null, SystemPaths? paths = null)
     {
+        _paths = paths ?? SystemPaths.FromEnvironment();
         _provider = provider;
         _options = options.Value;
         _logger = logger;
@@ -89,12 +91,11 @@ public sealed class PersistenceAuditor
                     var verified = difference.Kind != PersistenceChangeKind.Removed
                         && _evidence?.Stage(resource, new PersistenceObservation(source.Id, difference.Id, difference.Kind,
                             difference.Before, difference.After, DateTimeOffset.UtcNow)) == true;
-                    var timingOnly = verified && IsTimingOnly(source.Id, difference);
-                    var severity = difference.Kind == PersistenceChangeKind.Removed || timingOnly ? AlertSeverity.Info : AlertSeverity.Warning;
+                    var (severity, qualifier, note) = Grade(source.Id, difference, verified);
                     Emit("ENTRY_" + difference.Kind.ToString().ToUpperInvariant(), severity,
-                        $"Autostart entry {difference.Kind.ToString().ToLowerInvariant()}" + (timingOnly ? ": schedule timing only" : ""),
+                        $"Autostart entry {difference.Kind.ToString().ToLowerInvariant()}" + qualifier,
                         $"{Excerpt(resource, 350)}\nPrevious: {Excerpt(difference.Before, 700)}\nCurrent: {Excerpt(difference.After, 700)}"
-                        + (timingOnly ? "\nOnly when the task runs changed, so this is informational. The verification alert that follows reports anything that needs attention." : ""),
+                        + (note is null ? "" : "\n" + note),
                         resource);
                 }
             }
@@ -164,14 +165,42 @@ public sealed class PersistenceAuditor
     }
 
     /// <summary>
-    /// A scheduled task whose logged definitions differ only in trigger timing.
-    /// Only downgraded when verification follows, so a task that fails its
-    /// checks still raises a warning or critical alert.
+    /// How serious an entry alert is, from what changed. Removals are
+    /// informational. New or changed WMI subscriptions, and services that run
+    /// from a user-writable folder, are critical: legitimate software rarely
+    /// does either. Routine changes (a task's trigger timing, a service's
+    /// program moving to a new version folder inside a protected folder) are
+    /// informational, but only when verification follows, so an entry that
+    /// fails its checks still raises a warning or critical alert.
     /// </summary>
-    private static bool IsTimingOnly(string sourceId, PersistenceChange difference) =>
-        difference.Kind == PersistenceChangeKind.Changed
-        && sourceId.StartsWith(ScheduledTaskVerifier.SourcePrefix, StringComparison.OrdinalIgnoreCase)
-        && TaskComparison.IsTimingOnlyChange(difference.Before, difference.After);
+    private (AlertSeverity Severity, string Qualifier, string? Note) Grade(string sourceId, PersistenceChange difference, bool verified)
+    {
+        if (difference.Kind == PersistenceChangeKind.Removed) return (AlertSeverity.Info, "", null);
+        if (sourceId.StartsWith(WindowsPersistenceProvider.WmiSourcePrefix, StringComparison.OrdinalIgnoreCase))
+            return (AlertSeverity.Critical, ": WMI event subscription",
+                "Permanent WMI event subscriptions run a command or script when a system event happens, with no file in any autostart folder. " +
+                "Few legitimate programs create them, and malware uses them to persist. Review the filter, consumer and binding together.");
+        if (string.Equals(sourceId, ServiceVerifier.SourceId, StringComparison.OrdinalIgnoreCase))
+        {
+            if (ServiceAnalysis.LocationOf(difference.After, _paths) == ServiceLocation.UserWritable)
+                return (AlertSeverity.Critical, ": service runs from a user-writable folder",
+                    "The service's program or DLL is in a folder that standard users or other programs can write to. " +
+                    "Services normally run from the Windows or Program Files folders.");
+            if (verified && difference.Kind == PersistenceChangeKind.Changed
+                && ServiceDefinition.TryParse(difference.Before) is { } before && ServiceDefinition.TryParse(difference.After) is { } after
+                && ServiceAnalysis.IsRoutineUpdate(before, after, _paths))
+                return (AlertSeverity.Info, ": service updated in place",
+                    "Only the folder of the same program or DLL changed, inside protected folders, as updaters do when they install a new version. " +
+                    "The verification alert that follows reports anything that needs attention.");
+            return (AlertSeverity.Warning, "", null);
+        }
+        if (verified && difference.Kind == PersistenceChangeKind.Changed
+            && sourceId.StartsWith(ScheduledTaskVerifier.SourcePrefix, StringComparison.OrdinalIgnoreCase)
+            && TaskComparison.IsTimingOnlyChange(difference.Before, difference.After))
+            return (AlertSeverity.Info, ": schedule timing only",
+                "Only when the task runs changed, so this is informational. The verification alert that follows reports anything that needs attention.");
+        return (AlertSeverity.Warning, "", null);
+    }
 
     private static string Excerpt(string? value, int limit) => value is null ? "(absent)"
         : value.Length <= limit ? value : value[..limit] + "… (truncated)";
