@@ -6,7 +6,7 @@ updates:
       interval: weekly
     groups:
       microsoft-extensions:
-        patterns: ["Microsoft.Extensions.*"]
+        patterns: ["Microsoft.Extensions.*", "System.Diagnostics.EventLog", "System.Threading.AccessControl"]
       test-tooling:
         patterns: ["xunit*", "Microsoft.NET.Test.Sdk"]
 

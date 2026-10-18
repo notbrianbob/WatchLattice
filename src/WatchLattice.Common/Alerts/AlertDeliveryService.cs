@@ -29,9 +29,22 @@ public sealed class AlertDeliveryService : BackgroundService
         _activity = activity;
     }
 
-    protected override async Task ExecuteAsync(CancellationToken stoppingToken)
+    private string? _path;
+
+    /// <summary>
+    /// Restores history and writes the first feed before the hub's modules start, so their
+    /// first alerts land on top of the restored history. Since Microsoft.Extensions.Hosting 10,
+    /// <see cref="BackgroundService"/> starts ExecuteAsync on the thread pool, so this cannot
+    /// rely on ExecuteAsync running synchronously up to its first await.
+    /// </summary>
+    public override Task StartAsync(CancellationToken cancellationToken)
     {
-        if (!_options.Enabled) return;
+        if (_options.Enabled) Prepare();
+        return base.StartAsync(cancellationToken);
+    }
+
+    private void Prepare()
+    {
         string path;
         try { path = _options.ResolveFeedPath(); }
         catch (Exception ex) when (ex is ArgumentException or NotSupportedException or IOException)
@@ -58,7 +71,13 @@ public sealed class AlertDeliveryService : BackgroundService
         {
             // Activity is a convenience; starting with an empty list is fine.
         }
+        Write(path, online: true);
+        _path = path;
+    }
 
+    protected override async Task ExecuteAsync(CancellationToken stoppingToken)
+    {
+        if (_path is not { } path) return;
         try
         {
             while (!stoppingToken.IsCancellationRequested)
