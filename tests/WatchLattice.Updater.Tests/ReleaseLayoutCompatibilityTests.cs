@@ -25,7 +25,7 @@ public class ReleaseLayoutCompatibilityTests
     [InlineData("src/WatchLattice.Tray/WatchLattice.Tray.csproj", "ScanAlways.Tray.exe")]
     public void Projects_BuildTheExecutablesThePackageMustContain(string project, string executable)
     {
-        var assemblyName = XDocument.Load(Path.Combine(RepositoryRoot(), project))
+        var assemblyName = XDocument.Load(Path.Join(RepositoryRoot(), project))
             .Descendants("AssemblyName").Select(e => e.Value.Trim()).SingleOrDefault();
 
         Assert.Equal(Path.GetFileNameWithoutExtension(executable), assemblyName);
@@ -35,7 +35,7 @@ public class ReleaseLayoutCompatibilityTests
     public void Msi_KeepsTheNamesAndUpgradeCodeInstalledCopiesRequire()
     {
         XNamespace wix = "http://wixtoolset.org/schemas/v4/wxs";
-        var package = XDocument.Load(Path.Combine(RepositoryRoot(), "packaging/msi/Package.wxs"));
+        var package = XDocument.Load(Path.Join(RepositoryRoot(), "packaging/msi/Package.wxs"));
 
         // Changing the UpgradeCode would install a second copy instead of upgrading.
         Assert.Equal("21E8E3ED-618D-4DCD-8E14-79555B2974AD", package.Descendants(wix + "Package").Single().Attribute("UpgradeCode")?.Value);
@@ -56,7 +56,7 @@ public class ReleaseLayoutCompatibilityTests
     {
         for (var dir = new DirectoryInfo(AppContext.BaseDirectory); dir is not null; dir = dir.Parent)
         {
-            if (File.Exists(Path.Combine(dir.FullName, "WatchLattice.sln")))
+            if (File.Exists(Path.Join(dir.FullName, "WatchLattice.sln")))
             {
                 return dir.FullName;
             }
