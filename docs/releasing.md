@@ -50,6 +50,8 @@ not from files uploaded by hand.
      the final `0.7.0` MSI still replaces it.
    - `SHA256SUMS.txt`, with a line for the zip and one for the MSI. The
      updater checks the zip's line before installing anything
+   - `WatchLattice-<version>-winget.zip`, the [winget manifests](#publishing-to-winget)
+     for that MSI, checked with `winget validate`. Not submitted anywhere
    - a build provenance attestation for the zip and the MSI
 
    When the SignPath secrets are set, the executables and DLLs are
@@ -63,6 +65,62 @@ not from files uploaded by hand.
 
 Installed hubs see the release at their next check (within 12 hours, or at
 the next hub start), and the tray shows that an update is available.
+
+## Publishing to winget
+
+Each release carries `WatchLattice-<version>-winget.zip`: the three manifest
+files for `notbrianbob.WatchLattice` (version, installer, en-US locale),
+rendered from [`packaging/winget`](../packaging/winget) with that release's
+MSI URL, SHA-256 and ProductCode, and already checked with `winget validate`.
+The workflow never submits them. Publishing is your call, made once per
+release you want on winget:
+
+1. Wait for the release to finish, so the MSI is downloadable at the URL in
+   the manifest.
+2. On Windows, extract the zip and check it again and, if you like, try the
+   install from the manifest (needs an administrator terminal and turns on
+   local manifests once):
+
+   ```powershell
+   Expand-Archive WatchLattice-0.7.0-winget.zip winget-0.7.0
+   winget validate --manifest winget-0.7.0
+   winget settings --enable LocalManifestFiles
+   winget install --manifest winget-0.7.0
+   ```
+
+3. Submit it to [microsoft/winget-pkgs](https://github.com/microsoft/winget-pkgs)
+   with [wingetcreate](https://github.com/microsoft/winget-create)
+   (`winget install wingetcreate`). It opens the pull request from a fork
+   under your GitHub account, so it asks you to sign in to GitHub:
+
+   ```powershell
+   wingetcreate submit winget-0.7.0
+   ```
+
+   The first submission adds the package; later ones add a version. Microsoft's
+   pipeline installs it in a sandbox and a moderator reviews it, so expect
+   it to take a few days and possibly questions on the pull request.
+
+Things to know first:
+
+- **Unsigned MSIs.** Until [code signing](code-signing.md) is set up, the MSI
+  is unsigned. winget-pkgs accepts unsigned installers, but its antivirus and
+  SmartScreen checks are more likely to flag a new unsigned security tool
+  (it plants canary files and watches Defender settings), which can hold
+  the submission for manual review. Users installing it outside winget also
+  see SmartScreen's "Windows protected your PC" prompt. Signing first makes
+  both smoother.
+- **Prereleases.** The workflow renders manifests for prereleases too, but
+  keep those off winget, which has no prerelease channel; a `0.7.0-beta.1`
+  submitted there would be offered to everyone.
+- **Silent installs.** `winget install` shows the MSI's progress bar and the
+  administrator prompt. With `--silent` the MSI runs with no UI at all, so run it from an
+  administrator terminal. Either way it installs for the user running winget,
+  with the first-run defaults described in [the MSI](installing.md#the-msi).
+- **Dependency.** The manifest depends on `Microsoft.DotNet.DesktopRuntime.8`,
+  so winget installs the .NET 8 Desktop Runtime first if it is missing.
+- **Updates.** `winget upgrade` runs the newer MSI, which upgrades in place
+  like any MSI upgrade. The in-hub updater keeps working alongside it.
 
 ## First install from a release
 
@@ -90,7 +148,8 @@ name. Changing any of them would break updates from installed versions:
 | `%LOCALAPPDATA%\ScanAlways\` and `%TEMP%\ScanAlways\` | Where the canary manifest, baselines, alert feed and logs live. A new folder would orphan planted canaries (the watcher refuses to overwrite files it has no record of) and reset every baseline. |
 | `Local\ScanAlways.Tray.*` (tray mutex) | Keeps a single tray running while an old and a new copy overlap during an update. |
 | `WatchLattice` event source and the [event IDs](event-log.md#event-ids) | SIEM rules and event forwarding subscriptions match on them. Add new IDs; never rename the source or change what an ID means. |
-| MSI `UpgradeCode` `21E8E3ED-618D-4DCD-8E14-79555B2974AD` ([`Package.wxs`](../packaging/msi/Package.wxs)) | Ties every WatchLattice MSI together. A new one would install a second copy next to the old one instead of upgrading it. |
+| MSI `UpgradeCode` `21E8E3ED-618D-4DCD-8E14-79555B2974AD` ([`Package.wxs`](../packaging/msi/Package.wxs)) | Ties every WatchLattice MSI together. A new one would install a second copy next to the old one instead of upgrading it. The winget manifest repeats it. |
+| winget `PackageIdentifier` `notbrianbob.WatchLattice` | Once published, winget tracks installs and upgrades by it. |
 
 Everything else (projects, namespaces, assemblies other than the two
 executables, display text, the release asset `WatchLattice-<version>-win-x64.zip`)

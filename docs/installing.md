@@ -122,7 +122,9 @@ never follows a link or junction out of the folders it deletes.
 - One tray user per install. Other accounts on the PC can open the tray but
   cannot read the feed; rerun the installer with `-Reconfigure -TrayUser` to
   switch users.
-- There is no winget package yet.
+- There is no winget package yet. Each release carries winget manifests for
+  the MSI, but they have not been submitted to winget
+  ([publishing to winget](releasing.md#publishing-to-winget)).
 
 ## The MSI
 

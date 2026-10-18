@@ -6,6 +6,8 @@ name: Release
 #   WatchLattice-<version>-win-x64.msi   the same files as a Windows Installer package
 #                                        (packaging/msi); the in-hub updater keeps using the zip
 #   SHA256SUMS.txt                       both of them; the updater checks the zip's line before installing
+#   WatchLattice-<version>-winget.zip    winget manifests for the MSI (packaging/winget), checked
+#                                        with `winget validate`; nothing is submitted to winget
 # with the tag's CHANGELOG.md section as the release notes,
 # plus a build provenance attestation for the zip and MSI (verify with `gh attestation verify`).
 #
@@ -207,6 +209,16 @@ jobs:
           Set-Content -Encoding ascii -Path dist/SHA256SUMS.txt -Value $lines
           Get-Content dist/SHA256SUMS.txt
 
+      # Rendered from the final (signed, when signing is on) MSI so the
+      # hash matches. Submitting them to winget-pkgs is a manual step; see
+      # docs/releasing.md#publishing-to-winget.
+      - name: Winget manifests
+        shell: pwsh
+        run: |
+          $manifests = Join-Path $env:RUNNER_TEMP 'winget'
+          .github/scripts/Write-WingetManifest.ps1 -Version $env:RELEASE_VERSION -Msi "dist/WatchLattice-$env:RELEASE_VERSION-win-x64.msi" -Repository $env:GITHUB_REPOSITORY -OutDir $manifests -Validate
+          Compress-Archive -Path (Join-Path $manifests '*.yaml') -DestinationPath "dist/WatchLattice-$env:RELEASE_VERSION-winget.zip"
+
       - name: Attest build provenance
         uses: actions/attest-build-provenance@v1
         with:
@@ -230,4 +242,4 @@ jobs:
           }
           $global:LASTEXITCODE = 0
           if ($env:RELEASE_VERSION.Contains('-')) { $flags += '--prerelease' }
-          gh release create $env:TAG dist/WatchLattice-$env:RELEASE_VERSION-win-x64.zip dist/WatchLattice-$env:RELEASE_VERSION-win-x64.msi dist/SHA256SUMS.txt @flags
+          gh release create $env:TAG dist/WatchLattice-$env:RELEASE_VERSION-win-x64.zip dist/WatchLattice-$env:RELEASE_VERSION-win-x64.msi dist/SHA256SUMS.txt dist/WatchLattice-$env:RELEASE_VERSION-winget.zip @flags

@@ -129,6 +129,15 @@ jobs:
           .github/scripts/Build-Msi.ps1 -Stage $stage -Version 0.0.2 -OutFile (Join-Path $msis 'WatchLattice-0.0.2-win-x64.msi')
           .github/scripts/Build-Msi.ps1 -Stage $stage -Version 0.0.2-rebuilt -OutFile (Join-Path $msis 'WatchLattice-0.0.2-rebuilt-win-x64.msi')
 
+      # The release workflow's winget step, for a test version that has no
+      # release (winget validate does not download the installer).
+      - name: Winget manifests
+        shell: pwsh
+        run: |
+          $manifests = Join-Path $env:RUNNER_TEMP 'winget'
+          .github/scripts/Write-WingetManifest.ps1 -Version 0.0.2 -Msi (Join-Path $env:RUNNER_TEMP 'msi/WatchLattice-0.0.2-win-x64.msi') -OutDir $manifests -Validate
+          Get-Content (Join-Path $manifests 'notbrianbob.WatchLattice.installer.yaml')
+
       # Windows PowerShell 5.1, which is what the MSI runs install.ps1 with.
       - name: Install, upgrade, reinstall and uninstall
         shell: powershell
