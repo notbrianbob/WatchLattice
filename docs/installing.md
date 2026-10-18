@@ -27,10 +27,14 @@ or download it from <https://dotnet.microsoft.com/download/dotnet/8.0>.
 Optionally, check the download before extracting it:
 
 ```powershell
-$expected = (Get-Content .\SHA256SUMS.txt).Split(' ')[0]
-(Get-FileHash .\WatchLattice-0.2.0-win-x64.zip -Algorithm SHA256).Hash.ToLower() -eq $expected
-gh attestation verify .\WatchLattice-0.2.0-win-x64.zip --repo notbrianbob/WatchLattice
+$file = 'WatchLattice-0.7.0-win-x64.zip'   # or the .msi
+$expected = (Select-String -LiteralPath .\SHA256SUMS.txt -SimpleMatch $file).Line.Split(' ')[0]
+(Get-FileHash ".\$file" -Algorithm SHA256).Hash.ToLower() -eq $expected
+gh attestation verify ".\$file" --repo notbrianbob/WatchLattice
 ```
+
+`SHA256SUMS.txt` has one line per file (the zip and, since 0.7.0, the MSI),
+so the second line picks the one you downloaded.
 
 ## Install
 
