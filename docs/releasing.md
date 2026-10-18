@@ -5,17 +5,35 @@ the release workflow ([`.github/workflows/release.yml`](../.github/workflows/rel
 not from files uploaded by hand.
 
 1. Make sure `main` is green.
-2. Tag the commit and push the tag:
+2. Move the `## [Unreleased]` entries in [`CHANGELOG.md`](../CHANGELOG.md)
+   under a new `## [<version>] - <date>` heading, add its compare link at the
+   bottom, and merge that to `main`. The release workflow uses this section
+   as the release notes, with GitHub's generated pull request list after it;
+   a version without a section gets only the generated list, and the run
+   warns about it. CI's `Changelog` job checks that every version section
+   can be read.
+3. Update your clone to the latest `main` first, so the tag lands on the
+   commit you mean to release. (v0.3.0 was tagged from a clone that had not
+   pulled, so it is the same commit as v0.2.0.)
 
    ```bash
-   git tag v0.2.0
-   git push origin v0.2.0
+   git checkout main
+   git pull
+   git log -1 --oneline   # should be the commit you expect, for example the changelog merge
+   ```
+
+4. Tag that commit and push the tag:
+
+   ```bash
+   git tag v0.5.0
+   git push origin v0.5.0
    ```
 
    Use `v<major>.<minor>.<patch>`, optionally with a prerelease suffix such as
-   `v0.3.0-beta.1`. Prereleases are marked as such on GitHub and are not
-   offered to stable installs.
-3. The workflow runs the tests, publishes the hub and tray for `win-x64`
+   `v0.6.0-beta.1`. Prereleases are marked as such on GitHub and are not
+   offered to stable installs. Do not create the release in the GitHub UI
+   first; the workflow creates it and would fail if it already exists.
+5. The workflow runs the tests, publishes the hub and tray for `win-x64`
    with that version stamped in, and creates the GitHub release with:
    - `WatchLattice-<version>-win-x64.zip`, containing `Hub/`, `Tray/`, the installer
      (`Install.cmd`, `install.ps1`, `uninstall.ps1`), `LICENSE` and `README.md`.
@@ -29,7 +47,8 @@ not from files uploaded by hand.
    When the SignPath secrets are set, the executables and DLLs are
    Authenticode-signed before zipping; otherwise the run logs that the
    release is unsigned. See [code signing](code-signing.md).
-4. Edit the generated release notes if needed. Do not replace or re-upload
+   - release notes from the version's `CHANGELOG.md` section
+6. Edit the release notes if needed. Do not replace or re-upload
    assets: the checksum file would no longer match, and installs of that
    release would be refused (which is the point).
 
