@@ -32,12 +32,8 @@ public static class HostsFileParser
             }
 
             var normalizedAddress = address.ToString();
-            foreach (var word in words.Skip(1))
+            foreach (var host in words.Skip(1).Select(NormalizeHost).OfType<string>())
             {
-                if (NormalizeHost(word) is not { } host)
-                {
-                    continue;
-                }
                 if (!map.TryGetValue(host, out var addresses))
                 {
                     map[host] = addresses = new SortedSet<string>(StringComparer.Ordinal);

@@ -221,12 +221,10 @@ public class HostsProxyWatchdogTests : IDisposable
 
     public void Dispose()
     {
-        try
+        // Every watchdog is disposed by the end of its test, so nothing holds these files open.
+        if (Directory.Exists(_folder))
         {
             Directory.Delete(_folder, recursive: true);
-        }
-        catch (DirectoryNotFoundException)
-        {
         }
     }
 

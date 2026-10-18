@@ -26,8 +26,8 @@ public sealed class SettingsSchemaTests
     private static string ShippedSettings()
     {
         var folder = new DirectoryInfo(AppContext.BaseDirectory);
-        while (folder is not null && !File.Exists(Path.Combine(folder.FullName, "WatchLattice.sln"))) folder = folder.Parent;
-        return Path.Combine(folder?.FullName ?? throw new InvalidOperationException("Run the tests from the repository."),
+        while (folder is not null && !File.Exists(Path.Join(folder.FullName, "WatchLattice.sln"))) folder = folder.Parent;
+        return Path.Join(folder?.FullName ?? throw new InvalidOperationException("Run the tests from the repository."),
             "src", "WatchLattice.Hub", "appsettings.json");
     }
 }
