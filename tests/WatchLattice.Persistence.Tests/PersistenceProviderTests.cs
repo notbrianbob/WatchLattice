@@ -59,7 +59,7 @@ public sealed class PersistenceProviderTests
             File.WriteAllText(path, "echo test");
             var provider = new WindowsPersistenceProvider(Options.Create(new PersistenceOptions
             {
-                WatchRegistry = false, WatchScheduledTasks = false, StartupFolders = new[] { folder },
+                WatchRegistry = false, WatchScheduledTasks = false, WatchServices = false, WatchWmiSubscriptions = false, StartupFolders = new[] { folder },
             }));
             var result = Assert.Single(await provider.ReadAsync(default));
             if (OperatingSystem.IsWindows())

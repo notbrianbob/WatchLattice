@@ -16,6 +16,18 @@ public interface IScheduledTaskSource
     TaskReadResult Read(string taskPath);
 }
 
+public enum ServiceReadStatus { Found, NotFound, AccessDenied, Error }
+
+public sealed record ServiceReadResult(ServiceReadStatus Status, ServiceDefinition? Definition = null, string? Error = null);
+
+/// <summary>Reads one service's configuration from the registry. Never opens the Service Control Manager for changes or starts anything.</summary>
+public interface IServiceSource
+{
+    /// <summary>The service's current configuration, or why it could not be read.</summary>
+    /// <param name="serviceName">A name already checked by <see cref="ServiceAnalysis.IsValidServiceName"/>.</param>
+    ServiceReadResult Read(string serviceName);
+}
+
 public enum ComScope { Machine64, Machine32, User }
 
 /// <summary>One CLSID key as read from one registry location.</summary>

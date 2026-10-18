@@ -25,6 +25,20 @@ notes, followed by GitHub's generated list of pull requests. See
   warning. Read-only; it never edits the hosts file or resets a proxy. New
   Event IDs 8001 to 8009. See its
   [README](src/WatchLattice.HostsProxyWatchdog/README.md).
+- **Services and WMI subscriptions in the persistence auditor**: the
+  `Persistence` module now also inventories auto-start Windows services
+  (program or service DLL, account, failure command; settings
+  `WatchServices`) and permanent WMI event subscriptions in
+  `root\subscription` (filters, consumers and bindings; setting
+  `WatchWmiSubscriptions`). Both are on by default and start with an
+  informational baseline. A new or changed WMI subscription, or a service
+  that runs from a user-writable folder, is a critical alert. New and changed
+  services are verified automatically like scheduled tasks (file location,
+  signature, publisher, privilege changes), and a service whose program only
+  moved to a new version folder inside Windows or Program Files (Defender
+  platform updates, for example) is informational when verification follows.
+  Read-only; existing Event IDs are reused. See the
+  [Persistence README](src/WatchLattice.Persistence/README.md#coverage).
 
 ## [0.5.0] - 2026-10-18
 

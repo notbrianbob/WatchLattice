@@ -6,12 +6,18 @@ public sealed class PersistenceOptions
     public bool WatchRegistry { get; set; } = true;
     public bool WatchStartupFolders { get; set; } = true;
     public bool WatchScheduledTasks { get; set; } = true;
+
+    /// <summary>Inventory auto-start Windows services (program, service DLL, account, failure command).</summary>
+    public bool WatchServices { get; set; } = true;
+
+    /// <summary>Inventory permanent WMI event subscriptions (filters, consumers, bindings) in root\subscription.</summary>
+    public bool WatchWmiSubscriptions { get; set; } = true;
     public string[] StartupFolders { get; set; } = Array.Empty<string>();
     public string[] IgnoredEntries { get; set; } = Array.Empty<string>();
     public string? BaselinePath { get; set; }
     public int MaxStartupFileBytes { get; set; } = 4 * 1024 * 1024;
 
-    /// <summary>Verify a scheduled task automatically when an alert reports it added or changed. Never remediates.</summary>
+    /// <summary>Verify a scheduled task or service automatically when an alert reports it added or changed. Never remediates.</summary>
     public bool AutoVerifyAlerts { get; set; } = true;
 
     /// <summary>Certificate common names or organizations, besides Microsoft, whose signatures pass the publisher check.</summary>
