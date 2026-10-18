@@ -51,6 +51,10 @@ Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "WatchLattice.BrowserExtensi
 EndProject
 Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "WatchLattice.BrowserExtensionWatchdog.Tests", "tests\WatchLattice.BrowserExtensionWatchdog.Tests\WatchLattice.BrowserExtensionWatchdog.Tests.csproj", "{257DD3E1-1D7C-4A9A-8A14-9B6FDD026957}"
 EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "WatchLattice.ScriptHostAudit", "src\WatchLattice.ScriptHostAudit\WatchLattice.ScriptHostAudit.csproj", "{94B2C4EC-5265-4087-BF45-D646745BB66F}"
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "WatchLattice.ScriptHostAudit.Tests", "tests\WatchLattice.ScriptHostAudit.Tests\WatchLattice.ScriptHostAudit.Tests.csproj", "{117855EE-D6C3-4B29-9973-737E20F0A973}"
+EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
 		Debug|Any CPU = Debug|Any CPU
@@ -144,6 +148,14 @@ Global
 		{257DD3E1-1D7C-4A9A-8A14-9B6FDD026957}.Debug|Any CPU.Build.0 = Debug|Any CPU
 		{257DD3E1-1D7C-4A9A-8A14-9B6FDD026957}.Release|Any CPU.ActiveCfg = Release|Any CPU
 		{257DD3E1-1D7C-4A9A-8A14-9B6FDD026957}.Release|Any CPU.Build.0 = Release|Any CPU
+		{94B2C4EC-5265-4087-BF45-D646745BB66F}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{94B2C4EC-5265-4087-BF45-D646745BB66F}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{94B2C4EC-5265-4087-BF45-D646745BB66F}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{94B2C4EC-5265-4087-BF45-D646745BB66F}.Release|Any CPU.Build.0 = Release|Any CPU
+		{117855EE-D6C3-4B29-9973-737E20F0A973}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{117855EE-D6C3-4B29-9973-737E20F0A973}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{117855EE-D6C3-4B29-9973-737E20F0A973}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{117855EE-D6C3-4B29-9973-737E20F0A973}.Release|Any CPU.Build.0 = Release|Any CPU
 	EndGlobalSection
 	GlobalSection(NestedProjects) = preSolution
 		{35BE1A69-3A68-4758-B875-0DBEFA5ECF29} = {58108381-0033-46B2-9AC9-0D7DC1BF8836}
@@ -167,5 +179,7 @@ Global
 		{68580AFD-E56D-4449-9635-0F1DFF6BBE9D} = {AFF5D81C-4459-4B9A-B35C-C87B27194823}
 		{D872739C-B362-4047-AA54-3B98C881C49D} = {58108381-0033-46B2-9AC9-0D7DC1BF8836}
 		{257DD3E1-1D7C-4A9A-8A14-9B6FDD026957} = {AFF5D81C-4459-4B9A-B35C-C87B27194823}
+		{94B2C4EC-5265-4087-BF45-D646745BB66F} = {58108381-0033-46B2-9AC9-0D7DC1BF8836}
+		{117855EE-D6C3-4B29-9973-737E20F0A973} = {AFF5D81C-4459-4B9A-B35C-C87B27194823}
 	EndGlobalSection
 EndGlobal

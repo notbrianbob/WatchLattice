@@ -72,6 +72,7 @@ Modules are discovered at compile time; nothing is loaded from disk at runtime.
        typeof(HostsProxyWatchdogModule).Assembly,
        typeof(BrowserExtensionWatchdogModule).Assembly,
        typeof(PersistenceModule).Assembly,
+       typeof(ScriptHostAuditModule).Assembly,
        typeof(UpdaterModule).Assembly,
        typeof(YourModule).Assembly,
    };

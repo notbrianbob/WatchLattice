@@ -50,8 +50,8 @@ public sealed record ApprovedEntry(string Resource, string Sha256)
 public sealed record BaselineApproval(string SettingPath, string Value, string Description);
 
 /// <summary>
-/// "Approve as baseline": turns an alert about an autostart entry or a browser
-/// extension into a line for the settings the module already reads, so the
+/// "Approve as baseline": turns an alert about an autostart entry, a browser
+/// extension or a script host launch into a line for the settings the module already reads, so the
 /// same thing does not alert again. Approvals live in appsettings.json, which
 /// only an administrator can change (through the elevated settings editor),
 /// and are viewed and revoked there.
@@ -63,14 +63,20 @@ public static partial class BaselineApprovals
     public const string ExtensionModule = "BrowserExtensionWatchdog";
     public const string ExtensionSetting = "BrowserExtensionWatchdog:IgnoredExtensionIds";
     public const string ExtensionAddedCode = "EXTENSION_ADDED";
+    public const string ScriptHostModule = "ScriptHostAudit";
+    public const string ScriptHostSetting = "ScriptHostAudit:ApprovedLaunches";
+    public const string ScriptHostLaunchedCode = "SCRIPT_HOST_LAUNCHED";
 
-    /// <summary>The last line of every <c>ENTRY_ADDED</c> and <c>ENTRY_CHANGED</c> message: <c>Fingerprint: sha256:&lt;hex&gt;</c>.</summary>
+    /// <summary>
+    /// The last line of every <c>ENTRY_ADDED</c> and <c>ENTRY_CHANGED</c> message, and of a
+    /// <c>SCRIPT_HOST_LAUNCHED</c> message with a command line: <c>Fingerprint: sha256:&lt;hex&gt;</c>.
+    /// </summary>
     public const string FingerprintLabel = "Fingerprint: ";
 
     /// <summary>At most this many approvals are passed to the settings editor at once.</summary>
     public const int MaxPerEdit = 20;
 
-    public static IReadOnlyList<string> SettingPaths { get; } = new[] { PersistenceSetting, ExtensionSetting };
+    public static IReadOnlyList<string> SettingPaths { get; } = new[] { PersistenceSetting, ExtensionSetting, ScriptHostSetting };
 
     public static string FingerprintLine(string value) => FingerprintLabel + ApprovedEntry.Prefix + ApprovedEntry.Fingerprint(value);
 
@@ -79,21 +85,26 @@ public static partial class BaselineApprovals
     /// <summary>
     /// What approving this alert would add, or null when it cannot be
     /// approved: only a Persistence entry added or changed (approving its
-    /// current value) and a single browser extension added (approving its ID).
-    /// The fingerprint must be the message's last line, which the auditor
-    /// always writes after any text taken from the entry itself.
+    /// current value), a single browser extension added (approving its ID),
+    /// and a single script host launch with a recorded command line
+    /// (approving that parent, host and exact command line).
+    /// The fingerprint must be the message's last line, which the modules
+    /// always write after any text taken from the entry itself.
     /// </summary>
     public static BaselineApproval? For(ProtectionAlert alert)
     {
         if (alert.Resource is not { Length: > 0 and <= ApprovedEntry.MaxResourceLength } resource) return null;
-        if (alert.Module == PersistenceModule && IsEntryAlert(alert.Code))
+        var setting = alert.Module == PersistenceModule && IsEntryAlert(alert.Code) ? PersistenceSetting
+            : alert.Module == ScriptHostModule && alert.Code == ScriptHostLaunchedCode ? ScriptHostSetting
+            : null;
+        if (setting is not null)
         {
             var last = alert.Message[(alert.Message.LastIndexOf('\n') + 1)..];
             var prefix = FingerprintLabel + ApprovedEntry.Prefix;
             if (!last.StartsWith(prefix, StringComparison.Ordinal) || !ApprovedEntry.IsHex(last[prefix.Length..])) return null;
             var line = ApprovedEntry.Prefix + last[prefix.Length..].ToLowerInvariant() + " " + resource;
             return ApprovedEntry.TryParse(line, out var entry)
-                ? new(PersistenceSetting, entry.ToString(), "Autostart entry, exactly as it is now: " + resource)
+                ? new(setting, entry.ToString(), Describe(setting, entry))
                 : null;
         }
         if (alert.Module == ExtensionModule && alert.Code == ExtensionAddedCode)
@@ -112,7 +123,7 @@ public static partial class BaselineApprovals
     /// <summary>Whether a value is a well-formed approval for that setting.</summary>
     public static bool IsValid(string settingPath, string value) => settingPath switch
     {
-        PersistenceSetting => ApprovedEntry.TryParse(value, out var entry) && entry.ToString() == value,
+        PersistenceSetting or ScriptHostSetting => ApprovedEntry.TryParse(value, out var entry) && entry.ToString() == value,
         ExtensionSetting => IsExtensionId(value),
         _ => false,
     };
@@ -154,11 +165,15 @@ public static partial class BaselineApprovals
         var path = text[..split];
         var value = text[(split + 1)..];
         if (!IsValid(path, value)) return false;
-        approval = new(path, value, path == PersistenceSetting && ApprovedEntry.TryParse(value, out var entry)
-            ? "Autostart entry, exactly as it is now: " + entry.Resource
+        approval = new(path, value, path != ExtensionSetting && ApprovedEntry.TryParse(value, out var entry)
+            ? Describe(path, entry)
             : $"Browser extension {value}, in every browser profile");
         return true;
     }
+
+    private static string Describe(string settingPath, ApprovedEntry entry) => settingPath == ScriptHostSetting
+        ? "Script host launch, with exactly this command line: " + entry.Resource.Replace("|", " starting ")
+        : "Autostart entry, exactly as it is now: " + entry.Resource;
 
     // Chromium IDs are 32 letters a-p; Firefox IDs are an email-like name or a {GUID}.
     [GeneratedRegex(@"^[A-Za-z0-9@._{}+-]{1,200}$", RegexOptions.CultureInvariant)]

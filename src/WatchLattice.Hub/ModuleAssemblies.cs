@@ -6,6 +6,7 @@ using WatchLattice.DefenderWatchdog;
 using WatchLattice.FirewallWatchdog;
 using WatchLattice.HostsProxyWatchdog;
 using WatchLattice.Persistence;
+using WatchLattice.ScriptHostAudit;
 using WatchLattice.Updater;
 
 namespace WatchLattice.Hub;
@@ -25,6 +26,7 @@ internal static class ModuleAssemblies
         typeof(HostsProxyWatchdogModule).Assembly,
         typeof(BrowserExtensionWatchdogModule).Assembly,
         typeof(PersistenceModule).Assembly,
+        typeof(ScriptHostAuditModule).Assembly,
         typeof(UpdaterModule).Assembly,
     };
 }

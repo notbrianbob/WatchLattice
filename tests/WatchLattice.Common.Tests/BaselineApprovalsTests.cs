@@ -69,6 +69,27 @@ public sealed class BaselineApprovalsTests
     }
 
     [Fact]
+    public void ScriptHostLaunch_ApprovesItsParentHostAndExactCommandLine()
+    {
+        const string launch = @"C:\Program Files\App\app.exe|C:\Windows\System32\WindowsPowerShell\v1.0\powershell.exe";
+        var message = $"powershell.exe started by app.exe\nCommand line: {Command}\n{BaselineApprovals.FingerprintLine(Command)}";
+        var approval = BaselineApprovals.For(Alert(message, BaselineApprovals.ScriptHostLaunchedCode, launch, BaselineApprovals.ScriptHostModule));
+
+        Assert.NotNull(approval);
+        Assert.Equal(BaselineApprovals.ScriptHostSetting, approval.SettingPath);
+        Assert.Equal(ApprovedEntry.For(launch, Command).ToString(), approval.Value);
+        Assert.StartsWith("Script host launch", approval.Description);
+        Assert.True(BaselineApprovals.IsValid(BaselineApprovals.ScriptHostSetting, approval.Value));
+        Assert.Contains(BaselineApprovals.ScriptHostSetting, BaselineApprovals.SettingPaths);
+        Assert.True(BaselineApprovals.TryDecode(BaselineApprovals.Encode(approval), out var decoded));
+        Assert.Equal(approval, decoded);
+
+        // A summary of several launches, or the same message from another module, approves nothing.
+        Assert.Null(BaselineApprovals.For(Alert(message, "SCRIPT_HOST_LAUNCHES", launch, BaselineApprovals.ScriptHostModule)));
+        Assert.Null(BaselineApprovals.For(Alert(message, BaselineApprovals.ScriptHostLaunchedCode, launch)));
+    }
+
+    [Fact]
     public void OtherAlerts_CannotBeApproved()
     {
         Assert.Null(BaselineApprovals.For(Alert(EntryMessage(Command), code: "ENTRY_REMOVED")));

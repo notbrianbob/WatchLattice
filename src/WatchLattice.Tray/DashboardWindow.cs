@@ -403,16 +403,20 @@ internal sealed class DashboardWindow : Form
     private string ApprovalSummary(ProtectionAlert alert)
     {
         if (ApprovalFor(alert) is not { } approval) return "";
-        var extension = approval.SettingPath == BaselineApprovals.ExtensionSetting;
         var text = "\r\n\r\nBASELINE\r\n";
         if (_description is not null && BaselineApprovals.IsApproved(_description.Values, approval))
-            return text + (extension
-                ? "Approved: this extension raises no alert in any browser profile. Remove it from the ignored extension IDs in Settings to undo that."
-                : "Approved: this entry raises no alert when it appears again with exactly this value. Remove it from the approved entries in Settings to undo that.");
-        return text + (extension
-            ? "Approve as baseline adds this extension's ID to the ignored extension IDs, so it raises no alert in any browser profile."
-            : "Approve as baseline stops alerts when this entry appears again with exactly this value, for example after it was removed and put back. Any other value still alerts.")
-            + " It opens the settings editor as administrator; Save restarts the hub.";
+            return text + approval.SettingPath switch
+            {
+                BaselineApprovals.ExtensionSetting => "Approved: this extension raises no alert in any browser profile. Remove it from the ignored extension IDs in Settings to undo that.",
+                BaselineApprovals.ScriptHostSetting => "Approved: this program starting this script host with exactly this command line raises no alert. Remove it from the approved launches in Settings to undo that.",
+                _ => "Approved: this entry raises no alert when it appears again with exactly this value. Remove it from the approved entries in Settings to undo that.",
+            };
+        return text + approval.SettingPath switch
+        {
+            BaselineApprovals.ExtensionSetting => "Approve as baseline adds this extension's ID to the ignored extension IDs, so it raises no alert in any browser profile.",
+            BaselineApprovals.ScriptHostSetting => "Approve as baseline stops alerts when the same program starts this script host with exactly this command line again. A different parent, program or command line still alerts.",
+            _ => "Approve as baseline stops alerts when this entry appears again with exactly this value, for example after it was removed and put back. Any other value still alerts.",
+        } + " It opens the settings editor as administrator; Save restarts the hub.";
     }
 
     /// <summary>

@@ -265,6 +265,30 @@ unknown-module fallback IDs. Standing findings (10012, 10013, 10014) have a
 | 10014 | `STATE_SAVE_FAILED` | Warning | The watchdog could not save its inventory. |
 | 10015 | `STATE_UNREADABLE` | Warning | The watchdog's saved inventory could not be read. |
 
+### Script host audit (11000)
+
+Off by default. Standing findings (11001 to 11004, 11008) have a `_CLEARED`
+recovery event at ID + 500. Resource for a launch is
+`<parent path>|<program path>`. See the
+[module README](../src/WatchLattice.ScriptHostAudit/README.md).
+
+| ID | Code | Level | Meaning |
+|---|---|---|---|
+| 11001 | `PROCESS_AUDITING_OFF` | Information | Windows is not recording process creation (Security event 4688), so launches can't be reported. WatchLattice does not change audit policy. |
+| 11002 | `COMMAND_LINE_NOT_RECORDED` | Information | Process creation events arrive without command lines. |
+| 11003 | `AUDIT_POLICY_UNAVAILABLE` | Information | The audit policy could not be read; launches are still read from the log. |
+| 11004 | `SECURITY_LOG_UNAVAILABLE` | Warning | The Security log could not be read. |
+| 11005 | `SCRIPT_HOST_LAUNCHED` | Warning or Error (Information with `MinimumSeverity: Info`) | PowerShell, mshta, wscript, rundll32, regsvr32, certutil or another watched program was started, with its parent, user, command line and why it was reported. Error when a suspicious parent (an Office app, a browser, another script host) started it with a suspicious command line or from an unusual folder. |
+| 11006 | `SCRIPT_HOST_LAUNCHES` | Warning or Error | More than `MaxIndividualAlerts` launches in one check, summarized. |
+| 11007 | `EVENTS_MISSED` | Warning | The Security log was cleared, records were overwritten before they were read, or too many processes started between two checks. |
+| 11008 | `STATE_SAVE_FAILED` | Warning | The auditor could not save its position in the log. |
+| 11009 | `STATE_UNREADABLE` | Warning | The auditor's saved position could not be read. |
+
+A 11005 message with a command line ends with a `Fingerprint: sha256:<hash>`
+line, the SHA-256 of the exact command line, which
+[approving a launch](../src/WatchLattice.ScriptHostAudit/README.md#allowing-known-launches)
+uses. An approved launch raises no event.
+
 ## Relationship to the hub's own log messages
 
 Separately from these alerts, .NET's service host writes the hub's own
