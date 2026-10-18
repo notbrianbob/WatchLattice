@@ -23,6 +23,7 @@ public sealed record ServiceReadResult(ServiceReadStatus Status, ServiceDefiniti
 /// <summary>Reads one service's configuration from the registry. Never opens the Service Control Manager for changes or starts anything.</summary>
 public interface IServiceSource
 {
+    /// <summary>The service's current configuration, or why it could not be read.</summary>
     /// <param name="serviceName">A name already checked by <see cref="ServiceAnalysis.IsValidServiceName"/>.</param>
     ServiceReadResult Read(string serviceName);
 }
