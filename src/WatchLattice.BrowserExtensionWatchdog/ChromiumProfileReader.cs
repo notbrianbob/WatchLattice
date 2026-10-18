@@ -101,39 +101,24 @@ public static class ChromiumProfileReader
         // Windows machines and in Preferences on others; read both, the
         // protected copy winning for an extension listed in each.
         var settings = new Dictionary<string, JsonElement>(StringComparer.Ordinal);
-        var documents = new List<JsonDocument>();
-        try
+        foreach (var file in new[] { "Preferences", "Secure Preferences" })
         {
-            foreach (var file in new[] { "Preferences", "Secure Preferences" })
+            using var document = BoundedJson.TryRead(Path.Join(profileFolder, file), maxFileBytes);
+            if (document?.RootElement.TryGetPath(out var entries, "extensions", "settings") == true && entries.ValueKind == JsonValueKind.Object)
             {
-                var document = BoundedJson.TryRead(Path.Join(profileFolder, file), maxFileBytes);
-                if (document is null)
+                foreach (var entry in entries.EnumerateObject().Where(e => e.Value.ValueKind == JsonValueKind.Object))
                 {
-                    continue;
-                }
-                documents.Add(document);
-                if (document.RootElement.TryGetPath(out var entries, "extensions", "settings") && entries.ValueKind == JsonValueKind.Object)
-                {
-                    foreach (var entry in entries.EnumerateObject().Where(e => e.Value.ValueKind == JsonValueKind.Object))
-                    {
-                        settings[entry.Name] = entry.Value;
-                    }
+                    // Cloned so the entry outlives its document.
+                    settings[entry.Name] = entry.Value.Clone();
                 }
             }
+        }
 
-            return settings
-                .Select(s => ToExtension(profileFolder, s.Key, s.Value))
-                .OfType<InstalledExtension>()
-                .OrderBy(e => e.Id, StringComparer.Ordinal)
-                .ToList();
-        }
-        finally
-        {
-            foreach (var document in documents)
-            {
-                document.Dispose();
-            }
-        }
+        return settings
+            .Select(s => ToExtension(profileFolder, s.Key, s.Value))
+            .OfType<InstalledExtension>()
+            .OrderBy(e => e.Id, StringComparer.Ordinal)
+            .ToList();
     }
 
     private static InstalledExtension? ToExtension(string profileFolder, string id, JsonElement entry)
@@ -146,7 +131,7 @@ public static class ChromiumProfileReader
         }
 
         var manifest = entry.TryGetProperty("manifest", out var m) && m.ValueKind == JsonValueKind.Object ? m : (JsonElement?)null;
-        var installed = ReadInstalledManifest(profileFolder, id, entry.GetStringOrNull("path"));
+        using var installed = ReadInstalledManifest(profileFolder, id, entry.GetStringOrNull("path"));
         var name = Localize(manifest?.GetStringOrNull("name"), installed)
                    ?? Localize(installed?.Manifest.GetStringOrNull("name"), installed);
         var version = manifest?.GetStringOrNull("version") ?? installed?.Manifest.GetStringOrNull("version");
@@ -166,13 +151,23 @@ public static class ChromiumProfileReader
             _ => (ExtensionSource.Other, $"install location {location}"),
         };
 
-        var enabled = !(entry.GetIntOrNull("state") == 0
-                        || entry.TryGetProperty("disable_reasons", out var reasons)
-                            && (reasons.ValueKind == JsonValueKind.Number && reasons.TryGetInt64(out var bits) && bits != 0
-                                || reasons.ValueKind == JsonValueKind.Array && reasons.GetArrayLength() > 0));
-
-        installed?.Dispose();
+        var enabled = entry.GetIntOrNull("state") != 0 && !HasDisableReasons(entry);
         return new InstalledExtension(id, string.IsNullOrWhiteSpace(name) ? id : name.Trim(), version, source, enabled, detail);
+    }
+
+    /// <summary>Chromium records why an extension is disabled as a bit field (older versions) or a list.</summary>
+    private static bool HasDisableReasons(JsonElement entry)
+    {
+        if (!entry.TryGetProperty("disable_reasons", out var reasons))
+        {
+            return false;
+        }
+        return reasons.ValueKind switch
+        {
+            JsonValueKind.Number => reasons.TryGetInt64(out var bits) && bits != 0,
+            JsonValueKind.Array => reasons.GetArrayLength() > 0,
+            _ => false,
+        };
     }
 
     private static bool IsStoreUpdateUrl(string? url) =>
@@ -248,6 +243,8 @@ public static class ChromiumProfileReader
         }
         catch (Exception ex) when (ex is IOException or UnauthorizedAccessException or JsonException or InvalidDataException)
         {
+            // An unreadable locale only costs the display name; the ID is used instead.
+            return null;
         }
         return null;
     }

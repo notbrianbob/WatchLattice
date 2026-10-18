@@ -88,9 +88,8 @@ public static class FirefoxProfileReader
             values = new(StringComparer.OrdinalIgnoreCase);
         }
 
-        foreach (var raw in text.Split('\n'))
+        foreach (var line in text.Split('\n').Select(l => l.Trim()))
         {
-            var line = raw.Trim();
             if (line.Length == 0 || line[0] is ';' or '#')
             {
                 continue;

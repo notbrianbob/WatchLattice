@@ -105,12 +105,9 @@ public sealed class WindowsExtensionPolicyReader : IExtensionPolicyReader
                     else
                     {
                         using var forcelist = policy.OpenSubKey("ExtensionInstallForcelist", writable: false);
-                        foreach (var value in Strings(forcelist))
+                        foreach (var item in Strings(forcelist).Select(ParseForcelistValue).OfType<(string Id, string? UpdateUrl)>())
                         {
-                            if (ParseForcelistValue(value) is { } item)
-                            {
-                                entries.Add(new PolicyEntry(browser, scope, scopeName, ForceInstallKind, item.Id, item.UpdateUrl));
-                            }
+                            entries.Add(new PolicyEntry(browser, scope, scopeName, ForceInstallKind, item.Id, item.UpdateUrl));
                         }
                     }
 

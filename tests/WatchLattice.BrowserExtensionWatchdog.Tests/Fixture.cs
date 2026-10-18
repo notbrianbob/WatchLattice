@@ -90,9 +90,8 @@ internal sealed class Fixture : IDisposable
 
     public void RemoveChromiumExtension(string browser, string id, string folder = "Default", string user = "alex")
     {
-        foreach (var name in new[] { "Preferences", "Secure Preferences" })
+        foreach (var file in new[] { "Preferences", "Secure Preferences" }.Select(n => Path.Join(ProfilePath(browser, folder, user), n)))
         {
-            var file = Path.Join(ProfilePath(browser, folder, user), name);
             if (!File.Exists(file))
             {
                 continue;
@@ -164,6 +163,8 @@ internal sealed class Fixture : IDisposable
         }
         catch (IOException)
         {
+            // Best-effort clean-up of a temporary folder; a leftover is harmless.
+            return;
         }
     }
 }
