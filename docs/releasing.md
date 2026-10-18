@@ -42,12 +42,20 @@ not from files uploaded by hand.
      SHA-256 for the hub's [install integrity check](install-integrity.md);
      it is written after signing by
      [`.github/scripts/Write-InstallManifest.ps1`](../.github/scripts/Write-InstallManifest.ps1)
-   - `SHA256SUMS.txt`, which the updater checks before installing anything
-   - a build provenance attestation for the zip
+   - `WatchLattice-<version>-win-x64.msi`, the same files as a Windows
+     Installer package, built from the zip's staged folder by
+     [`.github/scripts/Build-Msi.ps1`](../.github/scripts/Build-Msi.ps1) (see
+     [the MSI](installing.md#the-msi)). A prerelease such as `0.7.0-beta.1`
+     gets MSI version `0.7.0`, because Windows Installer versions are numeric;
+     the final `0.7.0` MSI still replaces it.
+   - `SHA256SUMS.txt`, with a line for the zip and one for the MSI. The
+     updater checks the zip's line before installing anything
+   - a build provenance attestation for the zip and the MSI
 
    When the SignPath secrets are set, the executables and DLLs are
-   Authenticode-signed before zipping; otherwise the run logs that the
-   release is unsigned. See [code signing](code-signing.md).
+   Authenticode-signed before zipping, and the MSI is signed after it is
+   built; otherwise the run logs that the release is unsigned. See
+   [code signing](code-signing.md).
    - release notes from the version's `CHANGELOG.md` section
 6. Edit the release notes if needed. Do not replace or re-upload
    assets: the checksum file would no longer match, and installs of that
@@ -82,9 +90,10 @@ name. Changing any of them would break updates from installed versions:
 | `%LOCALAPPDATA%\ScanAlways\` and `%TEMP%\ScanAlways\` | Where the canary manifest, baselines, alert feed and logs live. A new folder would orphan planted canaries (the watcher refuses to overwrite files it has no record of) and reset every baseline. |
 | `Local\ScanAlways.Tray.*` (tray mutex) | Keeps a single tray running while an old and a new copy overlap during an update. |
 | `WatchLattice` event source and the [event IDs](event-log.md#event-ids) | SIEM rules and event forwarding subscriptions match on them. Add new IDs; never rename the source or change what an ID means. |
+| MSI `UpgradeCode` `21E8E3ED-618D-4DCD-8E14-79555B2974AD` ([`Package.wxs`](../packaging/msi/Package.wxs)) | Ties every WatchLattice MSI together. A new one would install a second copy next to the old one instead of upgrading it. |
 
 Everything else (projects, namespaces, assemblies other than the two
 executables, display text, the release asset `WatchLattice-<version>-win-x64.zip`)
 uses the WatchLattice name. `ReleaseLayoutCompatibilityTests` fails if the
-package names change. Moving to new names needs a release whose updater
+package names, or the MSI's service name, executables or UpgradeCode, change. Moving to new names needs a release whose updater
 understands both, shipped and installed first.

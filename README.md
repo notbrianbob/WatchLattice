@@ -156,7 +156,9 @@ Download the latest [release](https://github.com/notbrianbob/WatchLattice/releas
 zip, extract it, and double-click **Install.cmd**. What changed in each
 version is in [CHANGELOG.md](CHANGELOG.md). It installs the hub as a
 service, starts the tray at sign-in, asks which folders to protect, and adds
-an uninstaller under Settings > Apps. See [installing WatchLattice](docs/installing.md).
+an uninstaller under Settings > Apps. Each release also has an MSI that
+installs the same thing with the defaults, for a double-click or unattended
+install. See [installing WatchLattice](docs/installing.md).
 
 ### Install as a Windows service from source
 
@@ -263,8 +265,9 @@ WatchLattice.sln
 │   ├── WatchLattice.HostsProxyWatchdog.Tests/
 │   ├── WatchLattice.Persistence.Tests/
 │   ├── WatchLattice.Updater.Tests/
-│   └── installer/                    # Install, reinstall and uninstall test run by CI
+│   └── installer/                    # Install, upgrade and uninstall tests (zip and MSI) run by CI
 ├── installer/                        # Install.cmd, install.ps1, uninstall.ps1 (shipped in the release zip)
+├── packaging/msi/                    # WiX project for the release MSI
 ├── demos/
 │   ├── WatchLattice.Demos/           # Demo and measurement harness (not shipped)
 │   ├── scripts/                      # Windows script that observes the real hub process
@@ -276,7 +279,7 @@ WatchLattice.sln
     ├── dashboard.md                  # The dashboard and its settings editor
     ├── event-log.md                  # Alerts in the Windows Event Log, with event IDs
     ├── install-integrity.md          # The hub checking its own installed files
-    ├── installing.md                 # Installing a release with Install.cmd
+    ├── installing.md                 # Installing a release with Install.cmd or the MSI
     ├── releasing.md                  # Cutting a release the updater can install
     └── windows-checks.md             # What to check by hand on Windows for each release
 ```

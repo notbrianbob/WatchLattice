@@ -1,6 +1,6 @@
 # Code signing
 
-Release binaries are Authenticode-signed through
+Release binaries and the MSI are Authenticode-signed through
 [SignPath](https://signpath.io), using the free
 [SignPath Foundation](https://signpath.org) program for open-source projects.
 A signature tells Windows (and SmartScreen) who published a file and that it
@@ -25,8 +25,12 @@ publishes the hub and tray, then, when signing is configured:
 3. checks with `Get-AuthenticodeSignature` that every `.exe` and `.dll` has a
    valid signature and that all of ours share one publisher, and fails the
    release otherwise;
-4. zips the signed files and writes `SHA256SUMS.txt` from that zip, so the
-   checksum and the provenance attestation cover the signed binaries.
+4. zips the signed files and builds the MSI from them;
+5. submits the MSI in a second request, which signs the MSI file itself
+   using [`.signpath/msi-artifact-configuration.xml`](../.signpath/msi-artifact-configuration.xml),
+   and checks it is validly signed by the same publisher as the hub;
+6. writes `SHA256SUMS.txt` from the zip and the signed MSI, so the checksums
+   and the provenance attestation cover the signed files.
 
 Once the signing secrets exist, a release that cannot be signed **fails**
 rather than shipping unsigned.
@@ -77,6 +81,11 @@ Honest limits:
    - Add the GitHub.com trusted build system to the project.
    - Create the default artifact configuration from
      [`.signpath/artifact-configuration.xml`](../.signpath/artifact-configuration.xml).
+   - Create a second artifact configuration with the slug `msi` from
+     [`.signpath/msi-artifact-configuration.xml`](../.signpath/msi-artifact-configuration.xml)
+     (or set the repository variable `SIGNPATH_MSI_ARTIFACT_CONFIGURATION_SLUG`
+     to the slug you chose). The MSI goes through the same signing policy, so
+     each release makes two signing requests to approve.
    - Signing policy slug `release-signing` (or set the repository variable
      `SIGNPATH_SIGNING_POLICY_SLUG`). The Foundation's policy may require you
      to approve each signing request in SignPath; the workflow waits for it
