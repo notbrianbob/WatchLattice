@@ -15,8 +15,10 @@
     <!-- Windows Installer versions are numeric, so 0.7.0-beta.1 builds as 0.7.0. -->
     <ProductVersion Condition="'$(ProductVersion)' == ''">0.0.1</ProductVersion>
     <DefineConstants>StageDir=$(StageDir);ProductVersion=$(ProductVersion)</DefineConstants>
-    <!-- ICE61: same-version upgrades are allowed on purpose (see Package.wxs). -->
-    <SuppressIces>ICE61</SuppressIces>
+    <!-- ICE61: same-version upgrades are allowed on purpose (see Package.wxs).
+         ICE57: validation treats the Start menu as possibly per-user, but this
+         package is per-machine only (ALLUSERS=1), so its shortcut is too. -->
+    <SuppressIces>ICE61;ICE57</SuppressIces>
   </PropertyGroup>
 
   <ItemGroup>

@@ -138,12 +138,13 @@
       </Component>
 
       <!-- In its own component with a registry key path, as Windows Installer
-           wants for a shortcut that is not advertised (HKMU is HKLM here). -->
+           wants for a shortcut that is not advertised. The package is always
+           per-machine, so ProgramMenuFolder is the all-users Start menu. -->
       <Component Id="StartMenuShortcut" Directory="ProgramMenuFolder">
-        <Shortcut Id="StartMenuShortcut" Name="WatchLattice" Target="[#TrayExe]"
+        <Shortcut Id="StartMenuShortcut" Name="WatchLattice" Target="[TrayFolder]ScanAlways.Tray.exe"
                   Description="WatchLattice alerts and status" WorkingDirectory="TrayFolder"
                   Arguments="--feed &quot;[CommonAppDataFolder]WatchLattice\Alerts\alerts.json&quot;" />
-        <RegistryValue Root="HKMU" Key="Software\WatchLattice" Name="StartMenuShortcut" Type="integer" Value="1" KeyPath="yes" />
+        <RegistryValue Root="HKLM" Key="Software\WatchLattice" Name="StartMenuShortcut" Type="integer" Value="1" KeyPath="yes" />
       </Component>
 
       <Files Include="$(StageDir)\Tray\**">
