@@ -47,7 +47,8 @@ including previous and current values. The exceptions are WMI subscriptions
 and services in user-writable folders, which are critical, and routine task
 rescheduling and service version updates, which are informational; see
 [How alerts are graded](#how-alerts-are-graded). The baseline advances automatically
-after observing changes; it is a last-observed inventory, not an approved list.
+after observing changes; it is a last-observed inventory, not an approved list
+(for that, see [approving entries](#approving-entries-as-known-good)).
 It survives hub restarts. Polling defaults to five minutes.
 
 Long values are explicitly truncated in alert messages so both previous and
@@ -55,6 +56,48 @@ current excerpts fit. The baseline retains the complete observed values.
 
 Alerts appear in normal hub logs and the [shared alert feed](../../docs/alerts-and-tray.md).
 The tray companion displays warnings and critical alerts as Windows balloons.
+
+## Approving entries as known-good
+
+The baseline moves on by itself, so a change alerts once. Some entries come
+back, though: an app that removes and re-adds its Run value, a task that
+flips between two settings, a vendor tool that recreates its WMI
+subscription. Once you have looked at such an entry, you can approve it so
+that it stops alerting in that exact form:
+
+1. On the dashboard's Alerts tab, select the *Autostart entry added* or
+   *Autostart entry changed* alert (or the `VERIFY_*` alert that follows it)
+   and choose **Approve as baseline…**. You can select several.
+2. Windows asks for administrator permission and the settings editor opens on
+   this module's page with one new line per entry in **Approved entries**.
+3. **Save and restart hub** saves it like any other setting (checked, backed
+   up, hub restarted). The dashboard then marks those alerts acknowledged.
+
+An approval is the entry's source and name plus the SHA-256 of the exact
+value the auditor recorded (the command, task definition, service settings,
+Startup file hash or WMI properties shown as *Current* in the alert):
+
+```json
+"Persistence": {
+  "ApprovedEntries": [
+    "sha256:3f0c…e81a Registry/HKCU/Run/OneDrive"
+  ]
+}
+```
+
+When that entry is added, or changes, to exactly that value, there is no
+alert; a line in the hub's log (and the dashboard's Activity tab) says it
+matched an approval. Any other value raises the usual alert, graded and
+verified as before, and removals are still reported. An approval does not
+pin the contents of the program a command runs; the auditor never did. To
+revoke one, remove its line in the settings editor and save. `IgnoredEntries`
+remains the way to silence every change to an entry.
+
+The hash comes from the last line of each `ENTRY_ADDED` and `ENTRY_CHANGED`
+message, `Fingerprint: sha256:<hash>`, which the auditor always writes after
+any text taken from the entry itself. A source/entry name longer than 512
+characters is shortened in the alert and cannot be approved from the
+dashboard.
 
 ## Verifying changed scheduled tasks
 
@@ -225,6 +268,7 @@ Settings live in the hub's `appsettings.json`, under `Persistence`:
 | `WatchWmiSubscriptions` | `true` | Query permanent WMI event subscriptions in `root\subscription`. |
 | `StartupFolders` | `[]` | Empty uses the account's Startup and common Startup folders; explicit paths replace those defaults. |
 | `IgnoredEntries` | `[]` | Case-insensitive `*` / `?` patterns matching the full source/entry identity shown in alerts. Suppresses change alerts only; coverage failures remain visible. |
+| `ApprovedEntries` | `[]` | Entries approved as known-good, one `sha256:<hash> <source>/<entry>` line each, normally added with **Approve as baseline**. See [approving entries](#approving-entries-as-known-good). |
 | `BaselinePath` | `null` | Defaults to `%LOCALAPPDATA%\ScanAlways\persistence-baseline.json`. |
 | `MaxStartupFileBytes` | `4194304` | Per-file hashing limit; clamped to 4 KiB–16 MiB. |
 | `AutoVerifyAlerts` | `true` | Verify a scheduled task or service when an alert reports it added or changed, and raise a `VERIFY_*` alert. Never remediates. |

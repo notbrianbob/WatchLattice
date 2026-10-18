@@ -179,6 +179,25 @@ update host.
    shows Firefox's profiles as new (Info) instead of reporting their
    extensions as added.
 
+6. **Approve as baseline** (#40). Add a harmless Run value from an elevated
+   prompt: `reg add HKLM\Software\Microsoft\Windows\CurrentVersion\Run /v WLApproveTest /d "C:\Windows\System32\notepad.exe"`.
+   Within five minutes there is an *Autostart entry added* warning whose
+   details end with `Fingerprint: sha256:…` and a *Baseline* note. Select it
+   and choose **Approve as baseline…**: the administrator prompt appears, then
+   the editor on the Persistence page with one new **Approved entries** line
+   and a *Staged to approve* note. Save. The hub restarts and the alert shows
+   *Acknowledged*, with *Approved* in its details.
+7. Delete the value (`reg delete … /v WLApproveTest /f`): the next check
+   raises `ENTRY_REMOVED` (Info). Add it back exactly as before: no alert, and
+   the Activity tab (with *Everything* shown) has a line saying it matched an
+   approved entry. Add it again with `/d "C:\Windows\System32\notepad.exe /x" /f`:
+   *Autostart entry changed* as usual. Remove the value and its approval line
+   in Settings when done.
+8. Choose **Approve as baseline…** and decline the prompt: nothing changes and
+   the alert stays *New*. Select a `VERIFY_*` alert for a task: the button
+   approves the task's entry alert. Select a *New browser extension* alert
+   from step 2: the editor stages its ID in **Ignored extension IDs**.
+
 ## Already covered
 
 Steps 1 to 6 of [the dashboard checks](dashboard.md#what-needs-checking-on-windows)

@@ -18,6 +18,7 @@ public sealed class PersistenceAuditor
     private readonly IChangeEvidenceSink? _evidence;
     private readonly SystemPaths _paths;
     private readonly Dictionary<string, string> _problems = new(StringComparer.OrdinalIgnoreCase);
+    private readonly IReadOnlyList<ApprovedEntry> _approved;
     private PersistenceBaseline? _baseline;
 
     public PersistenceAuditor(IPersistenceProvider provider, IOptions<PersistenceOptions> options,
@@ -29,6 +30,7 @@ public sealed class PersistenceAuditor
         _logger = logger;
         _alerts = alerts;
         _evidence = evidence;
+        _approved = ParseApprovals();
     }
 
     public async Task RunAsync(CancellationToken cancellationToken)
@@ -87,16 +89,23 @@ public sealed class PersistenceAuditor
                     changed = true;
                     var resource = source.Id + "/" + difference.Id;
                     if (_options.IgnoredEntries.Any(pattern => FileSystemName.MatchesSimpleExpression(pattern, resource, ignoreCase: true))) continue;
+                    if (difference.After is { } current && _approved.Any(a => a.Matches(resource, current)))
+                    {
+                        _logger.LogInformation("Persistence: {Resource} was {Kind} and matches an approved entry, so it raised no alert.",
+                            resource, difference.Kind.ToString().ToLowerInvariant());
+                        continue;
+                    }
                     // Hand over the complete before/after first; the alert message only carries excerpts.
                     var verified = difference.Kind != PersistenceChangeKind.Removed
                         && _evidence?.Stage(resource, new PersistenceObservation(source.Id, difference.Id, difference.Kind,
                             difference.Before, difference.After, DateTimeOffset.UtcNow)) == true;
                     var (severity, qualifier, note) = Grade(source.Id, difference, verified);
+                    var message = $"{Excerpt(resource, 350)}\nPrevious: {Excerpt(difference.Before, 700)}\nCurrent: {Excerpt(difference.After, 700)}"
+                        + (note is null ? "" : "\n" + note);
+                    // The fingerprint is always the last line, after any text taken from the entry, so the dashboard can approve it.
+                    if (difference.After is not null) message = Fit(message, "\n" + BaselineApprovals.FingerprintLine(difference.After));
                     Emit("ENTRY_" + difference.Kind.ToString().ToUpperInvariant(), severity,
-                        $"Autostart entry {difference.Kind.ToString().ToLowerInvariant()}" + qualifier,
-                        $"{Excerpt(resource, 350)}\nPrevious: {Excerpt(difference.Before, 700)}\nCurrent: {Excerpt(difference.After, 700)}"
-                        + (note is null ? "" : "\n" + note),
-                        resource);
+                        $"Autostart entry {difference.Kind.ToString().ToLowerInvariant()}" + qualifier, message, resource);
                 }
             }
             _baseline.Sources[source.Id] = source.Entries.ToList();
@@ -200,6 +209,26 @@ public sealed class PersistenceAuditor
             return (AlertSeverity.Info, ": schedule timing only",
                 "Only when the task runs changed, so this is informational. The verification alert that follows reports anything that needs attention.");
         return (AlertSeverity.Warning, "", null);
+    }
+
+    /// <summary>The approvals in the settings; lines that are not an approval are logged and ignored.</summary>
+    private IReadOnlyList<ApprovedEntry> ParseApprovals()
+    {
+        var approved = new List<ApprovedEntry>();
+        foreach (var line in _options.ApprovedEntries ?? Array.Empty<string>())
+        {
+            if (ApprovedEntry.TryParse(line?.Trim(), out var entry)) approved.Add(entry);
+            else _logger.LogWarning("Persistence:ApprovedEntries has a line that is not \"sha256:<64 hex digits> <source>/<entry>\"; it is ignored: {Line}",
+                Excerpt(line, 200));
+        }
+        return approved;
+    }
+
+    /// <summary>Keeps the message within the alert hub's 2,048-character limit with the tail intact.</summary>
+    private static string Fit(string message, string tail)
+    {
+        const int Limit = 2048;
+        return message.Length + tail.Length <= Limit ? message + tail : message[..(Limit - tail.Length - 1)] + "…" + tail;
     }
 
     private static string Excerpt(string? value, int limit) => value is null ? "(absent)"

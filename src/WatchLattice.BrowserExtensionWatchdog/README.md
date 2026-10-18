@@ -92,7 +92,7 @@ page (`edge://extensions`, `chrome://extensions`, `about:addons`), and check
 | `WatchEdge`, `WatchChrome`, `WatchFirefox` | `true` | Which browsers to watch. Turning one off forgets its inventory, so turning it back on starts fresh. |
 | `WatchPolicies` | `true` | Watch install policies and external install registrations. |
 | `ReportRemovals` | `true` | Report removed extensions and policies (as Info). Additions are always reported. |
-| `IgnoredExtensionIds` | `[]` | Extension IDs (wildcards `*` and `?`) that never alert, for extensions you approved. They are still recorded. |
+| `IgnoredExtensionIds` | `[]` | Extension IDs (wildcards `*` and `?`) that never alert, for extensions you approved. They are still recorded. **Approve as baseline** on a *New browser extension* alert in the dashboard adds its ID here. |
 | `MaxIndividualAlerts` | `5` | Up to this many additions (or removals) in one check get an alert each; more are summarized in one. |
 | `MaxChangesPerAlert` | `20` | Items listed in one alert; the rest are counted. |
 | `MaxFileBytes` | `33554432` | A `Preferences`, `Local State` or `extensions.json` larger than this is reported as unreadable instead of read. |

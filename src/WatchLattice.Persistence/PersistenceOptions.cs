@@ -14,6 +14,13 @@ public sealed class PersistenceOptions
     public bool WatchWmiSubscriptions { get; set; } = true;
     public string[] StartupFolders { get; set; } = Array.Empty<string>();
     public string[] IgnoredEntries { get; set; } = Array.Empty<string>();
+
+    /// <summary>
+    /// Entries approved as known-good, one per line as <c>sha256:&lt;hash&gt; &lt;source&gt;/&lt;entry&gt;</c>.
+    /// Added by Approve as baseline in the dashboard. An entry added or changed
+    /// to exactly the approved value raises no alert; any other value still does.
+    /// </summary>
+    public string[] ApprovedEntries { get; set; } = Array.Empty<string>();
     public string? BaselinePath { get; set; }
     public int MaxStartupFileBytes { get; set; } = 4 * 1024 * 1024;
 

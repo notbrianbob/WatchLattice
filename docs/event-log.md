@@ -199,6 +199,11 @@ Standing findings have a `_CLEARED` recovery event at ID + 500.
 | 5012 | `VERIFY_SUSPICIOUS` | Error | Automatic verification: the program, service DLL or COM class was changed, the task gained highest privileges or now runs as SYSTEM or Administrators, a service now runs as LocalSystem or from a user-writable folder, a per-user registration overrides the machine one, a signature is invalid, or the task differs from the trusted baseline. |
 | 5013 | `VERIFICATION_STORE_FAILED` | Warning | Verification findings could not be saved, or an unreadable findings file was moved aside. |
 
+The 5002 and 5003 messages end with a `Fingerprint: sha256:<hash>` line, the
+SHA-256 of the entry's current recorded value, which
+[approving an entry](../src/WatchLattice.Persistence/README.md#approving-entries-as-known-good)
+uses. An approved entry that comes back with that value raises no event.
+
 ### Updater (6000)
 
 | ID | Code | Level | Meaning |

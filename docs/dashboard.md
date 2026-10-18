@@ -51,6 +51,28 @@ or dismissed is kept for your account only, in
 needs no administrator permission and survives restarts and updates. Deleting
 that file makes every row new again.
 
+## Approving entries as known-good
+
+**Approve as baseline…** on the Alerts tab is for an autostart entry or
+browser extension you have checked and expect to see again. Select an
+*Autostart entry added* or *changed* alert (or the verification alert after
+it), or a *New browser extension* alert, and choose it. Windows asks for
+administrator permission, and the [settings editor](#changing-settings-needs-an-administrator)
+opens with the approval staged as one new line:
+
+- for an autostart entry, in the Persistence page's **Approved entries**: that
+  entry with exactly its current value no longer alerts; any other value does;
+- for an extension, in the Browser Extension Watchdog page's **Ignored
+  extension IDs**: that extension no longer alerts in any profile.
+
+**Save and restart hub** saves it, and the dashboard marks those alerts
+acknowledged. The alert's details show *Approved* under *Baseline* from then
+on. To revoke an approval, remove its line in the editor and save. Approvals
+are part of the hub's settings, not your review file, so they apply to every
+account and only an administrator can change them. See
+[approving entries](../src/WatchLattice.Persistence/README.md#approving-entries-as-known-good)
+for exactly what is matched.
+
 ## Exporting alerts
 
 **Export…** on the Alerts tab saves the rows the list shows, as it shows them,
