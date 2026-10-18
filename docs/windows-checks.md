@@ -21,7 +21,7 @@ update host.
 2. Do the [0.5.0 checks](#050), then update to 0.6.0 the same way and do the
    [0.6.0 checks](#060), then update to 0.7.0 the same way and do the
    [0.7.0 checks](#070). The 0.7.0 checks end by moving the PC to the MSI.
-   Then update to 0.8.0 and do the [0.8.0 checks](#080).
+   Then upgrade that MSI install to 0.8.0 and do the [0.8.0 checks](#080).
 
 ## 0.5.0
 
@@ -155,31 +155,44 @@ update host.
 
 ## 0.8.0
 
-1. **Browser extension watchdog** (#39). Within five minutes of the update
+1. **Upgrade the 0.7.0 MSI** (#36). Double-click
+   `WatchLattice-0.8.0-win-x64.msi` and accept the administrator prompt: it
+   upgrades in place without asking the first-run questions again. Settings >
+   Apps lists WatchLattice 0.8.0, `C:\Program Files\WatchLattice\Hub` has
+   your `appsettings.json` with the release's copy next to it as
+   `appsettings.json.default`, and `--verify-install` from that folder exits
+   with `0`. The upgrade closes the tray; with **Start the WatchLattice tray
+   now** ticked it is back after **Finish** (otherwise start it from the
+   Start menu). The dashboard's Overview shows **Browser Extension
+   Watchdog** running, the Settings tab lists **Script Host Audit** as off,
+   and the alert history from 0.7.0 is still there. (On a zip
+   install, **Install update** in the tray does the same, as for 0.7.0.)
+
+2. **Browser extension watchdog** (#39). Within five minutes of the update
    the first check records a baseline (event 10001) listing how many Edge,
    Chrome and Firefox profiles and extensions it found, and raises nothing
    else. Check the counts look right for each browser you use.
-2. Install any extension you trust from Edge Add-ons (or the Chrome Web
+3. Install any extension you trust from Edge Add-ons (or the Chrome Web
    Store, or addons.mozilla.org). Within five minutes there is a **New
    browser extension** warning (10002) with its name, ID and version, the
    browser, profile and your account, *from the store*, and *Installed by
    policy: no*. Remove the extension: the next check shows
    `EXTENSION_REMOVED` as Info (10004).
-3. Add a force-install policy for an extension that doesn't exist, as in
+4. Add a force-install policy for an extension that doesn't exist, as in
    [Run](../src/WatchLattice.BrowserExtensionWatchdog/README.md#run) in its
    README. The next check raises `POLICY_EXTENSION_ADDED` (10006) for *this
    computer (all users)*, and `edge://policy` lists the entry. Remove it
    (and the key, if you created it): `POLICY_EXTENSION_REMOVED` is Info
    (10008).
-4. Create a new Edge or Chrome profile. The next check shows
+5. Create a new Edge or Chrome profile. The next check shows
    `PROFILE_ADDED` as Info (10010) with the extensions it came with, not one
    warning each. Delete the profile: `PROFILE_REMOVED` (10011).
-5. In the dashboard's Settings tab, **Browser Extension Watchdog** lists its
+6. In the dashboard's Settings tab, **Browser Extension Watchdog** lists its
    settings with their defaults. Turning `WatchFirefox` off and back on
    shows Firefox's profiles as new (Info) instead of reporting their
    extensions as added.
 
-6. **Approve as baseline** (#40). Add a harmless Run value from an elevated
+7. **Approve as baseline** (#40). Add a harmless Run value from an elevated
    prompt: `reg add HKLM\Software\Microsoft\Windows\CurrentVersion\Run /v WLApproveTest /d "C:\Windows\System32\notepad.exe"`.
    Within five minutes there is an *Autostart entry added* warning whose
    details end with `Fingerprint: sha256:…` and a *Baseline* note. Select it
@@ -187,25 +200,25 @@ update host.
    the editor on the Persistence page with one new **Approved entries** line
    and a *Staged to approve* note. Save. The hub restarts and the alert shows
    *Acknowledged*, with *Approved* in its details.
-7. Delete the value (`reg delete … /v WLApproveTest /f`): the next check
+8. Delete the value (`reg delete … /v WLApproveTest /f`): the next check
    raises `ENTRY_REMOVED` (Info). Add it back exactly as before: no alert, and
    the Activity tab (with *Everything* shown) has a line saying it matched an
    approved entry. Add it again with `/d "C:\Windows\System32\notepad.exe /x" /f`:
    *Autostart entry changed* as usual. Remove the value and its approval line
    in Settings when done.
-8. Choose **Approve as baseline…** and decline the prompt: nothing changes and
+9. Choose **Approve as baseline…** and decline the prompt: nothing changes and
    the alert stays *New*. Select a `VERIFY_*` alert for a task: the button
    approves the task's entry alert. Select a *New browser extension* alert
-   from step 2: the editor stages its ID in **Ignored extension IDs**.
+   from step 3: the editor stages its ID in **Ignored extension IDs**.
 
-9. **Script host audit** (#41). With the module still off, the dashboard's
+10. **Script host audit** (#41). With the module still off, the dashboard's
    Settings tab lists **Script Host Audit** as off. Turn it on there (or set
    `Modules:ScriptHostAudit:Enabled` to `true`). If process creation auditing
    is off, which is the Windows default, the dashboard shows one
    *Process creation auditing is off* alert as Info (11001) and nothing
    else, and it does not repeat. Nothing in `auditpol /get /category:*`
    changed.
-10. Turn auditing on as in
+11. Turn auditing on as in
     [Turning on process creation auditing](../src/WatchLattice.ScriptHostAudit/README.md#turning-on-process-creation-auditing)
     in its README (both commands). Within 30 seconds the Info alert clears
     (11501). Run `powershell.exe -NoProfile -Command "Get-Date"`: no alert.
@@ -215,18 +228,18 @@ update host.
     `WindowsTerminal.exe`), your account, the command line and *passes an
     encoded command*. Event Viewer > Windows Logs > Security has the 4688
     event at the record ID it names.
-11. Select that alert and choose **Approve as baseline…**: the editor stages
+12. Select that alert and choose **Approve as baseline…**: the editor stages
     one **Approved launches** line on the Script Host Audit page. Save. Run
     the same encoded command again from the same kind of window: no alert,
     and the Activity tab says it matched an approved launch. Run it with
     `-NonInteractive` added: it alerts again. Remove the approval line when
     done.
-12. Turn command lines off with
+13. Turn command lines off with
     `reg add "HKLM\Software\Microsoft\Windows\CurrentVersion\Policies\System\Audit" /v ProcessCreationIncludeCmdLine_Enabled /t REG_DWORD /d 0 /f`
     and run the encoded command again: the alert says *Command line: not
     recorded*, has no *Approve as baseline* option, and a *Command lines are
     not recorded* Info alert (11002) appears. Set it back to `1`.
-13. Stop the hub service, run the encoded command, start the service: the
+14. Stop the hub service, run the encoded command, start the service: the
     launch is reported once after the start. Undo auditing with the
     commands at the end of that README section if you don't want it on, and
     the module reports 11001 again.
