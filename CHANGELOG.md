@@ -11,6 +11,8 @@ notes, followed by GitHub's generated list of pull requests. See
 
 ## [Unreleased]
 
+## [0.8.0] - 2026-10-18
+
 ### Added
 
 - **Browser extension watchdog** (`BrowserExtensionWatchdog` module, on by
@@ -26,7 +28,7 @@ notes, followed by GitHub's generated list of pull requests. See
   and whether by policy, and each policy added is a warning too. Removals,
   new profiles and deleted profiles are Info. Read-only; it never disables or
   removes an extension. New Event IDs 10001 to 10015. See its
-  [README](src/WatchLattice.BrowserExtensionWatchdog/README.md).
+  [README](src/WatchLattice.BrowserExtensionWatchdog/README.md). (#39)
 - **Approve as baseline** on the dashboard's Alerts tab: select an
   *Autostart entry added* or *changed* alert (or the verification alert that
   follows it) and approve the entry exactly as it is now, so it raises no
@@ -42,6 +44,7 @@ notes, followed by GitHub's generated list of pull requests. See
   `ENTRY_CHANGED` messages now end with a `Fingerprint: sha256:<hash>` line
   for this. Event IDs are unchanged and approving raises no new events. See
   [approving entries](src/WatchLattice.Persistence/README.md#approving-entries-as-known-good).
+  (#40)
 - **Script host audit** (`ScriptHostAudit` module, **off by default**): reads
   Security log event 4688 every 30 seconds and reports launches of
   PowerShell, mshta, wscript, cscript, rundll32, regsvr32, certutil,
@@ -61,7 +64,19 @@ notes, followed by GitHub's generated list of pull requests. See
   `ScriptHostAudit:ApprovedLaunches`, the exact parent, program and command
   line). A cleared or overwritten Security log is reported. Read-only; it
   never blocks or stops a process. New Event IDs 11001 to 11009. See its
-  [README](src/WatchLattice.ScriptHostAudit/README.md).
+  [README](src/WatchLattice.ScriptHostAudit/README.md). (#41)
+- [What to check by hand on Windows](docs/windows-checks.md) now has the
+  0.8.0 checks: upgrading the 0.7.0 MSI, then the browser extension
+  watchdog, approving entries as baseline and the script host audit.
+
+### Changed
+
+- **Upgrading from 0.7.0:** run the 0.8.0 MSI over an MSI install, or use
+  **Install update** in the tray on either kind of install. Your
+  `appsettings.json` is kept; the browser extension watchdog starts on its
+  own (its first check records a baseline and raises nothing else), and the
+  script host audit stays off until you turn it on. Existing baselines and
+  alert history are unchanged.
 
 ## [0.7.0] - 2026-10-18
 
@@ -272,7 +287,8 @@ First release.
   (#13, #14)
 - CI, CodeQL and repository hygiene. (#2, #10)
 
-[Unreleased]: https://github.com/notbrianbob/WatchLattice/compare/v0.7.0...HEAD
+[Unreleased]: https://github.com/notbrianbob/WatchLattice/compare/v0.8.0...HEAD
+[0.8.0]: https://github.com/notbrianbob/WatchLattice/compare/v0.7.0...v0.8.0
 [0.7.0]: https://github.com/notbrianbob/WatchLattice/compare/v0.6.0...v0.7.0
 [0.6.0]: https://github.com/notbrianbob/WatchLattice/compare/v0.5.0...v0.6.0
 [0.5.0]: https://github.com/notbrianbob/WatchLattice/compare/v0.4.0...v0.5.0

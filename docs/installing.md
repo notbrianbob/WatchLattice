@@ -27,7 +27,7 @@ or download it from <https://dotnet.microsoft.com/download/dotnet/8.0>.
 Optionally, check the download before extracting it:
 
 ```powershell
-$file = 'WatchLattice-0.7.0-win-x64.zip'   # or the .msi
+$file = 'WatchLattice-0.8.0-win-x64.zip'   # or the .msi
 $expected = (Select-String -LiteralPath .\SHA256SUMS.txt -SimpleMatch $file).Line.Split(' ')[0]
 (Get-FileHash ".\$file" -Algorithm SHA256).Hash.ToLower() -eq $expected
 gh attestation verify ".\$file" --repo notbrianbob/WatchLattice
@@ -150,7 +150,7 @@ over to Windows Installer) all do the same full removal described in
 Unattended installs take the first-run choices as properties:
 
 ```powershell
-msiexec /i WatchLattice-0.7.0-win-x64.msi /qn /l*v install.log CANARYFOLDERS="D:\Projects;C:\Users\me\Documents" UPDATECHECK=0
+msiexec /i WatchLattice-0.8.0-win-x64.msi /qn /l*v install.log CANARYFOLDERS="D:\Projects;C:\Users\me\Documents" UPDATECHECK=0
 ```
 
 | Property | Meaning |
