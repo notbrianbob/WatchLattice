@@ -4,7 +4,8 @@ Releases are what the in-hub updater installs, so each one must come from
 the release workflow ([`.github/workflows/release.yml`](../.github/workflows/release.yml)),
 not from files uploaded by hand.
 
-1. Make sure `main` is green.
+1. Make sure `main` is green, and run the release's checks in
+   [what to check by hand on Windows](windows-checks.md).
 2. Move the `## [Unreleased]` entries in [`CHANGELOG.md`](../CHANGELOG.md)
    under a new `## [<version>] - <date>` heading, add its compare link at the
    bottom, and merge that to `main`. The release workflow uses this section
