@@ -220,7 +220,7 @@ jobs:
           Compress-Archive -Path (Join-Path $manifests '*.yaml') -DestinationPath "dist/WatchLattice-$env:RELEASE_VERSION-winget.zip"
 
       - name: Attest build provenance
-        uses: actions/attest-build-provenance@v1
+        uses: actions/attest-build-provenance@v4
         with:
           subject-path: dist/WatchLattice-*-win-x64.*
 
