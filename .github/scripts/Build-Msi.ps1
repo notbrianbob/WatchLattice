@@ -31,7 +31,9 @@ if ([int]$Matches[1] -gt 255 -or [int]$Matches[2] -gt 255 -or [int]$Matches[3] -
 
 $project = Join-Path $PSScriptRoot '../../packaging/msi/WatchLattice.Installer.wixproj'
 $out = Join-Path ([IO.Path]::GetTempPath()) "watchlattice-msi-$([guid]::NewGuid().ToString('N'))"
-dotnet build $project -c Release "-p:StageDir=$Stage" "-p:ProductVersion=$productVersion" -o $out
+# --no-incremental: MSBuild does not see a new version or stage as a change, so
+# a second build would otherwise hand back the previous MSI.
+dotnet build $project -c Release --no-incremental "-p:StageDir=$Stage" "-p:ProductVersion=$productVersion" -o $out
 if ($LASTEXITCODE -ne 0) { throw "The MSI build failed (exit $LASTEXITCODE)." }
 
 $msi = @(Get-ChildItem -LiteralPath $out -Recurse -Filter 'WatchLattice.msi')

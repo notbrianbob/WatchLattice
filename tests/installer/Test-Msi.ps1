@@ -137,6 +137,7 @@ Check 'install-state.json records the tray user' ($state.TrayUser -eq $TrayUser)
 
 $code = Invoke-Script (Join-Path $Package 'install.ps1') @('-Quiet', '-NoTrayStart')
 Check 'install.ps1 refuses to install over the MSI' ($code -eq 1)
+$firstProductCode = $state.ProductCode
 Check 'service is still running' ((Get-Service -Name $ServiceName).Status -eq 'Running')
 
 Write-Host '== Upgrade'
@@ -149,7 +150,9 @@ Check 'upgrade keeps the user''s settings' ((Get-Content -Raw -LiteralPath $Sett
 Check 'upgrade keeps the first-run choices' ((@((Get-Content -Raw -LiteralPath $Settings | ConvertFrom-Json).Canary.Folders) -join '|') -eq $canaryFolder)
 $entries = @(Get-MsiEntries)
 Check 'still listed once, as the new version' ($entries.Count -eq 1 -and $entries[0].DisplayVersion -eq '0.0.2')
-Check 'install-state.json has the new product code' ($entries.Count -eq 1 -and (Get-State).ProductCode -eq $entries[0].PSChildName)
+if ($entries.Count -ne 1 -or $entries[0].DisplayVersion -ne '0.0.2') { $entries | Format-List PSChildName, DisplayName, DisplayVersion | Out-Host }
+Check 'install-state.json has the new product code' ($entries.Count -eq 1 -and (Get-State).ProductCode -eq $entries[0].PSChildName -and $entries[0].PSChildName -ne $firstProductCode)
+$upgradeProductCode = (Get-State).ProductCode
 Check 'service is running again' (Wait-Until { (Get-Service -Name $ServiceName).Status -eq 'Running' })
 Check 'canaries are kept' ((Get-Canaries $canaryFolder).Count -eq $canariesBefore)
 Check 'feed folder is kept' (Test-Path -LiteralPath "$FeedDir\alerts.json.heartbeat.json")
@@ -158,7 +161,7 @@ Write-Host '== Install a rebuild of the same version over it'
 $code = Invoke-Msiexec 'reinstall' @('/i', "`"$RebuiltMsi`"")
 Check 'msiexec reinstall exits 0' ($code -eq 0)
 $entries = @(Get-MsiEntries)
-Check 'still listed once' ($entries.Count -eq 1)
+Check 'still listed once, with the rebuild''s product code' ($entries.Count -eq 1 -and $entries[0].PSChildName -ne $upgradeProductCode)
 Check 'reinstall keeps the user''s settings' ((Get-Content -Raw -LiteralPath $Settings | ConvertFrom-Json).Alerts.HistoryLimit -eq 123)
 Check 'service is running after the reinstall' (Wait-Until { (Get-Service -Name $ServiceName).Status -eq 'Running' })
 
