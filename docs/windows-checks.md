@@ -3,7 +3,7 @@
 CI builds and tests everything on a Windows runner and installs a
 release-shaped package, but the dashboard windows, real Windows settings
 changes and a real update can only be checked on a Windows 11 PC. This is
-one list of those checks for the features added in 0.5.0 and 0.6.0, in an
+one list of those checks for the features added in 0.5.0, 0.6.0 and 0.7.0, in an
 order that works on one machine. Each step links to the detailed version.
 
 Use a PC you can undo changes on. Every step below changes something
@@ -101,6 +101,22 @@ update host.
 5. **Daily summary** (#32). Follow step 9 of
    [the dashboard checks](dashboard.md#what-needs-checking-on-windows): the
    Overview shows the latest summary, and Event Viewer has event 1007.
+
+## 0.7.0
+
+1. **MSI install** (#36). Uninstall WatchLattice first (the MSI refuses to
+   install over an Install.cmd install). Double-click
+   `WatchLattice-0.7.0-win-x64.msi`: the license page, the administrator
+   prompt and a progress bar appear, and with **Start the WatchLattice tray
+   now** ticked the tray icon shows up after **Finish**, running as you (not
+   elevated: Task Manager's *Elevated* column says No). Settings > Apps lists
+   WatchLattice 0.7.0. Sign out and back in: the tray starts on its own. See
+   [the MSI](installing.md#the-msi).
+2. **MSI uninstall** (#36). Uninstall WatchLattice from Settings > Apps. The
+   tray closes, `C:\Program Files\WatchLattice` and
+   `C:\ProgramData\WatchLattice` are gone, the canary files in your Desktop,
+   Documents and Pictures are gone, and Startup apps in Task Manager no longer
+   lists WatchLattice Tray.
 
 ## Already covered
 

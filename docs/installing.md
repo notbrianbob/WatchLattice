@@ -1,7 +1,16 @@
 # Installing WatchLattice
 
-Each [release](https://github.com/notbrianbob/WatchLattice/releases) zip
-contains the hub, the tray companion, and a one-step installer.
+Each [release](https://github.com/notbrianbob/WatchLattice/releases) comes
+two ways, which install the same files the same way:
+
+- `WatchLattice-<version>-win-x64.zip`: the hub, the tray companion, and a
+  one-step installer (Install.cmd). Its first-run questions are below.
+- `WatchLattice-<version>-win-x64.msi`: a Windows Installer package, for a
+  double-click install with the defaults or an unattended install from a
+  deployment tool. See [the MSI](#the-msi).
+
+Use one or the other on a PC, not both: each refuses to install over the
+other. The in-hub updater works the same after either.
 
 ## Before you start
 
@@ -113,4 +122,60 @@ never follows a link or junction out of the folders it deletes.
 - One tray user per install. Other accounts on the PC can open the tray but
   cannot read the feed; rerun the installer with `-Reconfigure -TrayUser` to
   switch users.
-- There is no MSI or winget package yet.
+- There is no winget package yet.
+
+## The MSI
+
+Double-click `WatchLattice-<version>-win-x64.msi`, accept the license and the
+administrator prompt, and leave **Start the WatchLattice tray now** ticked.
+It needs the same .NET 8 Desktop Runtime and stops with the same
+instructions if it is missing. It sets up exactly what Install.cmd does
+(above) for the user who runs it, with the first-run defaults: your Desktop,
+Documents and Pictures get canaries, the decoy and update checks are on, and
+the tray starts at your sign-in. Change any of them later in the dashboard's
+Settings tab.
+
+It always installs to `C:\Program Files\WatchLattice`. It is listed under
+**Settings > Apps** as a Windows Installer product, so uninstalling from
+there, `msiexec /x`, or `uninstall.ps1` in the install folder (which hands
+over to Windows Installer) all do the same full removal described in
+[Uninstall](#uninstall).
+
+Unattended installs take the first-run choices as properties:
+
+```powershell
+msiexec /i WatchLattice-0.7.0-win-x64.msi /qn /l*v install.log CANARYFOLDERS="D:\Projects;C:\Users\me\Documents" UPDATECHECK=0
+```
+
+| Property | Meaning |
+|---|---|
+| `TRAYUSER="PC\name"` | Whose tray and folders to set up. Defaults to the user running msiexec. Required when it runs as SYSTEM (for example from Intune or Configuration Manager); the install fails with a message in the log otherwise. |
+| `CANARYFOLDERS="C:\a;D:\b"` | Canary folders. Defaults to the tray user's Desktop, Documents and Pictures. |
+| `DECOY=0` | Do not run the decoy. |
+| `UPDATECHECK=0` | Do not check for new releases. |
+| `TRAYAUTOSTART=0` | Do not start the tray at sign-in. |
+| `KEEPDATA=1` | On uninstall (`msiexec /x … KEEPDATA=1`): keep the alert feed, baselines and canary manifest, like `uninstall.ps1 -KeepData`. |
+
+**Upgrading.** Running a newer MSI upgrades in place: the old version is
+removed and the new one installed in the same step, keeping your
+`appsettings.json` (the release's copy is next to it as
+`appsettings.json.default`), canaries, baselines and alert history, and your
+first-run choices are not asked again. Installing an MSI of the same version
+replaces it; an older one refuses and says so. **Install update** in the
+tray also works on an MSI install, but it updates the files from the zip
+without telling Windows Installer, so Settings > Apps keeps showing the
+version the MSI installed until the next MSI upgrade. That is cosmetic: the
+next MSI or uninstall still works.
+
+**How it is built.** [`packaging/msi`](../packaging/msi) is a WiX v5 project
+that packs the release's own staged files, so the MSI and the zip contain
+the same bytes and the hub's [install integrity check](install-integrity.md)
+passes for either. Windows Installer creates the service, the event log
+source, the Start menu shortcut and the Settings > Apps entry. The parts
+that depend on the tray user (the install and feed folder permissions, the
+first-run settings, the sign-in entry, the service's restart-on-crash
+settings) are done by the installed `install.ps1 -Msi`, and the uninstall
+clean-up by `uninstall.ps1 -Msi`, so both install routes share one
+implementation. Their output is in the MSI log (`/l*v`). CI's
+`MSI installer` job installs, upgrades, reinstalls and uninstalls an MSI
+built this way on every pull request.

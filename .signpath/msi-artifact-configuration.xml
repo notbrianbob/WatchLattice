@@ -1,0 +1,19 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+  SignPath artifact configuration for the WatchLattice MSI. Add it to the
+  SignPath project as a second artifact configuration with the slug "msi"
+  (or set the repository variable SIGNPATH_MSI_ARTIFACT_CONFIGURATION_SLUG);
+  see docs/code-signing.md. The release workflow builds the MSI from the
+  already-signed binaries, uploads it alone as a GitHub artifact, and
+  SignPath Authenticode-signs the MSI file itself.
+-->
+<artifact-configuration xmlns="http://signpath.io/artifact-configuration/v1">
+  <zip-file>
+    <msi-file-set>
+      <include path="WatchLattice-*-win-x64.msi" />
+      <for-each>
+        <authenticode-sign />
+      </for-each>
+    </msi-file-set>
+  </zip-file>
+</artifact-configuration>

@@ -97,6 +97,57 @@ jobs:
         shell: powershell
         run: tests/installer/Test-Installer.ps1 -Package (Join-Path $env:RUNNER_TEMP 'package')
 
+  msi:
+    name: MSI installer (windows-latest)
+    runs-on: windows-latest
+    env:
+      DOTNET_NOLOGO: true
+      DOTNET_CLI_TELEMETRY_OPTOUT: true
+
+    steps:
+      - uses: actions/checkout@v7
+
+      - uses: actions/setup-dotnet@v6
+        with:
+          global-json-file: global.json
+
+      # The release workflow's stage and MSI build, without signing. Two
+      # versions to upgrade between, and the newer one built twice (a new
+      # product code) to install over itself.
+      - name: Build MSIs like a release
+        shell: pwsh
+        run: |
+          $stage = Join-Path $env:RUNNER_TEMP 'package'
+          dotnet publish src/WatchLattice.Hub  -c Release -r win-x64 --self-contained false -o (Join-Path $stage 'Hub')
+          dotnet publish src/WatchLattice.Tray -c Release -r win-x64 --self-contained false -o (Join-Path $stage 'Tray')
+          Copy-Item LICENSE, README.md $stage
+          Get-ChildItem $stage -Recurse -Filter *.pdb | Remove-Item
+          .github/scripts/Write-InstallManifest.ps1 -Stage $stage -Version 0.0.0-dev
+          Copy-Item installer/* $stage
+          $msis = Join-Path $env:RUNNER_TEMP 'msi'
+          .github/scripts/Build-Msi.ps1 -Stage $stage -Version 0.0.1 -OutFile (Join-Path $msis 'WatchLattice-0.0.1-win-x64.msi')
+          .github/scripts/Build-Msi.ps1 -Stage $stage -Version 0.0.2 -OutFile (Join-Path $msis 'WatchLattice-0.0.2-win-x64.msi')
+          .github/scripts/Build-Msi.ps1 -Stage $stage -Version 0.0.2-rebuilt -OutFile (Join-Path $msis 'WatchLattice-0.0.2-rebuilt-win-x64.msi')
+
+      # Windows PowerShell 5.1, which is what the MSI runs install.ps1 with.
+      - name: Install, upgrade, reinstall and uninstall
+        shell: powershell
+        run: |
+          $msis = Join-Path $env:RUNNER_TEMP 'msi'
+          tests/installer/Test-Msi.ps1 -Package (Join-Path $env:RUNNER_TEMP 'package') `
+            -Msi (Join-Path $msis 'WatchLattice-0.0.1-win-x64.msi') `
+            -UpgradeMsi (Join-Path $msis 'WatchLattice-0.0.2-win-x64.msi') `
+            -RebuiltMsi (Join-Path $msis 'WatchLattice-0.0.2-rebuilt-win-x64.msi') `
+            -LogDir (Join-Path $env:RUNNER_TEMP 'msi-logs')
+
+      - name: Upload MSI logs
+        if: always()
+        uses: actions/upload-artifact@v7
+        with:
+          name: msi-logs
+          path: ${{ runner.temp }}/msi-logs
+          if-no-files-found: ignore
+
   changelog:
     name: Changelog
     runs-on: ubuntu-latest

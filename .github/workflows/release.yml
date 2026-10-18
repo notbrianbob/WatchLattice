@@ -3,14 +3,17 @@ name: Release
 # Pushing a tag like v0.2.0 builds, tests and publishes a GitHub Release with:
 #   WatchLattice-<version>-win-x64.zip   Hub/ and Tray/, framework-dependent, with
 #                                        Hub/WatchLattice.files.sha256 (per-file hashes)
-#   SHA256SUMS.txt                       checked by the in-hub updater before installing
+#   WatchLattice-<version>-win-x64.msi   the same files as a Windows Installer package
+#                                        (packaging/msi); the in-hub updater keeps using the zip
+#   SHA256SUMS.txt                       both of them; the updater checks the zip's line before installing
 # with the tag's CHANGELOG.md section as the release notes,
-# plus a build provenance attestation for the zip (verify with `gh attestation verify`).
+# plus a build provenance attestation for the zip and MSI (verify with `gh attestation verify`).
 #
 # When SignPath is configured (see docs/code-signing.md), the published
 # WatchLattice and ScanAlways executables and DLLs are Authenticode-signed
-# before they are zipped. Without the SignPath secrets the release is built
-# unsigned, exactly as before, and the log says so.
+# before they are zipped, and the MSI is signed after it is built. Without the
+# SignPath secrets the release is built unsigned, exactly as before, and the
+# log says so.
 on:
   push:
     tags: ['v[0-9]+.[0-9]+.[0-9]+*']
@@ -135,7 +138,7 @@ jobs:
           }
           if ($bad) { throw "These binaries are not validly signed by the expected publisher: $($bad -join ', ')" }
 
-      - name: Package and checksum
+      - name: Package
         shell: pwsh
         run: |
           # Per-file hashes for the hub's install integrity check, written after
@@ -150,14 +153,64 @@ jobs:
           Add-Type -AssemblyName System.IO.Compression.FileSystem
           [System.IO.Compression.ZipFile]::CreateFromDirectory($env:STAGE, (Join-Path (Resolve-Path dist).Path (Split-Path $zip -Leaf)))
 
-          $hash = (Get-FileHash $zip -Algorithm SHA256).Hash.ToLowerInvariant()
-          Set-Content -Encoding ascii -Path dist/SHA256SUMS.txt -Value "$hash  $(Split-Path $zip -Leaf)"
+          # The MSI installs the same staged (signed) files as the zip.
+          .github/scripts/Build-Msi.ps1 -Stage $env:STAGE -Version $env:RELEASE_VERSION -OutFile "dist/WatchLattice-$env:RELEASE_VERSION-win-x64.msi"
+
+      # The MSI file itself is signed in a second request, with its own
+      # artifact configuration (.signpath/msi-artifact-configuration.xml).
+      - name: Upload unsigned MSI for signing
+        id: unsigned-msi
+        if: steps.signing.outputs.enabled == 'true'
+        uses: actions/upload-artifact@v7
+        with:
+          name: unsigned-msi-${{ env.RELEASE_VERSION }}
+          path: dist/WatchLattice-${{ env.RELEASE_VERSION }}-win-x64.msi
+          if-no-files-found: error
+          retention-days: 1
+
+      - name: Sign MSI with SignPath
+        if: steps.signing.outputs.enabled == 'true'
+        uses: signpath/github-action-submit-signing-request@v3
+        with:
+          api-token: ${{ secrets.SIGNPATH_API_TOKEN }}
+          organization-id: ${{ secrets.SIGNPATH_ORGANIZATION_ID }}
+          project-slug: ${{ vars.SIGNPATH_PROJECT_SLUG || 'WatchLattice' }}
+          signing-policy-slug: ${{ vars.SIGNPATH_SIGNING_POLICY_SLUG || 'release-signing' }}
+          artifact-configuration-slug: ${{ vars.SIGNPATH_MSI_ARTIFACT_CONFIGURATION_SLUG || 'msi' }}
+          github-artifact-id: ${{ steps.unsigned-msi.outputs.artifact-id }}
+          wait-for-completion: true
+          output-artifact-directory: ${{ runner.temp }}/signed-msi
+
+      - name: Verify MSI signature
+        if: steps.signing.outputs.enabled == 'true'
+        shell: pwsh
+        run: |
+          $name = "WatchLattice-$env:RELEASE_VERSION-win-x64.msi"
+          $signed = Join-Path $env:RUNNER_TEMP "signed-msi/$name"
+          if (-not (Test-Path -LiteralPath $signed)) { throw "SignPath returned no $name." }
+          Move-Item -LiteralPath $signed -Destination "dist/$name" -Force
+          $msi = Get-AuthenticodeSignature "dist/$name"
+          $hub = Get-AuthenticodeSignature (Join-Path $env:STAGE 'Hub/ScanAlways.Protection.Service.exe')
+          Write-Host "$($msi.Status)  $name  $($msi.SignerCertificate.Subject)"
+          if ($msi.Status -ne 'Valid') { throw "$name is not validly signed: $($msi.StatusMessage)" }
+          if ($msi.SignerCertificate.Subject -cne $hub.SignerCertificate.Subject) { throw "$name is signed by a different publisher than the hub." }
+
+      - name: Checksum
+        shell: pwsh
+        run: |
+          Push-Location dist
+          $lines = foreach ($file in Get-ChildItem -File -Filter "WatchLattice-$env:RELEASE_VERSION-win-x64.*" | Sort-Object Name) {
+            "$((Get-FileHash $file.Name -Algorithm SHA256).Hash.ToLowerInvariant())  $($file.Name)"
+          }
+          Pop-Location
+          if (@($lines).Count -ne 2) { throw "Expected the zip and the MSI in dist/, found: $($lines -join '; ')" }
+          Set-Content -Encoding ascii -Path dist/SHA256SUMS.txt -Value $lines
           Get-Content dist/SHA256SUMS.txt
 
       - name: Attest build provenance
         uses: actions/attest-build-provenance@v1
         with:
-          subject-path: dist/WatchLattice-*.zip
+          subject-path: dist/WatchLattice-*-win-x64.*
 
       - name: Create GitHub release
         shell: pwsh
@@ -177,4 +230,4 @@ jobs:
           }
           $global:LASTEXITCODE = 0
           if ($env:RELEASE_VERSION.Contains('-')) { $flags += '--prerelease' }
-          gh release create $env:TAG dist/WatchLattice-$env:RELEASE_VERSION-win-x64.zip dist/SHA256SUMS.txt @flags
+          gh release create $env:TAG dist/WatchLattice-$env:RELEASE_VERSION-win-x64.zip dist/WatchLattice-$env:RELEASE_VERSION-win-x64.msi dist/SHA256SUMS.txt @flags

@@ -1,0 +1,212 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+  WatchLattice MSI: a per-machine install of the same files the release zip
+  carries, set up the way installer\install.ps1 sets them up. See
+  docs/installing.md#the-msi for its properties and docs/releasing.md for
+  the names below that must not change.
+
+  Windows Installer does the machine-wide parts itself (files, the service,
+  the event log source, the Start menu shortcut, Settings > Apps). The parts
+  that depend on who uses the tray (the alert feed's permissions, folders in
+  that user's profile, their sign-in entry) are done by the installed
+  install.ps1 and uninstall.ps1 in -Msi mode, so both install routes share
+  one implementation.
+-->
+<Wix xmlns="http://wixtoolset.org/schemas/v4/wxs"
+     xmlns:util="http://wixtoolset.org/schemas/v4/wxs/util"
+     xmlns:netfx="http://wixtoolset.org/schemas/v4/wxs/netfx"
+     xmlns:ui="http://wixtoolset.org/schemas/v4/wxs/ui">
+
+  <!-- The UpgradeCode ties every WatchLattice MSI together; never change it. -->
+  <Package Name="WatchLattice"
+           Manufacturer="WatchLattice contributors"
+           Version="$(ProductVersion)"
+           UpgradeCode="21E8E3ED-618D-4DCD-8E14-79555B2974AD"
+           Scope="perMachine"
+           Language="1033">
+
+    <SummaryInformation Description="WatchLattice $(ProductVersion): layered Windows security tools that complement Microsoft Defender." />
+
+    <!-- Same-version upgrades are allowed so a rebuilt or prerelease MSI
+         (0.7.0-beta.1 builds as 0.7.0) replaces the installed one instead of
+         installing a second copy next to it. The old version is removed
+         first; appsettings.json survives because its component is permanent. -->
+    <MajorUpgrade Schedule="afterInstallInitialize"
+                  AllowSameVersionUpgrades="yes"
+                  DowngradeErrorMessage="A newer version of WatchLattice is already installed. Uninstall it from Settings &gt; Apps first to install this one." />
+
+    <MediaTemplate EmbedCab="yes" />
+
+    <!-- Settings > Apps (WixUI_Minimal also sets ARPNOMODIFY) -->
+    <Property Id="ARPURLINFOABOUT" Value="https://github.com/notbrianbob/WatchLattice" />
+    <Property Id="ARPHELPLINK" Value="https://github.com/notbrianbob/WatchLattice/blob/main/docs/installing.md" />
+
+    <!-- Install-time choices, the same ones install.ps1 asks. Secure so they
+         reach the elevated part of the install. -->
+    <Property Id="TRAYUSER" Secure="yes" />
+    <Property Id="CANARYFOLDERS" Secure="yes" />
+    <Property Id="DECOY" Value="1" Secure="yes" />
+    <Property Id="UPDATECHECK" Value="1" Secure="yes" />
+    <Property Id="TRAYAUTOSTART" Value="1" Secure="yes" />
+    <!-- Uninstall only: keep the alert feed, baselines and logs. -->
+    <Property Id="KEEPDATA" Secure="yes" />
+
+    <!-- The hub and tray are framework-dependent .NET 8 apps. -->
+    <netfx:DotNetCompatibilityCheck Property="DOTNETDESKTOP8CHECK" RuntimeType="desktop" Platform="x64" Version="8.0.0" RollForward="minor" />
+    <Launch Condition="Installed OR DOTNETDESKTOP8CHECK = &quot;0&quot;"
+            Message="WatchLattice needs the .NET 8 Desktop Runtime (x64). Install it with: winget install Microsoft.DotNet.DesktopRuntime.8 (or from https://dotnet.microsoft.com/download/dotnet/8.0), then run this installer again." />
+
+    <!-- An install made with Install.cmd registers this key; the two kinds of
+         install would fight over the same service and folder. -->
+    <Property Id="SCRIPTINSTALL">
+      <RegistrySearch Root="HKLM" Key="SOFTWARE\Microsoft\Windows\CurrentVersion\Uninstall\WatchLattice" Name="DisplayName" Type="raw" Bitness="always64" />
+    </Property>
+    <Launch Condition="Installed OR NOT SCRIPTINSTALL"
+            Message="WatchLattice is already installed with Install.cmd. Uninstall it from Settings &gt; Apps first, then run this installer again." />
+
+    <!-- The install folder is fixed (a private property): the service runs
+         from it as LocalSystem, so it stays in Program Files. -->
+    <StandardDirectory Id="ProgramFiles64Folder">
+      <Directory Id="InstallFolder" Name="WatchLattice">
+        <Directory Id="HubFolder" Name="Hub" />
+        <Directory Id="TrayFolder" Name="Tray" />
+      </Directory>
+    </StandardDirectory>
+
+    <Feature Id="Main" Title="WatchLattice" Level="1" AllowAbsent="no">
+      <ComponentGroupRef Id="RootFiles" />
+      <ComponentGroupRef Id="HubFiles" />
+      <ComponentGroupRef Id="TrayFiles" />
+    </Feature>
+
+    <ComponentGroup Id="RootFiles" Directory="InstallFolder">
+      <!-- -Msi mode of these two does the per-user setup and clean-up below. -->
+      <Component>
+        <File Source="$(StageDir)\install.ps1" />
+      </Component>
+      <Component>
+        <File Source="$(StageDir)\uninstall.ps1" />
+      </Component>
+      <Component>
+        <File Source="$(StageDir)\LICENSE" />
+      </Component>
+      <Component>
+        <File Source="$(StageDir)\README.md" />
+      </Component>
+
+      <!-- The hub registers this source itself when it is missing; owning it
+           here removes it with the product. -->
+      <Component Id="EventSource">
+        <util:EventSource Log="Application" Name="WatchLattice"
+                          EventMessageFile="[WindowsFolder]Microsoft.NET\Framework64\v4.0.30319\EventLogMessages.dll"
+                          SupportsErrors="yes" SupportsWarnings="yes" SupportsInformationals="yes"
+                          KeyPath="yes" />
+      </Component>
+    </ComponentGroup>
+
+    <ComponentGroup Id="HubFiles" Directory="HubFolder">
+      <Component Id="HubService">
+        <File Id="HubExe" Source="$(StageDir)\Hub\ScanAlways.Protection.Service.exe" KeyPath="yes" />
+        <!-- Name, executable and account are what the in-hub updater expects. -->
+        <ServiceInstall Name="ScanAlways Protection"
+                        DisplayName="WatchLattice Protection"
+                        Description="WatchLattice hub: canary files, Defender and firewall health, persistence auditing. Complements Microsoft Defender."
+                        Type="ownProcess" Start="auto" ErrorControl="normal" Vital="yes" />
+        <ServiceControl Id="HubService" Name="ScanAlways Protection" Start="install" Stop="both" Remove="uninstall" Wait="yes" />
+      </Component>
+
+      <!-- Your settings. Permanent so upgrades (which remove the old version
+           first) keep it, and never overwritten once it exists. Uninstall
+           deletes it with the install folder. -->
+      <Component Id="HubSettings" Permanent="yes" NeverOverwrite="yes">
+        <File Id="HubSettings" Source="$(StageDir)\Hub\appsettings.json" KeyPath="yes" />
+      </Component>
+      <!-- The release's own defaults, next to your settings, as install.ps1 and the updater do. -->
+      <Component Id="HubSettingsDefault">
+        <File Id="HubSettingsDefault" Source="$(StageDir)\Hub\appsettings.json" Name="appsettings.json.default" KeyPath="yes" />
+      </Component>
+
+      <Files Include="$(StageDir)\Hub\**">
+        <Exclude Files="$(StageDir)\Hub\ScanAlways.Protection.Service.exe" />
+        <Exclude Files="$(StageDir)\Hub\appsettings.json" />
+      </Files>
+    </ComponentGroup>
+
+    <ComponentGroup Id="TrayFiles" Directory="TrayFolder">
+      <Component Id="TrayExe">
+        <File Id="TrayExe" Source="$(StageDir)\Tray\ScanAlways.Tray.exe" KeyPath="yes" />
+      </Component>
+
+      <!-- In its own component with a registry key path, as Windows Installer
+           wants for a shortcut that is not advertised. The package is always
+           per-machine, so ProgramMenuFolder is the all-users Start menu and
+           HKMU is HKLM. -->
+      <Component Id="StartMenuShortcut" Directory="ProgramMenuFolder">
+        <Shortcut Id="StartMenuShortcut" Name="WatchLattice" Target="[TrayFolder]ScanAlways.Tray.exe"
+                  Description="WatchLattice alerts and status" WorkingDirectory="TrayFolder"
+                  Arguments="--feed &quot;[CommonAppDataFolder]WatchLattice\Alerts\alerts.json&quot;" />
+        <RegistryValue Root="HKMU" Key="Software\WatchLattice" Name="StartMenuShortcut" Type="integer" Value="1" KeyPath="yes" />
+      </Component>
+
+      <Files Include="$(StageDir)\Tray\**">
+        <Exclude Files="$(StageDir)\Tray\ScanAlways.Tray.exe" />
+      </Files>
+    </ComponentGroup>
+
+    <!-- The tray user defaults to whoever runs the install; run as SYSTEM
+         (for example from a deployment tool), pass TRAYUSER instead. -->
+    <SetProperty Id="TRAYUSER" Value="[UserSID]" After="AppSearch" Sequence="execute"
+                 Condition="NOT TRAYUSER AND UserSID AND UserSID &lt;&gt; &quot;S-1-5-18&quot;" />
+    <SetProperty Id="WL_ARG_TRAYUSER" Value="-TrayUser &quot;[TRAYUSER]&quot;" After="CostFinalize" Sequence="execute" Condition="TRAYUSER" />
+    <SetProperty Id="WL_ARG_CANARY" Value="-CanaryFolders &quot;[CANARYFOLDERS]&quot;" After="CostFinalize" Sequence="execute" Condition="CANARYFOLDERS" />
+    <SetProperty Id="WL_ARG_DECOY" Value="-NoDecoy" After="CostFinalize" Sequence="execute" Condition="DECOY = &quot;0&quot;" />
+    <SetProperty Id="WL_ARG_UPDATES" Value="-NoUpdateCheck" After="CostFinalize" Sequence="execute" Condition="UPDATECHECK = &quot;0&quot;" />
+    <SetProperty Id="WL_ARG_AUTOSTART" Value="-NoTrayAutostart" After="CostFinalize" Sequence="execute" Condition="TRAYAUTOSTART = &quot;0&quot;" />
+    <SetProperty Id="WL_ARG_KEEPDATA" Value="-KeepData" After="CostFinalize" Sequence="execute" Condition="KEEPDATA AND KEEPDATA &lt;&gt; &quot;0&quot;" />
+
+    <!-- Deferred actions run as LocalSystem; WixQuietExec logs their output
+         to the MSI log (msiexec /l*v). Their command lines stay under the
+         255 characters a CustomAction target holds. -->
+    <SetProperty Id="WL_PS" Value="[System64Folder]WindowsPowerShell\v1.0\powershell.exe" After="CostFinalize" Sequence="execute" />
+    <SetProperty Id="WlStopTray" Before="WlStopTray" Sequence="execute"
+                 Value="&quot;[System64Folder]taskkill.exe&quot; /F /IM ScanAlways.Tray.exe" />
+    <CustomAction Id="WlStopTray" BinaryRef="Wix4UtilCA_X64" DllEntry="WixQuietExec" Execute="deferred" Impersonate="no" Return="ignore" />
+
+    <SetProperty Id="WlConfigure" Before="WlConfigure" Sequence="execute"
+                 Value="&quot;[WL_PS]&quot; -NoProfile -ExecutionPolicy Bypass -File &quot;[InstallFolder]install.ps1&quot; -Msi -ProductCode &quot;[ProductCode]&quot; [WL_ARG_TRAYUSER] [WL_ARG_CANARY] [WL_ARG_DECOY] [WL_ARG_UPDATES] [WL_ARG_AUTOSTART]" />
+    <CustomAction Id="WlConfigure" BinaryRef="Wix4UtilCA_X64" DllEntry="WixQuietExec" Execute="deferred" Impersonate="no" Return="check" />
+
+    <SetProperty Id="WlCleanUp" Before="WlCleanUp" Sequence="execute"
+                 Value="&quot;[WL_PS]&quot; -NoProfile -ExecutionPolicy Bypass -File &quot;[InstallFolder]uninstall.ps1&quot; -Msi [WL_ARG_KEEPDATA]" />
+    <CustomAction Id="WlCleanUp" BinaryRef="Wix4UtilCA_X64" DllEntry="WixQuietExec" Execute="deferred" Impersonate="no" Return="ignore" />
+
+    <!-- What Windows Installer did not install: your appsettings.json,
+         install-state.json, settings backups. -->
+    <SetProperty Id="WlRemoveInstallFolder" Before="WlRemoveInstallFolder" Sequence="execute"
+                 Value="&quot;[System64Folder]cmd.exe&quot; /d /c rmdir /s /q &quot;[InstallFolder]&quot;" />
+    <CustomAction Id="WlRemoveInstallFolder" BinaryRef="Wix4UtilCA_X64" DllEntry="WixQuietExec" Execute="deferred" Impersonate="no" Return="ignore" />
+
+    <InstallExecuteSequence>
+      <!-- Before any file is replaced or removed, so nothing is in use. -->
+      <Custom Action="WlStopTray" After="StopServices" />
+      <!-- Removing the product (not upgrading it): canaries, sign-in entries, data. -->
+      <Custom Action="WlCleanUp" After="WlStopTray" Condition="REMOVE ~= &quot;ALL&quot; AND NOT UPGRADINGPRODUCTCODE" />
+      <Custom Action="WlRemoveInstallFolder" After="RemoveFiles" Condition="REMOVE ~= &quot;ALL&quot; AND NOT UPGRADINGPRODUCTCODE" />
+      <!-- After the service exists and before it starts, so its feed folder
+           and settings are ready. -->
+      <Custom Action="WlConfigure" After="InstallServices" Condition="NOT REMOVE ~= &quot;ALL&quot;" />
+    </InstallExecuteSequence>
+
+    <!-- Interactive installs: license, progress, and an option to start the tray. -->
+    <ui:WixUI Id="WixUI_Minimal" />
+    <WixVariable Id="WixUILicenseRtf" Value="License.rtf" />
+    <Property Id="WIXUI_EXITDIALOGOPTIONALCHECKBOXTEXT" Value="Start the WatchLattice tray now" />
+    <Property Id="WIXUI_EXITDIALOGOPTIONALCHECKBOX" Value="1" />
+    <SetProperty Id="WixShellExecTarget" Value="[ProgramMenuFolder]WatchLattice.lnk" After="CostFinalize" Sequence="ui" />
+    <CustomAction Id="WlStartTray" BinaryRef="Wix4UtilCA_X64" DllEntry="WixShellExec" Impersonate="yes" Return="ignore" />
+    <UI>
+      <Publish Dialog="ExitDialog" Control="Finish" Event="DoAction" Value="WlStartTray"
+               Condition="WIXUI_EXITDIALOGOPTIONALCHECKBOX = 1 AND NOT Installed" />
+    </UI>
+  </Package>
+</Wix>
