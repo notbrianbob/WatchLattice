@@ -42,6 +42,26 @@ notes, followed by GitHub's generated list of pull requests. See
   `ENTRY_CHANGED` messages now end with a `Fingerprint: sha256:<hash>` line
   for this. Event IDs are unchanged and approving raises no new events. See
   [approving entries](src/WatchLattice.Persistence/README.md#approving-entries-as-known-good).
+- **Script host audit** (`ScriptHostAudit` module, **off by default**): reads
+  Security log event 4688 every 30 seconds and reports launches of
+  PowerShell, mshta, wscript, cscript, rundll32, regsvr32, certutil,
+  bitsadmin and similar programs, with the parent program, user, elevation,
+  command line and why it was reported. A launch is a warning when an Office
+  app, a browser, a PDF reader or another script host started it, when its
+  command line uses an encoded PowerShell command, a hidden window, a
+  download, `Invoke-Expression`, `javascript:` or a known abuse of the
+  program (such as `certutil -urlcache` or `regsvr32 scrobj.dll`), or when a
+  Windows program runs from outside the Windows folder; critical when a
+  suspicious parent combines with another reason. Ordinary launches are not
+  reported unless `MinimumSeverity` is `Info`. It only works when Windows
+  process creation auditing is already on, and never turns it on: when it is
+  off the dashboard shows one informational alert saying so, with the
+  `auditpol` command in the README. Known-good launches are allowed with
+  `AllowedLaunches` wildcard rules or with **Approve as baseline** (new
+  `ScriptHostAudit:ApprovedLaunches`, the exact parent, program and command
+  line). A cleared or overwritten Security log is reported. Read-only; it
+  never blocks or stops a process. New Event IDs 11001 to 11009. See its
+  [README](src/WatchLattice.ScriptHostAudit/README.md).
 
 ## [0.7.0] - 2026-10-18
 

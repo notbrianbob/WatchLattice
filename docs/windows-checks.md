@@ -198,6 +198,39 @@ update host.
    approves the task's entry alert. Select a *New browser extension* alert
    from step 2: the editor stages its ID in **Ignored extension IDs**.
 
+9. **Script host audit** (#__PR__). With the module still off, the dashboard's
+   Settings tab lists **Script Host Audit** as off. Turn it on there (or set
+   `Modules:ScriptHostAudit:Enabled` to `true`). If process creation auditing
+   is off, which is the Windows default, the dashboard shows one
+   *Process creation auditing is off* alert as Info (11001) and nothing
+   else, and it does not repeat. Nothing in `auditpol /get /category:*`
+   changed.
+10. Turn auditing on as in
+    [Turning on process creation auditing](../src/WatchLattice.ScriptHostAudit/README.md#turning-on-process-creation-auditing)
+    in its README (both commands). Within 30 seconds the Info alert clears
+    (11501). Run `powershell.exe -NoProfile -Command "Get-Date"`: no alert.
+    Run `powershell.exe -NoProfile -EncodedCommand RwBlAHQALQBEAGEAdABlAA==`:
+    within 30 seconds there is a *Suspicious script host launch* warning
+    (11005) naming `powershell.exe`, its parent (`powershell.exe` or
+    `WindowsTerminal.exe`), your account, the command line and *passes an
+    encoded command*. Event Viewer > Windows Logs > Security has the 4688
+    event at the record ID it names.
+11. Select that alert and choose **Approve as baseline…**: the editor stages
+    one **Approved launches** line on the Script Host Audit page. Save. Run
+    the same encoded command again from the same kind of window: no alert,
+    and the Activity tab says it matched an approved launch. Run it with
+    `-NonInteractive` added: it alerts again. Remove the approval line when
+    done.
+12. Turn command lines off with
+    `reg add "HKLM\Software\Microsoft\Windows\CurrentVersion\Policies\System\Audit" /v ProcessCreationIncludeCmdLine_Enabled /t REG_DWORD /d 0 /f`
+    and run the encoded command again: the alert says *Command line: not
+    recorded*, has no *Approve as baseline* option, and a *Command lines are
+    not recorded* Info alert (11002) appears. Set it back to `1`.
+13. Stop the hub service, run the encoded command, start the service: the
+    launch is reported once after the start. Undo auditing with the
+    commands at the end of that README section if you don't want it on, and
+    the module reports 11001 again.
+
 ## Already covered
 
 Steps 1 to 6 of [the dashboard checks](dashboard.md#what-needs-checking-on-windows)

@@ -34,6 +34,7 @@ public static class AlertEventIds
         ["HostsProxyWatchdog"] = 8000,
         // 9000 is left alone: 9900-9902 are the unknown-module fallback IDs.
         ["BrowserExtensionWatchdog"] = 10000,
+        ["ScriptHostAudit"] = 11000,
     };
 
     // The supervisor raises these under each module's own ID.
@@ -142,6 +143,16 @@ public static class AlertEventIds
         [("BrowserExtensionWatchdog", "POLICY_UNAVAILABLE")] = 10013,
         [("BrowserExtensionWatchdog", "STATE_SAVE_FAILED")] = 10014,
         [("BrowserExtensionWatchdog", "STATE_UNREADABLE")] = 10015,
+
+        [("ScriptHostAudit", "PROCESS_AUDITING_OFF")] = 11001,
+        [("ScriptHostAudit", "COMMAND_LINE_NOT_RECORDED")] = 11002,
+        [("ScriptHostAudit", "AUDIT_POLICY_UNAVAILABLE")] = 11003,
+        [("ScriptHostAudit", "SECURITY_LOG_UNAVAILABLE")] = 11004,
+        [("ScriptHostAudit", "SCRIPT_HOST_LAUNCHED")] = 11005,
+        [("ScriptHostAudit", "SCRIPT_HOST_LAUNCHES")] = 11006,
+        [("ScriptHostAudit", "EVENTS_MISSED")] = 11007,
+        [("ScriptHostAudit", "STATE_SAVE_FAILED")] = 11008,
+        [("ScriptHostAudit", "STATE_UNREADABLE")] = 11009,
     };
 
     // Codes that carry a variable part after a fixed prefix, e.g. BROAD_EXCLUSION:Path:C:\.

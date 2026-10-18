@@ -60,6 +60,7 @@ $hubArgs = @(
     '--Modules:HostsProxyWatchdog:Enabled=false',
     '--Modules:BrowserExtensionWatchdog:Enabled=false',
     '--Modules:Persistence:Enabled=false',
+    '--Modules:ScriptHostAudit:Enabled=false',
     '--Modules:Updater:Enabled=false',
     "--Decoy:Intensity=$Intensity",
     "--Decoy:ScanRoots:0=$corpus",

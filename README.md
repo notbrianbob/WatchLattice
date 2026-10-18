@@ -65,6 +65,7 @@ detection and removal, and WatchLattice adds friction and tripwires around it.
 | **Firewall Health Watchdog** ([`src/WatchLattice.FirewallWatchdog`](src/WatchLattice.FirewallWatchdog/)) | Available | Reports disabled Windows Firewall profiles, profiles that allow unsolicited inbound traffic by default, and every change to a profile's default inbound action. Optionally (off by default) reports newly introduced inbound allow rules. A separate layer from the Defender watchdog. Read-only. See its [README](src/WatchLattice.FirewallWatchdog/README.md). |
 | **Hosts File & Proxy Watchdog** ([`src/WatchLattice.HostsProxyWatchdog`](src/WatchLattice.HostsProxyWatchdog/)) | Available | Records a baseline of the hosts file and the proxy settings Windows and most apps use (WinINET per user and per machine, WinHTTP, and `HTTP_PROXY`-style variables), then reports every change with before and after. Hosts entries that block or redirect Windows Update, Defender or WatchLattice's update hosts are critical. Read-only. See its [README](src/WatchLattice.HostsProxyWatchdog/README.md). |
 | **Browser Extension Watchdog** ([`src/WatchLattice.BrowserExtensionWatchdog`](src/WatchLattice.BrowserExtensionWatchdog/)) | Available | Records which extensions are installed in every Edge, Chrome and Firefox profile on the PC, and the policies and registry entries that install extensions from outside the browser, then reports each extension or policy added or removed with its ID, name, browser, profile and how it was installed (store, policy, another program, unpacked). Read-only. See its [README](src/WatchLattice.BrowserExtensionWatchdog/README.md). |
+| **Script Host Audit** ([`src/WatchLattice.ScriptHostAudit`](src/WatchLattice.ScriptHostAudit/)) | Available, off by default | Reads Windows process creation events (Security log 4688, when auditing is already on) and reports PowerShell, mshta, wscript, rundll32, regsvr32, certutil and similar launches, graded by their parent (an Office app or browser starting a script host) and command line (encoded commands, hidden windows, downloads). Never changes audit policy; says so once if auditing is off. Read-only. See its [README](src/WatchLattice.ScriptHostAudit/README.md). |
 | **Persistence & Autostart Auditor** ([`src/WatchLattice.Persistence`](src/WatchLattice.Persistence/)) | Available | Records a baseline of Run/RunOnce keys, Startup files, visible scheduled tasks, auto-start services and permanent WMI event subscriptions, then reports additions, changes, removals, and gaps in coverage. Changed scheduled tasks and services are verified automatically (current definition, COM registration or service DLL, target file location, signature and hash, trusted baseline). Read-only. See its [README](src/WatchLattice.Persistence/README.md). |
 
 The **Windows tray companion** opens the **dashboard**: hub and module status,
@@ -105,6 +106,7 @@ ScanAlways.Protection.Service.exe  (the hub: one process, console or Windows ser
     ├── HostsProxyWatchdog ── Modules:HostsProxyWatchdog:Enabled
     ├── BrowserExtensionWatchdog ── Modules:BrowserExtensionWatchdog:Enabled
     ├── Persistence       ── Modules:Persistence:Enabled
+    ├── ScriptHostAudit   ── Modules:ScriptHostAudit:Enabled (off by default)
     ├── InstallIntegrity  ── Modules:InstallIntegrity:Enabled (checks its own files)
     └── Updater           ── Modules:Updater:Enabled (checks only)
 
@@ -214,6 +216,7 @@ overridden with an environment variable or a command-line switch, for example
     "HostsProxyWatchdog": { "Enabled": true },
     "BrowserExtensionWatchdog": { "Enabled": true },
     "Persistence":      { "Enabled": true },
+    "ScriptHostAudit":  { "Enabled": false },
     "Updater":          { "Enabled": true },
     "InstallIntegrity": { "Enabled": true }
   },
@@ -225,6 +228,7 @@ overridden with an environment variable or a command-line switch, for example
   "HostsProxyWatchdog": { },
   "BrowserExtensionWatchdog": { },
   "Persistence": { },
+  "ScriptHostAudit": { },
   "Updater": { },
   "InstallIntegrity": { },
   "Alerts": { "Enabled": true, "FeedPath": null, "HistoryLimit": 200, "EventLog": { "Enabled": true, "MinimumSeverity": "Info" },
@@ -259,6 +263,7 @@ WatchLattice.sln
 │   ├── WatchLattice.HostsProxyWatchdog/ # Module: hosts file and proxy settings watchdog
 │   ├── WatchLattice.BrowserExtensionWatchdog/ # Module: browser extension watchdog
 │   ├── WatchLattice.Persistence/       # Module: persistence and autostart auditor
+│   ├── WatchLattice.ScriptHostAudit/   # Module: script host launch auditing (opt-in)
 │   ├── WatchLattice.Updater/           # Modules + installer: update checks, verified installs, install integrity
 │   └── WatchLattice.Tray/              # Windows tray companion and dashboard
 ├── tests/
@@ -270,6 +275,7 @@ WatchLattice.sln
 │   ├── WatchLattice.HostsProxyWatchdog.Tests/
 │   ├── WatchLattice.BrowserExtensionWatchdog.Tests/
 │   ├── WatchLattice.Persistence.Tests/
+│   ├── WatchLattice.ScriptHostAudit.Tests/
 │   ├── WatchLattice.Updater.Tests/
 │   └── installer/                    # Install, upgrade and uninstall tests (zip and MSI) run by CI
 ├── installer/                        # Install.cmd, install.ps1, uninstall.ps1 (shipped in the release zip)
@@ -330,6 +336,7 @@ their canaries and baselines. See
 - [x] Alert export (CSV and JSON) and a daily alert summary
 - [x] MSI installer for double-click and unattended installs
 - [x] Browser extension watchdog (Edge, Chrome, Firefox)
+- [x] Script host launch auditing from process creation events (opt-in)
 - [ ] winget package (each release carries validated manifests; [submitting them](docs/releasing.md#publishing-to-winget) is a manual step)
 - [ ] Code-signed releases (the release workflow and updater are ready; signing starts once the SignPath setup in [docs/code-signing.md](docs/code-signing.md) is done)
 - [x] Reproducible demos and measured overhead

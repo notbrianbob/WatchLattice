@@ -53,17 +53,22 @@ that file makes every row new again.
 
 ## Approving entries as known-good
 
-**Approve as baseline…** on the Alerts tab is for an autostart entry or
-browser extension you have checked and expect to see again. Select an
-*Autostart entry added* or *changed* alert (or the verification alert after
-it), or a *New browser extension* alert, and choose it. Windows asks for
+**Approve as baseline…** on the Alerts tab is for an autostart entry,
+browser extension or script host launch you have checked and expect to see
+again. Select an *Autostart entry added* or *changed* alert (or the
+verification alert after it), a *New browser extension* alert, or a single
+*script host launch* alert that shows a command line, and choose it. Windows asks for
 administrator permission, and the [settings editor](#changing-settings-needs-an-administrator)
 opens with the approval staged as one new line:
 
 - for an autostart entry, in the Persistence page's **Approved entries**: that
   entry with exactly its current value no longer alerts; any other value does;
 - for an extension, in the Browser Extension Watchdog page's **Ignored
-  extension IDs**: that extension no longer alerts in any profile.
+  extension IDs**: that extension no longer alerts in any profile;
+- for a script host launch, in the Script Host Audit page's **Approved
+  launches**: the same parent program starting the same script host with
+  exactly that command line no longer alerts; anything else does (see
+  [allowing launches](../src/WatchLattice.ScriptHostAudit/README.md#allowing-known-launches)).
 
 **Save and restart hub** saves it, and the dashboard marks those alerts
 acknowledged. The alert's details show *Approved* under *Baseline* from then

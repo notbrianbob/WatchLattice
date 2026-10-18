@@ -1,0 +1,17 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup>
+    <TargetFramework>net8.0</TargetFramework>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <Nullable>enable</Nullable>
+    <LangVersion>latest</LangVersion>
+    <RootNamespace>WatchLattice.ScriptHostAudit</RootNamespace>
+    <AssemblyName>WatchLattice.ScriptHostAudit</AssemblyName>
+    <Description>Read-only script host launch auditing from Security log event 4688 for the WatchLattice suite. Runs as a module inside the WatchLattice hub.</Description>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="..\WatchLattice.Common\WatchLattice.Common.csproj" />
+  </ItemGroup>
+
+</Project>
