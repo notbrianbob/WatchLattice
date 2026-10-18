@@ -52,4 +52,24 @@ public class ReleaseVersionTests
         Assert.False(ReleaseVersion.Parse("1.0.0").IsDevelopmentBuild);
         Assert.False(ReleaseVersion.Parse("1.0.0-beta.1").IsDevelopmentBuild);
     }
+
+    [Fact]
+    public void FromFile_ReadsTheVersionStampedIntoTheFileOnDisk()
+    {
+        var assembly = typeof(UpdaterModule).Assembly;
+
+        Assert.Equal(ReleaseVersion.FromAssembly(assembly), ReleaseVersion.FromFile(assembly.Location));
+        Assert.Null(ReleaseVersion.FromFile(Path.Join(AppContext.BaseDirectory, "no-such-assembly.dll")));
+    }
+
+    [Theory]
+    [InlineData("0.2.0", "0.4.0", true)]
+    [InlineData("0.4.0", "0.4.0", false)]
+    [InlineData("0.4.1", "0.4.0", true)]
+    [InlineData("0.0.0-dev", "0.4.0", false)]
+    [InlineData("0.4.0", "0.0.0-dev", false)]
+    [InlineData("0.4.0", null, false)]
+    public void TrayWasReplaced_OnlyWhenTheCopyOnDiskIsADifferentRelease(string running, string? onDisk, bool replaced) =>
+        Assert.Equal(replaced, ReleaseLayout.TrayWasReplaced(ReleaseVersion.Parse(running),
+            onDisk is null ? null : ReleaseVersion.Parse(onDisk)));
 }

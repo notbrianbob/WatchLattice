@@ -24,6 +24,8 @@ internal sealed class TrayContext : ApplicationContext
     private readonly ToolStripMenuItem _update = new() { Visible = false };
     private readonly System.Windows.Forms.Timer _timer = new() { Interval = 2000 };
     private readonly AlertNotificationCursor _cursor = new();
+    private readonly ReleaseVersion _version = ReleaseVersion.FromAssembly(typeof(TrayContext).Assembly);
+    private DateTime _nextReplacementCheck;
     private AlertSnapshot? _snapshot;
     private DashboardWindow? _window;
     private DateTime _activityStamp;
@@ -45,7 +47,11 @@ internal sealed class TrayContext : ApplicationContext
         _icon = new NotifyIcon { Icon = SystemIcons.Shield, Text = "WatchLattice: waiting for hub", ContextMenuStrip = _menu, Visible = true };
         _icon.DoubleClick += (_, _) => OpenWindow();
         _icon.BalloonTipClicked += (_, _) => OpenWindow(alerts: true);
-        _timer.Tick += async (_, _) => await PollAsync();
+        _timer.Tick += async (_, _) =>
+        {
+            if (RestartIfReplaced()) return;
+            await PollAsync();
+        };
         _timer.Start();
     }
 
@@ -100,6 +106,25 @@ internal sealed class TrayContext : ApplicationContext
             UpdateWindow();
         }
         finally { _reading = false; }
+    }
+
+    /// <summary>
+    /// An update can replace the tray's files without restarting it (an update
+    /// run from an administrator prompt, or by an older updater), which would
+    /// leave the old tray running until the next sign-in. Every 30 seconds the
+    /// tray compares its own version with the copy on disk and, if they differ,
+    /// restarts on the new copy. It waits while the dashboard is open.
+    /// </summary>
+    private bool RestartIfReplaced()
+    {
+        if (_installing || _exiting || DateTime.UtcNow < _nextReplacementCheck) return false;
+        _nextReplacementCheck = DateTime.UtcNow.AddSeconds(30);
+        if (_window is { IsDisposed: false, Visible: true }) return false;
+        var onDisk = ReleaseVersion.FromFile(Path.Join(AppContext.BaseDirectory, ReleaseLayout.TrayAssembly));
+        if (!ReleaseLayout.TrayWasReplaced(_version, onDisk)) return false;
+        Program.RestartRequested = true;
+        ExitThread();
+        return true;
     }
 
     private void ShowUpdate(UpdateNotice? notice, bool balloonFree)
