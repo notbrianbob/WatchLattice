@@ -107,6 +107,13 @@ $described = & $hubExe --describe-settings | Out-String
 Check 'describe-settings exits 0' ($LASTEXITCODE -eq 0)
 $description = $described | ConvertFrom-Json
 Check 'describe-settings lists the module switches' (@($description.sections | Where-Object { $_.path -eq 'Modules' }).Count -eq 1)
+Check 'describe-settings lists the daily summary settings' (@($description.sections | Where-Object { $_.path -eq 'Alerts:DailySummary' }).Count -eq 1)
+
+& $hubExe --export-alerts "$Scratch\alerts.csv" | Out-Host
+Check 'export-alerts writes a CSV for the tray user' ($LASTEXITCODE -eq 0 -and (Get-Content -LiteralPath "$Scratch\alerts.csv" -TotalCount 1) -like 'LastSeenUtc,FirstSeenUtc,Count,*')
+& $hubExe --export-alerts "$Scratch\alerts.txt" --format json --group | Out-Host
+$exported = if (Test-Path -LiteralPath "$Scratch\alerts.txt") { Get-Content -Raw -LiteralPath "$Scratch\alerts.txt" | ConvertFrom-Json } else { $null }
+Check 'export-alerts writes grouped JSON when asked' ($LASTEXITCODE -eq 0 -and $exported -and $exported.version -eq 1 -and $exported.grouped -eq $true)
 
 $config = Get-Content -Raw -LiteralPath $settingsPath | ConvertFrom-Json
 $config.Canary.IntegrityCheckSeconds = 90

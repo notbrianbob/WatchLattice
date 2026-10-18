@@ -46,6 +46,7 @@ public static class AlertEventIds
         [("Hub", "ALERT_HISTORY_UNAVAILABLE")] = 1003,
         [("Hub", "EVENTLOG_UNAVAILABLE")] = 1005,
         [("Hub", "EVENTLOG_WRITE_FAILED")] = 1006,
+        [("Hub", "DAILY_SUMMARY")] = 1007,
 
         [("Canary", "CANARY_MODIFIED")] = 2001,
         [("Canary", "CANARY_DELETED")] = 2002,

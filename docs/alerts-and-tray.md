@@ -52,6 +52,7 @@ The hub's `Alerts` settings:
 | `Enabled` | `true` | Write the shared feed. Turning it off does not disable existing module logs. |
 | `FeedPath` | `null` | `%LOCALAPPDATA%\ScanAlways\alerts.json`, under the hub's account. |
 | `HistoryLimit` | `200` | Recent entries retained, clamped to 1–1000. |
+| `DailySummary` | on, 8:00 | Once a day, an Info alert summarizing the last 24 hours. See [the daily summary](dashboard.md#the-daily-summary). |
 
 The hub checks for changes every two seconds and atomically replaces the JSON
 snapshot when alerts or module states change. A small `alerts.json.heartbeat.json`

@@ -58,6 +58,7 @@ public static class SettingsSchema
         (HubOptions.SectionName, "Hub", typeof(HubOptions)),
         ("Alerts", "Alerts", typeof(AlertDeliveryOptions)),
         (EventLogAlertOptions.SectionName, "Alerts: Event Log", typeof(EventLogAlertOptions)),
+        (DailySummaryOptions.SectionName, "Alerts: Daily summary", typeof(DailySummaryOptions)),
     };
 
     public static IReadOnlyList<SettingsSection> Build(ModuleCatalog catalog)

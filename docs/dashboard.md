@@ -6,8 +6,8 @@ It has four tabs:
 
 | Tab | What it shows |
 |---|---|
-| **Overview** | Hub connection, and every module with its running state, whether it is turned on in the settings, and what it does. **Turn on…/Turn off…** and **Change settings…** open the settings editor. |
-| **Alerts** | Recent alerts from every module, newest first, with full details for the selected one. Repeats of the same alert share one row with a count, and you can acknowledge or dismiss rows (see [grouping, acknowledging and dismissing alerts](#grouping-acknowledging-and-dismissing-alerts)). For persistence alerts, the **Verification** column, **Verify entry** and **View verification details…** (see [verifying changed scheduled tasks](../src/WatchLattice.Persistence/README.md#verifying-changed-scheduled-tasks)). |
+| **Overview** | Hub connection, and every module with its running state, whether it is turned on in the settings, and what it does. **Turn on…/Turn off…** and **Change settings…** open the settings editor. Below the list, the hub's latest [daily summary](#the-daily-summary). |
+| **Alerts** | Recent alerts from every module, newest first, with full details for the selected one. Repeats of the same alert share one row with a count, and you can acknowledge or dismiss rows (see [grouping, acknowledging and dismissing alerts](#grouping-acknowledging-and-dismissing-alerts)). **Export…** saves the list as CSV or JSON (see [exporting alerts](#exporting-alerts)). For persistence alerts, the **Verification** column, **Verify entry** and **View verification details…** (see [verifying changed scheduled tasks](../src/WatchLattice.Persistence/README.md#verifying-changed-scheduled-tasks)). |
 | **Activity** | The hub's own recent log: modules starting, stopping, failing and recovering, checks that could not run, feed and Event Log problems. Filter by level or text. |
 | **Settings** | Every setting the hub reads, its current value, and whether it comes from appsettings.json or is the built-in default. |
 
@@ -50,6 +50,90 @@ or dismissed is kept for your account only, in
 `%LOCALAPPDATA%\ScanAlways\alert-review.json` (the newest 2,000 rows), so it
 needs no administrator permission and survives restarts and updates. Deleting
 that file makes every row new again.
+
+## Exporting alerts
+
+**Export…** on the Alerts tab saves the rows the list shows, as it shows them,
+to a file you choose: grouped or one row per alert as **Group repeats** is
+set, and dismissed rows only when **Show dismissed** is on. Pick *CSV* for a
+spreadsheet or *JSON* for scripts and tickets.
+
+| Column (CSV) / field (JSON) | Meaning |
+|---|---|
+| `LastSeenUtc`, `FirstSeenUtc` | Newest and oldest occurrence in the row, UTC, ISO 8601. The same for an ungrouped row. |
+| `Count` | How many alerts the row stands for. |
+| `Severity`, `Module`, `Code`, `Title`, `Message`, `Resource` | From the newest occurrence; severity is the highest of the row. |
+| `Status`, `NewCount` | Your review state, as the Status column shows it (*New*, *2 new*, *Acknowledged*, *Dismissed*). |
+| `AlertId` | The newest occurrence's ID, the same one the Event Log entry carries. |
+| `EventId` | Its [Event Log ID](event-log.md#event-ids). |
+
+The JSON file also has `version` (1), `exportedAt`, `grouped`, the row and
+alert counts, and for each row an `occurrences` list with every alert's ID,
+time, severity and title. CSV files are UTF-8 with a byte order mark, so
+Excel shows non-English file names correctly.
+
+Alert text can contain file and task names that whoever created them chose.
+So that a spreadsheet never runs one as a formula, a CSV cell that would
+start with `=`, `+`, `-`, `@`, a tab or a line break gets a leading `'`
+(for example `'=cmd|…`). The JSON file is unchanged text.
+
+The export only reads. It runs as you, holds only what the dashboard already
+shows, and is written where you save it; nothing is sent anywhere. Keep it
+somewhere private: it can list paths and program names from your PC.
+
+### From the command line
+
+```powershell
+cd 'C:\Program Files\WatchLattice\Hub'
+.\ScanAlways.Protection.Service.exe --export-alerts $env:USERPROFILE\alerts.csv
+.\ScanAlways.Protection.Service.exe --export-alerts alerts.json --group
+.\ScanAlways.Protection.Service.exe --export-alerts - --format json   # to standard output
+```
+
+It exports the whole alert history in the feed, including dismissed rows,
+one row per alert unless you add `--group`. The format comes from
+`--format csv|json`, or else from the file name (`.json` is JSON, anything
+else CSV). Status is the review state of the account running it. Only the
+account the installer gave the feed to (and SYSTEM) can read the feed, so run
+it as that user; it needs no administrator rights. Exit codes: `0` written,
+`1` the feed could not be read, `2` bad arguments or the file could not be
+written.
+
+## The daily summary
+
+Once a day the hub raises one **Daily summary** alert (Info, code
+`DAILY_SUMMARY`, [Event ID 1007](event-log.md#hub-1000)) about the 24 hours
+before it: how many alerts each module raised, by severity, and which alerts
+repeated most. The Overview tab shows the newest one, and every summary is
+also in the Alerts list (they group into one row) and the Event Log. Being
+Info, it never raises a notification. Earlier summaries are not counted.
+
+```text
+5 alerts in the 24 hours since 2026-10-17 08:00 +02:00: 2 critical, 3 warning.
+
+By module:
+  Persistence: 3 (1 critical, 2 warning)
+  Canary: 1 (1 critical)
+  DefenderWatchdog: 1 (1 warning)
+
+Most repeated:
+  3 × Persistence: Autostart entry changed (Run\Updater)
+```
+
+The counts come from the hub's alert history, which keeps the newest
+`Alerts:HistoryLimit` alerts (200 by default). On a very busy day older alerts
+roll out of it, and the summary says so and from when it counts; the Windows
+Event Log still has all of them.
+
+If the PC was off or asleep at the usual time, the missed summary is written
+about a minute after the hub next starts. A new install waits for the first
+scheduled time. Nothing is emailed or sent anywhere.
+
+| Setting (`Alerts:DailySummary`) | Default | Meaning |
+|---|---|---|
+| `Enabled` | `true` | Write the daily summary. |
+| `Hour` | `8` | Hour of the day, `0` to `23` in the PC's local time. Larger values mean `23`. If daylight saving skips that hour, the summary is an hour later that day. |
+| `TopRepeatedAlerts` | `5` | How many of the most repeated alerts to name, at most 20. `0` leaves the list out. |
 
 ## Changing settings needs an administrator
 
@@ -168,3 +252,12 @@ checked by hand:
    count line says one row is hidden. After the next change to that task the
    row is back as *1 new*. Close and reopen the dashboard: the review is kept.
    Turn off **Group repeats**: each alert has its own row again.
+8. Alerts: **Export…**, save as CSV, and open it in Excel: the columns match
+   [exporting alerts](#exporting-alerts), non-English names look right, and a
+   message starting with `=` shows as text, not a formula. Save again as JSON
+   with **Group repeats** off: there is one row per alert. With **Show
+   dismissed** off, dismissed rows are not in the file.
+9. Overview: set `Alerts:DailySummary:Hour` to the next hour and wait for
+   it. *Latest daily summary* shows the counts, and Event Viewer has event
+   1007 from `WatchLattice`. Restart the PC the next day after that hour has
+   passed: a missed summary is written about a minute after the hub starts.

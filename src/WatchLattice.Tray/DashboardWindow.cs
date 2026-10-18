@@ -29,6 +29,7 @@ internal sealed class DashboardWindow : Form
     private readonly Button _toggle = new() { Text = "Turn off…", AutoSize = true, Enabled = false, FlatStyle = FlatStyle.System };
     private readonly Button _editModules = new() { Text = "Change settings…", AutoSize = true, FlatStyle = FlatStyle.System };
     private readonly Label _modulesNote = new() { AutoSize = true, Margin = new Padding(0, 8, 0, 0) };
+    private readonly TextBox _summary = NewDetails("Latest daily summary", "No daily summary yet.");
 
     // Alerts
     private readonly ListView _alerts = NewList("Recent alerts");
@@ -42,6 +43,8 @@ internal sealed class DashboardWindow : Form
     private readonly Button _acknowledge = new() { Text = "Acknowledge", AutoSize = true, Enabled = false };
     private readonly Button _dismiss = new() { Text = "Dismiss", AutoSize = true, Enabled = false };
     private readonly Button _acknowledgeAll = new() { Text = "Acknowledge all", AutoSize = true, Enabled = false };
+    private readonly Button _export = new() { Text = "Export…", AutoSize = true };
+    private readonly Label _exportNote = new() { AutoSize = true, Margin = new Padding(12, 7, 0, 0), MaximumSize = new Size(640, 0) };
 
     // Activity
     private readonly ListView _activity = NewList("Hub activity");
@@ -160,9 +163,12 @@ internal sealed class DashboardWindow : Form
         var buttons = new FlowLayoutPanel { Dock = DockStyle.Bottom, AutoSize = true, Padding = new Padding(6), WrapContents = true };
         buttons.Controls.AddRange(new Control[] { _toggle, _editModules, _modulesNote });
         _modulesNote.Text = "Changes need administrator permission: Windows asks once when the settings editor opens.";
+        var summary = new GroupBox { Text = "Latest daily summary", Dock = DockStyle.Bottom, Height = 170, Padding = new Padding(6) };
+        summary.Controls.Add(_summary);
         var page = new TabPage("Overview");
         page.Controls.Add(_modules);
         page.Controls.Add(buttons);
+        page.Controls.Add(summary);
         page.Controls.Add(new Label
         {
             Dock = DockStyle.Top, Height = 28, Padding = new Padding(6, 8, 6, 0),
@@ -197,9 +203,10 @@ internal sealed class DashboardWindow : Form
         _acknowledge.Click += async (_, _) => await ReviewSelectedAsync(dismiss: false);
         _dismiss.Click += async (_, _) => await ReviewSelectedAsync(dismiss: true);
         _acknowledgeAll.Click += async (_, _) => await AcknowledgeAllAsync();
+        _export.Click += async (_, _) => await ExportAlertsAsync();
 
         var bar = new FlowLayoutPanel { Dock = DockStyle.Top, AutoSize = true, Padding = new Padding(6), WrapContents = true };
-        bar.Controls.AddRange(new Control[] { _groupRepeats, _showDismissed, _acknowledge, _dismiss, _acknowledgeAll, _alertCount });
+        bar.Controls.AddRange(new Control[] { _groupRepeats, _showDismissed, _acknowledge, _dismiss, _acknowledgeAll, _export, _alertCount, _exportNote });
         var buttons = new FlowLayoutPanel { Dock = DockStyle.Bottom, AutoSize = true, Padding = new Padding(6), WrapContents = true };
         buttons.Controls.AddRange(new Control[] { _verifyEntry, _viewVerification, _verificationNote });
         var page = new TabPage("Alerts");
@@ -255,6 +262,7 @@ internal sealed class DashboardWindow : Form
         _status.Text = status;
         ShowUpdate(snapshot?.Update);
         ShowModules();
+        ShowSummary();
         if (snapshot is null) return;
         _ = RefreshFindingsAsync();
         _ = RefreshReviewAsync();
@@ -296,7 +304,7 @@ internal sealed class DashboardWindow : Form
             var item = new ListViewItem(new[]
             {
                 row.LastSeen.ToLocalTime().ToString("g"), row.Severity.ToString(), alert.Module, alert.Title,
-                row.Count.ToString(), StatusText(row), "",
+                row.Count.ToString(), AlertExport.StatusText(row), "",
             })
             {
                 Tag = row, UseItemStyleForSubItems = false,
@@ -319,13 +327,52 @@ internal sealed class DashboardWindow : Form
         UpdateReviewButtons();
     }
 
-    private static string StatusText(AlertGroup row) => row.State switch
+    /// <summary>The Overview's copy of the newest daily summary the hub wrote. Display-only.</summary>
+    private void ShowSummary()
     {
-        AlertReviewState.New when row.NewCount < row.Count => $"{row.NewCount} new",
-        AlertReviewState.New => "New",
-        AlertReviewState.Acknowledged => "Acknowledged",
-        _ => "Dismissed",
-    };
+        var latest = _snapshot is null ? null : DailySummary.Latest(_snapshot.Alerts);
+        var text = latest is not null ? $"{latest.At.ToLocalTime():F}\r\n\r\n" + latest.Message.Replace("\n", "\r\n")
+            : _snapshot is null ? "Start the WatchLattice hub to see its daily summary."
+            : "No daily summary yet. The hub writes one each day at the hour set under Alerts: Daily summary (8:00 by default).";
+        if (_summary.Text != text) _summary.Text = text;
+    }
+
+    /// <summary>
+    /// Saves the rows the Alerts tab shows (grouped or not, with or without
+    /// dismissed rows, as set) to a CSV or JSON file the user picks.
+    /// </summary>
+    private async Task ExportAlertsAsync()
+    {
+        var rows = _alertRows;
+        var grouped = _groupRepeats.Checked;
+        using var dialog = new SaveFileDialog
+        {
+            Title = "Export alerts",
+            Filter = "CSV file (*.csv)|*.csv|JSON file (*.json)|*.json",
+            FileName = $"watchlattice-alerts-{DateTime.Now:yyyyMMdd-HHmm}",
+            DefaultExt = "csv", AddExtension = true, OverwritePrompt = true,
+        };
+        if (dialog.ShowDialog(this) != DialogResult.OK) return;
+        var path = dialog.FileName;
+        var extension = Path.GetExtension(path);
+        var format = extension.Equals(".json", StringComparison.OrdinalIgnoreCase) ? AlertExportFormat.Json
+            : extension.Equals(".csv", StringComparison.OrdinalIgnoreCase) || dialog.FilterIndex != 2 ? AlertExportFormat.Csv
+            : AlertExportFormat.Json;
+        _export.Enabled = false;
+        try
+        {
+            await Task.Run(() => AlertExport.WriteFile(path, rows, format, grouped, DateTimeOffset.UtcNow));
+            if (!IsDisposed) _exportNote.Text = $"Exported {rows.Count} row(s) ({rows.Sum(r => r.Count)} alert(s)) to {path}.";
+        }
+        catch (Exception ex) when (ex is IOException or UnauthorizedAccessException or ArgumentException or NotSupportedException)
+        {
+            if (!IsDisposed) MessageBox.Show(this, ex.Message, "Could not export alerts", MessageBoxButtons.OK, MessageBoxIcon.Warning);
+        }
+        finally
+        {
+            if (!IsDisposed) _export.Enabled = true;
+        }
+    }
 
     private AlertGroup[] SelectedRows() => _alerts.SelectedItems.Cast<ListViewItem>().Select(i => i.Tag).OfType<AlertGroup>().ToArray();
 

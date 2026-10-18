@@ -76,7 +76,7 @@ public sealed class SettingsSchemaTests
 
         var sections = SettingsSchema.Build(catalog);
 
-        Assert.Equal(new[] { "Modules", "Hub", "Alerts", "Alerts:EventLog", "Sample" }, sections.Select(s => s.Path));
+        Assert.Equal(new[] { "Modules", "Hub", "Alerts", "Alerts:EventLog", "Alerts:DailySummary", "Sample" }, sections.Select(s => s.Path));
         var switches = sections[0].Fields;
         Assert.Equal(new[] { "Modules:Plain:Enabled", "Modules:Sample:Enabled" }, switches.Select(f => f.Path));
         Assert.Equal("false", switches[0].Default!.ToJsonString());
