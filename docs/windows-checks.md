@@ -198,7 +198,7 @@ update host.
    approves the task's entry alert. Select a *New browser extension* alert
    from step 2: the editor stages its ID in **Ignored extension IDs**.
 
-9. **Script host audit** (#__PR__). With the module still off, the dashboard's
+9. **Script host audit** (#41). With the module still off, the dashboard's
    Settings tab lists **Script Host Audit** as off. Turn it on there (or set
    `Modules:ScriptHostAudit:Enabled` to `true`). If process creation auditing
    is off, which is the Windows default, the dashboard shows one
