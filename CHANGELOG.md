@@ -11,6 +11,16 @@ notes, followed by GitHub's generated list of pull requests. See
 
 ## [Unreleased]
 
+### Changed
+
+- **Dependencies**: Microsoft.Extensions.* and System.Diagnostics.EventLog
+  10.0.13 (from 8.0.x), Microsoft.NET.Test.Sdk 18.11.0 and
+  xunit.runner.visualstudio 4.0.1. All of them ship .NET 8 builds, so
+  WatchLattice still targets and runs on the .NET 8 runtime; the installer's
+  requirement is unchanged. The alert feed now restores its history and
+  writes its first snapshot before the modules start, which Hosting 10 no
+  longer did on its own.
+
 ## [0.6.0] - 2026-10-18
 
 ### Added
