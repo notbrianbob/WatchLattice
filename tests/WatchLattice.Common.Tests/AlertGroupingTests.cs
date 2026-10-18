@@ -6,7 +6,7 @@ namespace WatchLattice.Common.Tests;
 public sealed class AlertGroupingTests : IDisposable
 {
     private static readonly DateTimeOffset Start = new(2026, 10, 17, 16, 0, 0, TimeSpan.Zero);
-    private readonly string _folder = Path.Combine(Path.GetTempPath(), "watchlattice-review-" + Guid.NewGuid().ToString("N"));
+    private readonly string _folder = Path.Join(Path.GetTempPath(), "watchlattice-review-" + Guid.NewGuid().ToString("N"));
 
     private static ProtectionAlert Alert(int minute, string code = "ENTRY_CHANGED", string? resource = @"Run\Updater",
         AlertSeverity severity = AlertSeverity.Warning, string module = "Persistence", string title = "Autostart entry changed") =>
@@ -106,7 +106,7 @@ public sealed class AlertGroupingTests : IDisposable
     [Fact]
     public void Store_SavesAndReloads_AndSeesAnotherWritersChanges()
     {
-        var path = Path.Combine(_folder, "alert-review.json");
+        var path = Path.Join(_folder, "alert-review.json");
         var store = new AlertReviewStore(path);
         Assert.Empty(store.Refresh().Marks);
 
@@ -125,7 +125,7 @@ public sealed class AlertGroupingTests : IDisposable
     [Fact]
     public void Store_ReportsACorruptFile_AndKeepsWhatItHad()
     {
-        var path = Path.Combine(_folder, "alert-review.json");
+        var path = Path.Join(_folder, "alert-review.json");
         var store = new AlertReviewStore(path);
         store.Update(s => s.Mark(new[] { ("a", Start) }, dismiss: false, Start));
         File.WriteAllText(path, "{ not json");

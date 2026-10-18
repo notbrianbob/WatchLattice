@@ -90,8 +90,8 @@ public sealed class AlertReviewSet
     public AlertReviewSet Restore(IEnumerable<string> keys, DateTimeOffset now)
     {
         var marks = new Dictionary<string, AlertReviewMark>(_marks, StringComparer.Ordinal);
-        foreach (var key in keys)
-            if (marks.TryGetValue(key, out var mark) && mark.Dismissed) marks[key] = mark with { Dismissed = false, MarkedAt = now };
+        foreach (var mark in keys.Select(marks.GetValueOrDefault).OfType<AlertReviewMark>().Where(m => m.Dismissed).ToArray())
+            marks[mark.Key] = mark with { Dismissed = false, MarkedAt = now };
         return new(marks.Values);
     }
 
@@ -114,7 +114,7 @@ public sealed class AlertReviewStore
     public AlertReviewStore(string? path = null) => FilePath = path ?? DefaultPath;
 
     /// <summary>In the same per-user folder as the other WatchLattice data.</summary>
-    public static string DefaultPath => Path.Combine(
+    public static string DefaultPath => Path.Join(
         Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData), "ScanAlways", "alert-review.json");
 
     public string FilePath { get; }

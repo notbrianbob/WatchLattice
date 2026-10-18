@@ -624,12 +624,13 @@ internal sealed class DashboardWindow : Form
     {
         if (row.Count < 2) return "";
         const int Shown = 25;
-        var text = $"\r\n\r\nREPEATS\r\nSeen {row.Count} times, first {row.FirstSeen.ToLocalTime():g}, last {row.LastSeen.ToLocalTime():g}. "
-            + "The details above are from the newest. Earlier:\r\n";
+        var text = new System.Text.StringBuilder()
+            .Append($"\r\n\r\nREPEATS\r\nSeen {row.Count} times, first {row.FirstSeen.ToLocalTime():g}, last {row.LastSeen.ToLocalTime():g}. ")
+            .Append("The details above are from the newest. Earlier:\r\n");
         foreach (var earlier in row.Alerts.Skip(1).Take(Shown))
-            text += $"  {earlier.At.ToLocalTime():g} • {earlier.Severity} • {earlier.Title}\r\n";
-        if (row.Count - 1 > Shown) text += $"  …and {row.Count - 1 - Shown} more. Turn off Group repeats to see each one.\r\n";
-        return text;
+            text.Append($"  {earlier.At.ToLocalTime():g} • {earlier.Severity} • {earlier.Title}\r\n");
+        if (row.Count - 1 > Shown) text.Append($"  …and {row.Count - 1 - Shown} more. Turn off Group repeats to see each one.\r\n");
+        return text.ToString();
     }
 
     private ProtectionAlert? SelectedAlert() =>
