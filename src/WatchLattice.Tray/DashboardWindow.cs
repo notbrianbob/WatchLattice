@@ -43,6 +43,7 @@ internal sealed class DashboardWindow : Form
     private readonly Button _acknowledge = new() { Text = "Acknowledge", AutoSize = true, Enabled = false };
     private readonly Button _dismiss = new() { Text = "Dismiss", AutoSize = true, Enabled = false };
     private readonly Button _acknowledgeAll = new() { Text = "Acknowledge all", AutoSize = true, Enabled = false };
+    private readonly Button _approve = new() { Text = "Approve as baseline…", AutoSize = true, Enabled = false, FlatStyle = FlatStyle.System };
     private readonly Button _export = new() { Text = "Export…", AutoSize = true };
     private readonly Label _exportNote = new() { AutoSize = true, Margin = new Padding(12, 7, 0, 0), MaximumSize = new Size(640, 0) };
 
@@ -203,10 +204,11 @@ internal sealed class DashboardWindow : Form
         _acknowledge.Click += async (_, _) => await ReviewSelectedAsync(dismiss: false);
         _dismiss.Click += async (_, _) => await ReviewSelectedAsync(dismiss: true);
         _acknowledgeAll.Click += async (_, _) => await AcknowledgeAllAsync();
+        _approve.Click += async (_, _) => await ApproveSelectedAsync();
         _export.Click += async (_, _) => await ExportAlertsAsync();
 
         var bar = new FlowLayoutPanel { Dock = DockStyle.Top, AutoSize = true, Padding = new Padding(6), WrapContents = true };
-        bar.Controls.AddRange(new Control[] { _groupRepeats, _showDismissed, _acknowledge, _dismiss, _acknowledgeAll, _export, _alertCount, _exportNote });
+        bar.Controls.AddRange(new Control[] { _groupRepeats, _showDismissed, _acknowledge, _dismiss, _acknowledgeAll, _approve, _export, _alertCount, _exportNote });
         var buttons = new FlowLayoutPanel { Dock = DockStyle.Bottom, AutoSize = true, Padding = new Padding(6), WrapContents = true };
         buttons.Controls.AddRange(new Control[] { _verifyEntry, _viewVerification, _verificationNote });
         var page = new TabPage("Alerts");
@@ -383,6 +385,75 @@ internal sealed class DashboardWindow : Form
         _acknowledge.Enabled = !_savingReview && rows.Any(r => r.State != AlertReviewState.Acknowledged);
         _dismiss.Enabled = !_savingReview && rows.Length > 0;
         _dismiss.Text = restore ? "Show again" : "Dismiss";
+        _approve.Enabled = !_editing && rows.Any(r => ApprovalFor(r.Latest) is not null);
+    }
+
+    /// <summary>
+    /// What Approve as baseline adds for an alert, or null. A verification
+    /// alert approves the entry alert it verifies, while that is still in the feed.
+    /// </summary>
+    private BaselineApproval? ApprovalFor(ProtectionAlert alert)
+    {
+        if (BaselineApprovals.For(alert) is { } approval) return approval;
+        return alert.Code.StartsWith("VERIFY_", StringComparison.Ordinal) && VerificationFindings.LinkedAlertId(alert) is { } id
+            && _snapshot?.Alerts.FirstOrDefault(a => a.Id == id) is { } entry ? BaselineApprovals.For(entry) : null;
+    }
+
+    /// <summary>The Baseline part of the details pane.</summary>
+    private string ApprovalSummary(ProtectionAlert alert)
+    {
+        if (ApprovalFor(alert) is not { } approval) return "";
+        var extension = approval.SettingPath == BaselineApprovals.ExtensionSetting;
+        var text = "\r\n\r\nBASELINE\r\n";
+        if (_description is not null && BaselineApprovals.IsApproved(_description.Values, approval))
+            return text + (extension
+                ? "Approved: this extension raises no alert in any browser profile. Remove it from the ignored extension IDs in Settings to undo that."
+                : "Approved: this entry raises no alert when it appears again with exactly this value. Remove it from the approved entries in Settings to undo that.");
+        return text + (extension
+            ? "Approve as baseline adds this extension's ID to the ignored extension IDs, so it raises no alert in any browser profile."
+            : "Approve as baseline stops alerts when this entry appears again with exactly this value, for example after it was removed and put back. Any other value still alerts.")
+            + " It opens the settings editor as administrator; Save restarts the hub.";
+    }
+
+    /// <summary>
+    /// Stages the selected rows' approvals in the elevated settings editor.
+    /// Whatever an administrator saved there counts as reviewed here.
+    /// </summary>
+    private async Task ApproveSelectedAsync()
+    {
+        var selected = SelectedRows().Select(r => (Row: r, Approval: ApprovalFor(r.Latest)))
+            .Where(x => x.Approval is not null).Select(x => (x.Row, Approval: x.Approval!)).ToArray();
+        if (selected.Length == 0 || _editing) return;
+        if (HubSettings.HubExecutable is null)
+        {
+            MessageBox.Show(this, HubSettings.NotInstalledMessage, "WatchLattice settings", MessageBoxButtons.OK, MessageBoxIcon.Information);
+            return;
+        }
+        var approvals = selected.Select(s => s.Approval).DistinctBy(a => (a.SettingPath, a.Value))
+            .Take(BaselineApprovals.MaxPerEdit).ToArray();
+        _editing = true;
+        UpdateToggle();
+        UpdateReviewButtons();
+        try
+        {
+            var section = approvals[0].SettingPath[..approvals[0].SettingPath.IndexOf(':')];
+            if (!await HubSettings.OpenEditorElevatedAsync(this, section, null, approvals)) return;
+            await LoadSettingsAsync();
+        }
+        finally
+        {
+            _editing = false;
+            if (!IsDisposed)
+            {
+                UpdateToggle();
+                UpdateReviewButtons();
+            }
+        }
+        if (IsDisposed || _description is null) return;
+        var approved = selected.Where(s => BaselineApprovals.IsApproved(_description.Values, s.Approval)).Select(s => s.Row).ToArray();
+        if (approved.Length > 0)
+            await SaveReviewAsync(set => set.Mark(approved.Select(r => (r.Key, r.LastSeen)), dismiss: false, DateTimeOffset.UtcNow));
+        else ShowAlertDetails();
     }
 
     /// <summary>Re-reads the review file off the UI thread, in case another dashboard changed it.</summary>
@@ -663,7 +734,7 @@ internal sealed class DashboardWindow : Form
         var alert = row.Latest;
         _alertDetails.Text = $"{alert.Title}\r\n{alert.At.ToLocalTime():F} • {alert.Module} • {alert.Severity}\r\nCode: {alert.Code}\r\n"
             + (alert.Resource is null ? "" : $"Source: {alert.Resource}\r\n") + "\r\n" + alert.Message.Replace("\n", "\r\n")
-            + VerificationSummary(alert) + Occurrences(row);
+            + VerificationSummary(alert) + ApprovalSummary(alert) + Occurrences(row);
     }
 
     /// <summary>The details pane's list of a grouped row's earlier alerts.</summary>

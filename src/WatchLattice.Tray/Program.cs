@@ -9,7 +9,7 @@ namespace WatchLattice.Tray;
 internal static class Program
 {
     private const string Usage = "Usage: ScanAlways.Tray.exe [--feed <full path to alerts.json>]\n"
-        + "       ScanAlways.Tray.exe --edit-settings [--section <name>] [--toggle-module <id>]";
+        + "       ScanAlways.Tray.exe --edit-settings [--section <name>] [--toggle-module <id>] [--approve <approval>]...";
 
     /// <summary>Set after an update was installed, so the new tray starts once this one has exited.</summary>
     public static bool RestartRequested { get; set; }
@@ -58,21 +58,25 @@ internal static class Program
 
     /// <summary>
     /// The settings editor, which the dashboard starts elevated. The arguments
-    /// only choose the first page and a module switch to stage; nothing is
-    /// saved until an administrator chooses Save.
+    /// only choose the first page, a module switch to stage and approvals to
+    /// stage; nothing is saved until an administrator chooses Save.
     /// </summary>
     private static void EditSettings(string[] args)
     {
         string? section = null, toggle = null;
+        var approvals = new List<BaselineApproval>();
         for (var i = 1; i < args.Length; i += 2)
         {
-            if (i + 1 >= args.Length || args[i] is not ("--section" or "--toggle-module"))
+            var valid = i + 1 < args.Length;
+            if (valid && args[i] == "--section") section = args[i + 1];
+            else if (valid && args[i] == "--toggle-module") toggle = args[i + 1];
+            else if (valid && args[i] == "--approve" && approvals.Count < BaselineApprovals.MaxPerEdit
+                && BaselineApprovals.TryDecode(args[i + 1], out var approval)) approvals.Add(approval);
+            else
             {
                 MessageBox.Show(Usage, "WatchLattice", MessageBoxButtons.OK, MessageBoxIcon.Information);
                 return;
             }
-            if (args[i] == "--section") section = args[i + 1];
-            else toggle = args[i + 1];
         }
         if (HubSettings.HubExecutable is null)
         {
@@ -87,7 +91,7 @@ internal static class Program
             MessageBox.Show("The WatchLattice settings editor is already open.", "WatchLattice settings", MessageBoxButtons.OK, MessageBoxIcon.Information);
             return;
         }
-        try { Application.Run(new SettingsEditorWindow(section, toggle)); }
+        try { Application.Run(new SettingsEditorWindow(section, toggle, approvals)); }
         finally { instance.ReleaseMutex(); }
     }
 }

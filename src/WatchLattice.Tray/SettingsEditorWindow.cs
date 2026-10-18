@@ -1,4 +1,5 @@
 using System.Text.Json.Nodes;
+using WatchLattice.Common.Alerts;
 using WatchLattice.Common.Settings;
 
 namespace WatchLattice.Tray;
@@ -27,14 +28,16 @@ internal sealed class SettingsEditorWindow : Form
     private readonly Dictionary<string, string> _errors = new(StringComparer.OrdinalIgnoreCase);
     private readonly string? _startSection;
     private string? _toggleModule;
+    private IReadOnlyList<BaselineApproval> _approvals;
     private SettingsDescription? _description;
     private JsonObject _proposed = new();
     private bool _saving;
 
-    public SettingsEditorWindow(string? section, string? toggleModule)
+    public SettingsEditorWindow(string? section, string? toggleModule, IReadOnlyList<BaselineApproval>? approvals = null)
     {
         _startSection = section;
         _toggleModule = toggleModule;
+        _approvals = approvals ?? Array.Empty<BaselineApproval>();
         Text = "WatchLattice — Settings (administrator)";
         Icon = SystemIcons.Shield;
         Size = new Size(980, 700);
@@ -109,6 +112,17 @@ internal sealed class SettingsEditorWindow : Form
                 SettingValues.Set(_proposed, field.Path, JsonValue.Create(!on));
             _toggleModule = null;
         }
+
+        // So do approvals chosen with Approve as baseline: each is one more line in a list setting.
+        var fields = _description.Sections.SelectMany(s => s.Fields).Select(f => f.Path).ToHashSet(StringComparer.OrdinalIgnoreCase);
+        foreach (var approval in _approvals)
+        {
+            var staged = fields.Contains(approval.SettingPath) && BaselineApprovals.Stage(_proposed, approval);
+            _output.AppendText(Environment.NewLine + (staged ? "Staged to approve: " : "Already approved or not available: ") + approval.Description);
+        }
+        if (_approvals.Count > 0)
+            _output.AppendText(Environment.NewLine + "Choose Save to approve, or Undo all changes. Remove a line from the list to revoke an approval later.");
+        _approvals = Array.Empty<BaselineApproval>();
 
         var previous = (_sections.SelectedItem as SectionItem)?.Section.Path ?? _startSection;
         _sections.BeginUpdate();

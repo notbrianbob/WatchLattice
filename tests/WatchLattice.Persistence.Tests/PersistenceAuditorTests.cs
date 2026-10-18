@@ -170,6 +170,68 @@ public sealed class PersistenceAuditorTests : IDisposable
 
     public void Dispose() => Directory.Delete(_directory, recursive: true);
 
+    [Fact]
+    public async Task EntryAlerts_EndWithTheFingerprintOfTheCurrentValue()
+    {
+        Inventory(new PersistenceEntry("App", "old.exe"));
+        var auditor = Auditor();
+        await auditor.CheckOnceAsync(default);
+        _alerts.Items.Clear();
+        Inventory(new PersistenceEntry("App", "new.exe"), new PersistenceEntry("Long", new string('x', 5000)));
+        await auditor.CheckOnceAsync(default);
+        Assert.Equal(2, _alerts.Items.Count);
+        foreach (var alert in _alerts.Items)
+        {
+            Assert.True(alert.Message.Length <= 2048);
+            var approval = BaselineApprovals.For(alert);
+            Assert.NotNull(approval);
+            Assert.True(ApprovedEntry.TryParse(approval.Value, out var entry));
+            Assert.Equal(alert.Resource, entry.Resource);
+        }
+        Assert.EndsWith(BaselineApprovals.FingerprintLine("new.exe"), Assert.Single(_alerts.Items, a => a.Code == "ENTRY_CHANGED").Message);
+    }
+
+    [Fact]
+    public async Task ApprovedEntry_RaisesNoAlert_WhenItComesBackExactlyAsApproved()
+    {
+        Inventory(new PersistenceEntry("Other", "other.exe"));
+        await Auditor().CheckOnceAsync(default);
+        _alerts.Items.Clear();
+
+        // The entry appears and alerts; the user approves it from that alert.
+        Inventory(new PersistenceEntry("Other", "other.exe"), new PersistenceEntry("App", "app.exe --tray"));
+        await Auditor().CheckOnceAsync(default);
+        var approval = BaselineApprovals.For(Assert.Single(_alerts.Items))!;
+        _options.ApprovedEntries = new[] { "  " + approval.Value + "  ", "not an approval" };
+        _alerts.Items.Clear();
+
+        // Removed (Info), then added back as it was: no alert for the return.
+        Inventory(new PersistenceEntry("Other", "other.exe"));
+        var auditor = Auditor();
+        await auditor.CheckOnceAsync(default);
+        Assert.Equal("ENTRY_REMOVED", Assert.Single(_alerts.Items).Code);
+        _alerts.Items.Clear();
+        Inventory(new PersistenceEntry("Other", "other.exe"), new PersistenceEntry("app", "app.exe --tray"));
+        await auditor.CheckOnceAsync(default);
+        Assert.Empty(_alerts.Items);
+
+        // Any other value still alerts, and flipping back to the approved one does not.
+        Inventory(new PersistenceEntry("Other", "other.exe"), new PersistenceEntry("App", "evil.exe"));
+        await auditor.CheckOnceAsync(default);
+        Assert.Equal("ENTRY_CHANGED", Assert.Single(_alerts.Items).Code);
+        _alerts.Items.Clear();
+        Inventory(new PersistenceEntry("Other", "other.exe"), new PersistenceEntry("App", "app.exe --tray"));
+        await auditor.CheckOnceAsync(default);
+        Assert.Empty(_alerts.Items);
+
+        // The approval is for that entry only.
+        Inventory(new PersistenceEntry("Other", "app.exe --tray"), new PersistenceEntry("App", "app.exe --tray"));
+        await auditor.CheckOnceAsync(default);
+        Assert.Equal("Registry/Test/Run/Other", Assert.Single(_alerts.Items).Resource);
+        Assert.Equal("app.exe --tray", Assert.Single(AtomicJsonFile.Read<PersistenceBaseline>(_options.BaselinePath!).Sources["Registry/Test/Run"],
+            e => e.Id == "App").Command);
+    }
+
     private sealed class FakeProvider : IPersistenceProvider
     {
         public IReadOnlyList<PersistenceSource> Sources { get; set; } = Array.Empty<PersistenceSource>();

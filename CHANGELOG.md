@@ -27,6 +27,21 @@ notes, followed by GitHub's generated list of pull requests. See
   new profiles and deleted profiles are Info. Read-only; it never disables or
   removes an extension. New Event IDs 10001 to 10015. See its
   [README](src/WatchLattice.BrowserExtensionWatchdog/README.md).
+- **Approve as baseline** on the dashboard's Alerts tab: select an
+  *Autostart entry added* or *changed* alert (or the verification alert that
+  follows it) and approve the entry exactly as it is now, so it raises no
+  alert when it comes back with that value, for example after an app removed
+  and re-added its Run value, or a task flipped back to a known setting. Any
+  other value still alerts. For a *New browser extension* alert it adds the
+  extension's ID to `IgnoredExtensionIds`. Approvals are stored in the hub's
+  `appsettings.json` (new `Persistence:ApprovedEntries`, one
+  `sha256:<hash> <source>/<entry>` line each), so approving goes through the
+  administrator prompt and the settings editor, keeps a settings backup and
+  restarts the hub; approved alerts are marked acknowledged, and an approval
+  is revoked by removing its line in Settings. `ENTRY_ADDED` and
+  `ENTRY_CHANGED` messages now end with a `Fingerprint: sha256:<hash>` line
+  for this. Event IDs are unchanged and approving raises no new events. See
+  [approving entries](src/WatchLattice.Persistence/README.md#approving-entries-as-known-good).
 
 ## [0.7.0] - 2026-10-18
 

@@ -4,6 +4,7 @@ using System.Text;
 using System.Text.Json;
 using System.Text.Json.Nodes;
 using WatchLattice.Common;
+using WatchLattice.Common.Alerts;
 using WatchLattice.Common.Settings;
 using WatchLattice.Updater;
 
@@ -55,12 +56,16 @@ internal static class HubSettings
     /// Opens the settings editor with administrator rights through Windows'
     /// consent prompt. Returns false when the user declined the prompt.
     /// </summary>
-    public static async Task<bool> OpenEditorElevatedAsync(IWin32Window? owner, string? section, string? toggleModule)
+    public static async Task<bool> OpenEditorElevatedAsync(IWin32Window? owner, string? section, string? toggleModule,
+        IReadOnlyList<BaselineApproval>? approvals = null)
     {
         if (Environment.ProcessPath is not { } tray) return false;
         var arguments = new StringBuilder("--edit-settings");
         if (section is not null) arguments.Append(" --section ").Append(Quote(section));
         if (toggleModule is not null) arguments.Append(" --toggle-module ").Append(Quote(toggleModule));
+        // Encoded as base64url, which needs no quoting, whatever the entry's name contains.
+        foreach (var approval in approvals ?? Array.Empty<BaselineApproval>())
+            arguments.Append(" --approve ").Append(BaselineApprovals.Encode(approval));
         try
         {
             using var process = Process.Start(new ProcessStartInfo(tray)
