@@ -39,6 +39,18 @@ notes, followed by GitHub's generated list of pull requests. See
   platform updates, for example) is informational when verification follows.
   Read-only; existing Event IDs are reused. See the
   [Persistence README](src/WatchLattice.Persistence/README.md#coverage).
+- **Alert export**: **Export…** on the dashboard's Alerts tab saves the list
+  as shown (grouped or not, with or without dismissed rows) to CSV or JSON,
+  and `--export-alerts <path> [--format csv|json] [--group]` does the same
+  from the command line for scripts. CSV cells that a spreadsheet would run as
+  a formula are prefixed with `'`. See
+  [exporting alerts](docs/dashboard.md#exporting-alerts).
+- **Daily summary**: once a day (8:00 local by default) the hub raises one
+  Info alert counting the last 24 hours' alerts per module and severity, with
+  the most repeated ones; the dashboard's Overview shows the latest. A
+  summary missed while the PC was off is written soon after the hub starts.
+  New settings section `Alerts:DailySummary` and Event ID 1007. Nothing
+  leaves the PC. See [the daily summary](docs/dashboard.md#the-daily-summary).
 
 ## [0.5.0] - 2026-10-18
 

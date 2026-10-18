@@ -1,5 +1,6 @@
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
+using Microsoft.Extensions.DependencyInjection.Extensions;
 using Microsoft.Extensions.Logging;
 using WatchLattice.Common.Activity;
 using WatchLattice.Common.Alerts;
@@ -36,6 +37,9 @@ public static class HubServiceCollectionExtensions
         services.AddSingleton<EventLogAlertService>();
         services.AddSingleton<IAlertSink>(sp => sp.GetRequiredService<EventLogAlertService>());
         services.AddHostedService(sp => sp.GetRequiredService<EventLogAlertService>());
+        services.TryAddSingleton(TimeProvider.System);
+        services.AddOptions<DailySummaryOptions>().Bind(configuration.GetSection(DailySummaryOptions.SectionName));
+        services.AddHostedService<DailySummaryService>();
         foreach (var module in enabled)
         {
             module.ConfigureServices(services, configuration);

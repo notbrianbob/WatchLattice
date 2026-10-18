@@ -20,7 +20,8 @@ string[] commandSwitches =
 bool HasSwitch(string name) => args.Any(a => string.Equals(a, name, StringComparison.OrdinalIgnoreCase));
 
 var listOnly = HasSwitch(ListModulesSwitch);
-var hostArgs = args.Where(a => !commandSwitches.Contains(a, StringComparer.OrdinalIgnoreCase)).ToArray();
+var export = ExportCommand.Parse(args, out var otherArgs);
+var hostArgs = otherArgs.Where(a => !commandSwitches.Contains(a, StringComparer.OrdinalIgnoreCase)).ToArray();
 
 var catalog = ModuleCatalog.Discover(ModuleAssemblies.All);
 
@@ -47,6 +48,12 @@ if (HasSwitch(CheckUpdateSwitch) || HasSwitch(ApplyUpdateSwitch))
 {
     return await UpdateCommand.RunAsync(builder.Configuration, apply: HasSwitch(ApplyUpdateSwitch),
         pauseOnFailure: HasSwitch(PauseOnFailureSwitch));
+}
+
+// Writes the alert history to a CSV or JSON file once; read-only.
+if (export is not null)
+{
+    return ExportCommand.Run(export, builder.Configuration);
 }
 
 // Compares the installed files with the release's file list once and prints the result.

@@ -220,7 +220,8 @@ overridden with an environment variable or a command-line switch, for example
   "Persistence": { },
   "Updater": { },
   "InstallIntegrity": { },
-  "Alerts": { "Enabled": true, "FeedPath": null, "HistoryLimit": 200, "EventLog": { "Enabled": true, "MinimumSeverity": "Info" } }
+  "Alerts": { "Enabled": true, "FeedPath": null, "HistoryLimit": 200, "EventLog": { "Enabled": true, "MinimumSeverity": "Info" },
+              "DailySummary": { "Enabled": true, "Hour": 8, "TopRepeatedAlerts": 5 } }
 }
 ```
 

@@ -114,6 +114,7 @@ source of truth, and a test fails if this page and the code disagree.
 | 1004 | (none) | Warning | Alerts arrived faster than the Event Log accepted them and some were skipped; data string 2 is how many. They remain in the tray history and module logs. |
 | 1005 | `EVENTLOG_UNAVAILABLE` | Warning | The event source is not registered and could not be registered. Shown in the tray only, since the log can't be written. |
 | 1006 | `EVENTLOG_WRITE_FAILED` | Warning | Writing to the Event Log failed. Shown in the tray; written to the log if writing recovers. |
+| 1007 | `DAILY_SUMMARY` | Information | Once a day: how many alerts each module raised in the last 24 hours, by severity, and the most repeated ones (see [the daily summary](dashboard.md#the-daily-summary)). Not written when `MinimumSeverity` is above `Info`. |
 
 ### Canary (2000)
 
