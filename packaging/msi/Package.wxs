@@ -134,12 +134,16 @@
 
     <ComponentGroup Id="TrayFiles" Directory="TrayFolder">
       <Component Id="TrayExe">
-        <File Id="TrayExe" Source="$(StageDir)\Tray\ScanAlways.Tray.exe" KeyPath="yes">
-          <Shortcut Id="StartMenuShortcut" Directory="ProgramMenuFolder" Name="WatchLattice"
-                    Description="WatchLattice alerts and status" WorkingDirectory="TrayFolder"
-                    Arguments="--feed &quot;[CommonAppDataFolder]WatchLattice\Alerts\alerts.json&quot;"
-                    Advertise="no" />
-        </File>
+        <File Id="TrayExe" Source="$(StageDir)\Tray\ScanAlways.Tray.exe" KeyPath="yes" />
+      </Component>
+
+      <!-- In its own component with a registry key path, as Windows Installer
+           wants for a shortcut that is not advertised (HKMU is HKLM here). -->
+      <Component Id="StartMenuShortcut" Directory="ProgramMenuFolder">
+        <Shortcut Id="StartMenuShortcut" Name="WatchLattice" Target="[#TrayExe]"
+                  Description="WatchLattice alerts and status" WorkingDirectory="TrayFolder"
+                  Arguments="--feed &quot;[CommonAppDataFolder]WatchLattice\Alerts\alerts.json&quot;" />
+        <RegistryValue Root="HKMU" Key="Software\WatchLattice" Name="StartMenuShortcut" Type="integer" Value="1" KeyPath="yes" />
       </Component>
 
       <Files Include="$(StageDir)\Tray\**">
@@ -159,17 +163,19 @@
     <SetProperty Id="WL_ARG_KEEPDATA" Value="-KeepData" After="CostFinalize" Sequence="execute" Condition="KEEPDATA AND KEEPDATA &lt;&gt; &quot;0&quot;" />
 
     <!-- Deferred actions run as LocalSystem; WixQuietExec logs their output
-         to the MSI log (msiexec /l*v). -->
+         to the MSI log (msiexec /l*v). Their command lines stay under the
+         255 characters a CustomAction target holds. -->
+    <SetProperty Id="WL_PS" Value="[System64Folder]WindowsPowerShell\v1.0\powershell.exe" After="CostFinalize" Sequence="execute" />
     <SetProperty Id="WlStopTray" Before="WlStopTray" Sequence="execute"
                  Value="&quot;[System64Folder]taskkill.exe&quot; /F /IM ScanAlways.Tray.exe" />
     <CustomAction Id="WlStopTray" BinaryRef="Wix4UtilCA_X64" DllEntry="WixQuietExec" Execute="deferred" Impersonate="no" Return="ignore" />
 
     <SetProperty Id="WlConfigure" Before="WlConfigure" Sequence="execute"
-                 Value="&quot;[System64Folder]WindowsPowerShell\v1.0\powershell.exe&quot; -NoProfile -NonInteractive -ExecutionPolicy Bypass -File &quot;[InstallFolder]install.ps1&quot; -Msi -ProductCode &quot;[ProductCode]&quot; [WL_ARG_TRAYUSER] [WL_ARG_CANARY] [WL_ARG_DECOY] [WL_ARG_UPDATES] [WL_ARG_AUTOSTART]" />
+                 Value="&quot;[WL_PS]&quot; -NoProfile -ExecutionPolicy Bypass -File &quot;[InstallFolder]install.ps1&quot; -Msi -ProductCode &quot;[ProductCode]&quot; [WL_ARG_TRAYUSER] [WL_ARG_CANARY] [WL_ARG_DECOY] [WL_ARG_UPDATES] [WL_ARG_AUTOSTART]" />
     <CustomAction Id="WlConfigure" BinaryRef="Wix4UtilCA_X64" DllEntry="WixQuietExec" Execute="deferred" Impersonate="no" Return="check" />
 
     <SetProperty Id="WlCleanUp" Before="WlCleanUp" Sequence="execute"
-                 Value="&quot;[System64Folder]WindowsPowerShell\v1.0\powershell.exe&quot; -NoProfile -NonInteractive -ExecutionPolicy Bypass -File &quot;[InstallFolder]uninstall.ps1&quot; -Msi [WL_ARG_KEEPDATA]" />
+                 Value="&quot;[WL_PS]&quot; -NoProfile -ExecutionPolicy Bypass -File &quot;[InstallFolder]uninstall.ps1&quot; -Msi [WL_ARG_KEEPDATA]" />
     <CustomAction Id="WlCleanUp" BinaryRef="Wix4UtilCA_X64" DllEntry="WixQuietExec" Execute="deferred" Impersonate="no" Return="ignore" />
 
     <!-- What Windows Installer did not install: your appsettings.json,
