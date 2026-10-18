@@ -84,6 +84,13 @@ $usersAcl = (Get-Acl -LiteralPath $InstallDir).Access | Where-Object { $_.Identi
 Check 'Users can only read the install folder' ($usersAcl -and -not ($usersAcl | Where-Object { $_.FileSystemRights -band [Security.AccessControl.FileSystemRights]::WriteData }))
 
 Check 'hub registers its Application event log source' (Wait-Until { [Diagnostics.EventLog]::SourceExists('WatchLattice') })
+if (-not [Diagnostics.EventLog]::SourceExists('WatchLattice')) {
+    # Show why: the hub reports a failed registration as an alert and in its activity log.
+    foreach ($file in "$FeedDir\alerts.json", "$FeedDir\alerts.json.activity.json") {
+        Write-Host "--- $file"
+        if (Test-Path -LiteralPath $file) { Get-Content -Raw -LiteralPath $file | Out-Host }
+    }
+}
 Check 'canaries are planted' (Wait-Until { (Get-Canaries $canaryFolder).Count -ge 3 })
 Check 'tray starts at sign-in' ("$((Get-ItemProperty -LiteralPath $RunKey -Name 'WatchLattice Tray' -ErrorAction SilentlyContinue).'WatchLattice Tray')" -like '*ScanAlways.Tray.exe*--feed*')
 Check 'Start menu shortcut exists' (Test-Path -LiteralPath $Shortcut)
