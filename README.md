@@ -82,6 +82,12 @@ tray when a newer version is out, and installs it only when you choose
 **Install update**, after verifying the download's SHA-256 checksum. See its
 [README](src/WatchLattice.Updater/README.md) and [cutting a release](docs/releasing.md).
 
+The **Install Integrity Check** (`InstallIntegrity`, in the same project) checks
+WatchLattice's own installed files every hour against the per-file hashes its
+release shipped, and alerts when one is changed, missing, or a program file
+appears that the release does not contain. Read-only; it never repairs
+anything. See [install integrity check](docs/install-integrity.md).
+
 ## How it fits together
 
 ```
@@ -94,6 +100,7 @@ ScanAlways.Protection.Service.exe  (the hub: one process, console or Windows ser
     ├── DefenderWatchdog  ── Modules:DefenderWatchdog:Enabled
     ├── FirewallWatchdog  ── Modules:FirewallWatchdog:Enabled
     ├── Persistence       ── Modules:Persistence:Enabled
+    ├── InstallIntegrity  ── Modules:InstallIntegrity:Enabled (checks its own files)
     └── Updater           ── Modules:Updater:Enabled (checks only)
 
 ScanAlways.Tray.exe (runs in the signed-in user's session)
@@ -197,7 +204,8 @@ overridden with an environment variable or a command-line switch, for example
     "DefenderWatchdog": { "Enabled": true },
     "FirewallWatchdog": { "Enabled": true },
     "Persistence":      { "Enabled": true },
-    "Updater":          { "Enabled": true }
+    "Updater":          { "Enabled": true },
+    "InstallIntegrity": { "Enabled": true }
   },
   // Each module's own settings live in a section named after it; see its README.
   "Decoy": { },
@@ -206,6 +214,7 @@ overridden with an environment variable or a command-line switch, for example
   "FirewallWatchdog": { },
   "Persistence": { },
   "Updater": { },
+  "InstallIntegrity": { },
   "Alerts": { "Enabled": true, "FeedPath": null, "HistoryLimit": 200, "EventLog": { "Enabled": true, "MinimumSeverity": "Info" } }
 }
 ```
@@ -234,7 +243,7 @@ WatchLattice.sln
 │   ├── WatchLattice.DefenderWatchdog/  # Module: Defender health watchdog
 │   ├── WatchLattice.FirewallWatchdog/  # Module: Windows Firewall health watchdog
 │   ├── WatchLattice.Persistence/       # Module: persistence and autostart auditor
-│   ├── WatchLattice.Updater/           # Module + installer: update checks and verified installs
+│   ├── WatchLattice.Updater/           # Modules + installer: update checks, verified installs, install integrity
 │   └── WatchLattice.Tray/              # Windows tray companion and dashboard
 ├── tests/
 │   ├── WatchLattice.Common.Tests/
@@ -253,6 +262,7 @@ WatchLattice.sln
     ├── alerts-and-tray.md            # Shared alerts and tray deployment
     ├── dashboard.md                  # The dashboard and its settings editor
     ├── event-log.md                  # Alerts in the Windows Event Log, with event IDs
+    ├── install-integrity.md          # The hub checking its own installed files
     └── releasing.md                  # Cutting a release the updater can install
 ```
 
@@ -290,6 +300,7 @@ their canaries and baselines. See
 - [x] Update checks and verified, user-approved installs from GitHub Releases
 - [x] Dashboard with activity, module switches and an administrator-only settings editor
 - [x] Grouped repeat alerts with per-user acknowledge and dismiss
+- [x] Install integrity self-check against per-file release hashes
 - [ ] Code-signed releases (the release workflow and updater are ready; signing starts once the SignPath setup in [docs/code-signing.md](docs/code-signing.md) is done)
 - [x] Reproducible demos and measured overhead
 

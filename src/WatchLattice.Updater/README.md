@@ -50,6 +50,15 @@ without visiting GitHub by hand. It has two halves:
 The tray is updated when it is installed next to the hub, as `…\Hub` and
 `…\Tray` (the layout of the release zip). Other layouts update the hub only.
 
+## Install integrity check
+
+This project also holds a second module, `InstallIntegrity`. It compares the
+installed `Hub\` and `Tray\` folders with `Hub\WatchLattice.files.sha256`,
+the per-file hash list every release since 0.5.0 ships, and alerts when a file
+is changed, missing, or an unexpected `.exe` or `.dll` appears. It is read-only
+and makes no network calls. Run it once with `--verify-install`. See
+[install integrity check](../../docs/install-integrity.md).
+
 ## Commands
 
 From the hub's install folder:

@@ -10,10 +10,11 @@ const string PauseOnFailureSwitch = "--pause-on-failure";
 const string RemoveCanariesSwitch = "--remove-canaries";
 const string DescribeSettingsSwitch = "--describe-settings";
 const string ApplySettingsSwitch = "--apply-settings";
+const string VerifyInstallSwitch = "--verify-install";
 string[] commandSwitches =
 {
     ListModulesSwitch, CheckUpdateSwitch, ApplyUpdateSwitch, PauseOnFailureSwitch, RemoveCanariesSwitch,
-    DescribeSettingsSwitch, ApplySettingsSwitch,
+    DescribeSettingsSwitch, ApplySettingsSwitch, VerifyInstallSwitch,
 };
 
 bool HasSwitch(string name) => args.Any(a => string.Equals(a, name, StringComparison.OrdinalIgnoreCase));
@@ -46,6 +47,12 @@ if (HasSwitch(CheckUpdateSwitch) || HasSwitch(ApplyUpdateSwitch))
 {
     return await UpdateCommand.RunAsync(builder.Configuration, apply: HasSwitch(ApplyUpdateSwitch),
         pauseOnFailure: HasSwitch(PauseOnFailureSwitch));
+}
+
+// Compares the installed files with the release's file list once and prints the result.
+if (HasSwitch(VerifyInstallSwitch))
+{
+    return IntegrityCommand.Run(builder.Configuration);
 }
 
 // Used by the dashboard: read the settings schema, or save what its editor staged.

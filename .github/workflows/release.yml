@@ -1,7 +1,8 @@
 name: Release
 
 # Pushing a tag like v0.2.0 builds, tests and publishes a GitHub Release with:
-#   WatchLattice-<version>-win-x64.zip   Hub/ and Tray/, framework-dependent
+#   WatchLattice-<version>-win-x64.zip   Hub/ and Tray/, framework-dependent, with
+#                                        Hub/WatchLattice.files.sha256 (per-file hashes)
 #   SHA256SUMS.txt                       checked by the in-hub updater before installing
 # plus a build provenance attestation for the zip (verify with `gh attestation verify`).
 #
@@ -136,6 +137,10 @@ jobs:
       - name: Package and checksum
         shell: pwsh
         run: |
+          # Per-file hashes for the hub's install integrity check, written after
+          # signing so they match the bytes that get installed.
+          .github/scripts/Write-InstallManifest.ps1 -Stage $env:STAGE -Version $env:RELEASE_VERSION
+
           # The installer scripts go in after signing; the signing step only handles binaries.
           Copy-Item installer/* $env:STAGE
           New-Item -ItemType Directory -Force dist | Out-Null

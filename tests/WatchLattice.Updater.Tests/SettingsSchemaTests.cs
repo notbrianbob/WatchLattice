@@ -7,11 +7,17 @@ namespace WatchLattice.Updater.Tests;
 /// <summary>The dashboard's settings editor can show and check every setting this module reads.</summary>
 public sealed class SettingsSchemaTests
 {
-    [Fact]
-    public void EverySetting_HasAnEditor_AndTheShippedDefaultsPassValidation()
+    public static TheoryData<IWatchLatticeModule, Type> Modules => new()
     {
-        var module = new UpdaterModule();
-        Assert.Equal(typeof(UpdaterOptions), module.SettingsType);
+        { new UpdaterModule(), typeof(UpdaterOptions) },
+        { new InstallIntegrityModule(), typeof(InstallIntegrityOptions) },
+    };
+
+    [Theory]
+    [MemberData(nameof(Modules))]
+    public void EverySetting_HasAnEditor_AndTheShippedDefaultsPassValidation(IWatchLatticeModule module, Type settingsType)
+    {
+        Assert.Equal(settingsType, module.SettingsType);
         var catalog = new ModuleCatalog(new IWatchLatticeModule[] { module });
         var section = SettingsSchema.Build(catalog).Single(s => s.Path == module.Id);
         Assert.DoesNotContain(section.Fields, f => f.Kind == SettingKind.Unsupported);

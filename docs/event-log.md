@@ -204,6 +204,16 @@ Standing findings have a `_CLEARED` recovery event at ID + 500.
 |---|---|---|---|
 | 6001 | `UPDATE_AVAILABLE` | Information | A newer WatchLattice release is available. |
 
+### Install integrity check (7000)
+
+Both findings have a `_CLEARED` recovery event at ID + 500. See
+[install integrity check](install-integrity.md).
+
+| ID | Code | Level | Meaning |
+|---|---|---|---|
+| 7001 | `INSTALL_MODIFIED` | Error or Warning | WatchLattice's installed files differ from the release: a file changed or is missing, or an unexpected program file is present (Error when an `.exe` or `.dll` changed or appeared). |
+| 7002 | `MANIFEST_UNAVAILABLE` | Warning | The release's file list next to the hub is missing or unreadable, so the install cannot be checked. |
+
 ## Relationship to the hub's own log messages
 
 Separately from these alerts, .NET's service host writes the hub's own

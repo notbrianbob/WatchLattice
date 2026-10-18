@@ -18,7 +18,11 @@ not from files uploaded by hand.
 3. The workflow runs the tests, publishes the hub and tray for `win-x64`
    with that version stamped in, and creates the GitHub release with:
    - `WatchLattice-<version>-win-x64.zip`, containing `Hub/`, `Tray/`, the installer
-     (`Install.cmd`, `install.ps1`, `uninstall.ps1`), `LICENSE` and `README.md`
+     (`Install.cmd`, `install.ps1`, `uninstall.ps1`), `LICENSE` and `README.md`.
+     `Hub/WatchLattice.files.sha256` inside it lists every installed file's
+     SHA-256 for the hub's [install integrity check](install-integrity.md);
+     it is written after signing by
+     [`.github/scripts/Write-InstallManifest.ps1`](../.github/scripts/Write-InstallManifest.ps1)
    - `SHA256SUMS.txt`, which the updater checks before installing anything
    - a build provenance attestation for the zip
 

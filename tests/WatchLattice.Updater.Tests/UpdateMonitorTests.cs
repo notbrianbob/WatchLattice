@@ -169,8 +169,8 @@ public class UpdateMonitorTests
     [Fact]
     public void Module_IsDiscovered_AndBindsItsOptions()
     {
-        var module = Assert.Single(ModuleCatalog.Discover(typeof(UpdaterModule).Assembly).Modules);
-        Assert.Equal("Updater", module.Id);
+        var module = Assert.Single(ModuleCatalog.Discover(typeof(UpdaterModule).Assembly).Modules, m => m.Id == "Updater");
+        Assert.IsType<UpdaterModule>(module);
         Assert.True(module.EnabledByDefault);
 
         var configuration = new ConfigurationBuilder()

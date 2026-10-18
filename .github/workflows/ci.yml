@@ -75,6 +75,23 @@ jobs:
           dotnet publish src/WatchLattice.Tray -c Release -r win-x64 --self-contained false -o (Join-Path $stage 'Tray')
           Copy-Item LICENSE, README.md, installer/* $stage
 
+      # The release workflow's file manifest, read back by the hub's own check.
+      # Built as a non-dev version because development builds skip the check.
+      - name: Install integrity check against a release manifest
+        shell: pwsh
+        run: |
+          $stage = Join-Path $env:RUNNER_TEMP 'integrity'
+          dotnet publish src/WatchLattice.Hub -c Release -r win-x64 --self-contained false -p:Version=0.0.1-ci -o (Join-Path $stage 'Hub')
+          .github/scripts/Write-InstallManifest.ps1 -Stage $stage -Version 0.0.1-ci
+          $hub = Join-Path $stage 'Hub/ScanAlways.Protection.Service.exe'
+          & $hub --verify-install
+          if ($LASTEXITCODE -ne 0) { throw "A freshly packaged hub did not verify (exit $LASTEXITCODE)." }
+          Add-Content -LiteralPath (Join-Path $stage 'Hub/WatchLattice.Common.dll') -Value 'tampered'
+          & $hub --verify-install
+          if ($LASTEXITCODE -ne 1) { throw "A changed DLL was not reported (exit $LASTEXITCODE)." }
+          Write-Host 'Install integrity check reported the changed file.'
+          $global:LASTEXITCODE = 0
+
       # Windows PowerShell 5.1, which is what users run install.ps1 with.
       - name: Install, reinstall and uninstall
         shell: powershell
