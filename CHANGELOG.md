@@ -36,6 +36,13 @@ notes, followed by GitHub's generated list of pull requests. See
   writes its first snapshot before the modules start, which Hosting 10 no
   longer did on its own.
 
+### Fixed
+
+- **Alert feed**: a hub stopped right after it started could leave the feed
+  marked online until it went stale, because Hosting 10 may never run the
+  delivery loop whose clean-up marked it offline. The feed is now marked
+  offline when the service stops. (#36)
+
 ## [0.6.0] - 2026-10-18
 
 ### Added

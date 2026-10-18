@@ -87,7 +87,17 @@ public sealed class AlertDeliveryService : BackgroundService
             }
         }
         catch (OperationCanceledException) when (stoppingToken.IsCancellationRequested) { }
-        finally { Write(path, online: false); }
+    }
+
+    /// <summary>
+    /// Marks the feed offline once the loop has ended. Done here rather than in ExecuteAsync,
+    /// which Hosting 10 never runs when the hub stops before the thread pool got to it, and
+    /// which would then have left the feed looking online.
+    /// </summary>
+    public override async Task StopAsync(CancellationToken cancellationToken)
+    {
+        await base.StopAsync(cancellationToken);
+        if (_path is { } path) Write(path, online: false);
     }
 
     private void Write(string path, bool online)

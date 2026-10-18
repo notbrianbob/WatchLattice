@@ -37,8 +37,7 @@
 
     <MediaTemplate EmbedCab="yes" />
 
-    <!-- Settings > Apps -->
-    <Property Id="ARPNOMODIFY" Value="1" />
+    <!-- Settings > Apps (WixUI_Minimal also sets ARPNOMODIFY) -->
     <Property Id="ARPURLINFOABOUT" Value="https://github.com/notbrianbob/WatchLattice" />
     <Property Id="ARPHELPLINK" Value="https://github.com/notbrianbob/WatchLattice/blob/main/docs/installing.md" />
 
@@ -195,7 +194,7 @@
     <WixVariable Id="WixUILicenseRtf" Value="License.rtf" />
     <Property Id="WIXUI_EXITDIALOGOPTIONALCHECKBOXTEXT" Value="Start the WatchLattice tray now" />
     <Property Id="WIXUI_EXITDIALOGOPTIONALCHECKBOX" Value="1" />
-    <Property Id="WixShellExecTarget" Value="[ProgramMenuFolder]WatchLattice.lnk" />
+    <SetProperty Id="WixShellExecTarget" Value="[ProgramMenuFolder]WatchLattice.lnk" After="CostFinalize" Sequence="ui" />
     <CustomAction Id="WlStartTray" BinaryRef="Wix4UtilCA_X64" DllEntry="WixShellExec" Impersonate="yes" Return="ignore" />
     <UI>
       <Publish Dialog="ExitDialog" Control="Finish" Event="DoAction" Value="WlStartTray"
