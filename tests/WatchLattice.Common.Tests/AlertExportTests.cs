@@ -43,7 +43,7 @@ public sealed class AlertExportTests : IDisposable
         };
         var rows = AlertGrouping.Build(alerts, AlertReviewSet.Empty);
 
-        var text = new StringWriter();
+        using var text = new StringWriter();
         AlertExport.Write(text, rows, AlertExportFormat.Csv, grouped: true, Start);
         var lines = text.ToString().Split("\r\n");
 
@@ -64,7 +64,7 @@ public sealed class AlertExportTests : IDisposable
         var review = AlertReviewSet.Empty.Mark(new[] { (key, alerts[0].At) }, dismiss: false, Start);
         var rows = AlertGrouping.Build(alerts, review);
 
-        var text = new StringWriter();
+        using var text = new StringWriter();
         AlertExport.Write(text, rows, AlertExportFormat.Json, grouped: true, Start.AddHours(1));
         using var json = JsonDocument.Parse(text.ToString());
         var root = json.RootElement;

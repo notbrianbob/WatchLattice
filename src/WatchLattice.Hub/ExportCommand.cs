@@ -45,8 +45,7 @@ internal static class ExportCommand
             }
             else if (string.Equals(args[i], FormatSwitch, StringComparison.OrdinalIgnoreCase))
             {
-                if (i + 1 < args.Length) format = args[++i];
-                else format = "";
+                format = i + 1 < args.Length ? args[++i] : "";
             }
             else if (string.Equals(args[i], GroupSwitch, StringComparison.OrdinalIgnoreCase)) group = true;
             else rest.Add(args[i]);

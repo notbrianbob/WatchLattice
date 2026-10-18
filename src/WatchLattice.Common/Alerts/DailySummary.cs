@@ -191,7 +191,10 @@ public sealed class DailySummaryService : BackgroundService
                 Publish();
             }
         }
-        catch (OperationCanceledException) when (stoppingToken.IsCancellationRequested) { }
+        catch (OperationCanceledException) when (stoppingToken.IsCancellationRequested)
+        {
+            _logger.LogDebug("Daily summary stopped with the hub.");
+        }
     }
 
     private void Publish()
