@@ -48,16 +48,18 @@ public sealed record InstallManifest(ReleaseVersion Version, IReadOnlyDictionary
         {
             var directory = Path.Join(installRoot, folder);
             if (!Directory.Exists(directory)) continue;
-            var files = Directory.EnumerateFiles(directory, "*", SearchOption.AllDirectories).Order(StringComparer.Ordinal)
+            lines.AddRange(Directory.EnumerateFiles(directory, "*", SearchOption.AllDirectories).Order(StringComparer.Ordinal)
                 .Select(file => (Path: file, Relative: Normalize(Path.GetRelativePath(installRoot, file))))
-                .Where(file => !IsExcluded(file.Relative));
-            foreach (var file in files)
-            {
-                using var stream = File.OpenRead(file.Path);
-                lines.Add($"{Sha256Sums.Compute(stream)}  {file.Relative}");
-            }
+                .Where(file => !IsExcluded(file.Relative))
+                .Select(file => $"{HashFile(file.Path)}  {file.Relative}"));
         }
         return string.Join("\n", lines) + "\n";
+    }
+
+    private static string HashFile(string path)
+    {
+        using var stream = File.OpenRead(path);
+        return Sha256Sums.Compute(stream);
     }
 
     /// <summary>Files a release never lists: the user's settings and the manifest itself.</summary>
