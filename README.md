@@ -66,7 +66,8 @@ detection and removal, and WatchLattice adds friction and tripwires around it.
 | **Persistence & Autostart Auditor** ([`src/WatchLattice.Persistence`](src/WatchLattice.Persistence/)) | Available | Records a baseline of Run/RunOnce keys, Startup files, and visible scheduled tasks, then reports additions, changes, removals, and gaps in coverage. Changed scheduled tasks are verified automatically (current definition, COM registration, target file signature and hash, trusted baseline). Read-only. See its [README](src/WatchLattice.Persistence/README.md). |
 
 The **Windows tray companion** opens the **dashboard**: hub and module status,
-alerts, the hub's recent activity, and every setting. Turning a module on or
+alerts (repeats grouped into one row, with acknowledge and dismiss), the hub's
+recent activity, and every setting. Turning a module on or
 off or changing a setting opens an elevated settings editor through Windows'
 administrator prompt, so only an administrator can change anything; each save
 is checked, backed up, and rolled back if the hub does not keep running. See
@@ -288,6 +289,7 @@ their canaries and baselines. See
 - [x] Alerts in the Windows Event Log with stable event IDs
 - [x] Update checks and verified, user-approved installs from GitHub Releases
 - [x] Dashboard with activity, module switches and an administrator-only settings editor
+- [x] Grouped repeat alerts with per-user acknowledge and dismiss
 - [ ] Code-signed releases (the release workflow and updater are ready; signing starts once the SignPath setup in [docs/code-signing.md](docs/code-signing.md) is done)
 - [x] Reproducible demos and measured overhead
 

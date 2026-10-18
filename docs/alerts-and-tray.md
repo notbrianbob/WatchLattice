@@ -14,7 +14,9 @@ the settings and event IDs.
 The tray is a separate, per-user Windows application. It reads the feed, shows
 new warnings/critical alerts as notification balloons, and opens the
 [dashboard](dashboard.md) on double-click: module status, alert history and
-details, the hub's recent activity, and its settings. Closing the window keeps
+details, the hub's recent activity, and its settings. The dashboard groups
+repeated alerts into one row and lets you acknowledge or dismiss them; that
+is kept per user and never changes the feed or the Event Log. Closing the window keeps
 the tray alive; **Exit tray companion** stops only the companion.
 
 ## Quick start on Windows

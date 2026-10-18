@@ -36,6 +36,12 @@ internal sealed class DashboardWindow : Form
     private readonly Button _verifyEntry = new() { Text = "Verify entry", AutoSize = true, Enabled = false };
     private readonly Button _viewVerification = new() { Text = "View verification details…", AutoSize = true, Enabled = false };
     private readonly Label _verificationNote = new() { AutoSize = true, Margin = new Padding(12, 7, 0, 0), MaximumSize = new Size(640, 0) };
+    private readonly CheckBox _groupRepeats = new() { Text = "Group repeats", AutoSize = true, Checked = true, Margin = new Padding(3, 6, 12, 0) };
+    private readonly CheckBox _showDismissed = new() { Text = "Show dismissed", AutoSize = true, Margin = new Padding(3, 6, 12, 0) };
+    private readonly Label _alertCount = new() { AutoSize = true, Margin = new Padding(12, 7, 0, 0), MaximumSize = new Size(640, 0) };
+    private readonly Button _acknowledge = new() { Text = "Acknowledge", AutoSize = true, Enabled = false };
+    private readonly Button _dismiss = new() { Text = "Dismiss", AutoSize = true, Enabled = false };
+    private readonly Button _acknowledgeAll = new() { Text = "Acknowledge all", AutoSize = true, Enabled = false };
 
     // Activity
     private readonly ListView _activity = NewList("Hub activity");
@@ -61,7 +67,8 @@ internal sealed class DashboardWindow : Form
     private readonly Button _install = new() { Text = "Install update", AutoSize = true };
     private readonly Button _notes = new() { Text = "Release notes", AutoSize = true };
 
-    private Guid[] _displayedAlerts = Array.Empty<Guid>();
+    private string _displayedAlerts = "";
+    private IReadOnlyList<AlertGroup> _alertRows = Array.Empty<AlertGroup>();
     private IReadOnlyList<ActivityEntry> _activityEntries = Array.Empty<ActivityEntry>();
     private string? _activityProblem;
     private AlertSnapshot? _snapshot;
@@ -81,6 +88,13 @@ internal sealed class DashboardWindow : Form
     private PersistenceVerificationEngine? _engine;
     private string[]? _engineFamiliar;
     private bool _refreshingFindings;
+
+    // Acknowledged and dismissed alerts, kept in the user's own profile
+    private readonly AlertReviewStore _reviewStore = new();
+    private AlertReviewSet _review = AlertReviewSet.Empty;
+    private bool _refreshingReview;
+    private bool _savingReview;
+    private Font? _bold;
 
     /// <summary>The user chose Install update; the tray confirms and starts the elevated updater.</summary>
     public event Action? InstallRequested;
@@ -123,7 +137,11 @@ internal sealed class DashboardWindow : Form
             Shield(_editSettings);
         };
         Shown += async (_, _) => await LoadSettingsAsync();
-        FormClosed += (_, _) => _closing.Cancel();
+        FormClosed += (_, _) =>
+        {
+            _closing.Cancel();
+            _bold?.Dispose();
+        };
     }
 
     public void ShowAlertsTab() => _tabs.SelectedIndex = 1;
@@ -155,21 +173,38 @@ internal sealed class DashboardWindow : Form
 
     private TabPage BuildAlerts()
     {
-        _alerts.Columns.Add("Time", 150);
-        _alerts.Columns.Add("Severity", 80);
-        _alerts.Columns.Add("Module", 130);
-        _alerts.Columns.Add("Alert", 450);
+        _alerts.Columns.Add("Last seen", 140);
+        _alerts.Columns.Add("Severity", 75);
+        _alerts.Columns.Add("Module", 120);
+        _alerts.Columns.Add("Alert", 330);
+        _alerts.Columns.Add("Count", 55, HorizontalAlignment.Right);
+        _alerts.Columns.Add("Status", 105);
         _alerts.Columns.Add("Verification", 130);
+        _alerts.MultiSelect = true;
         _alerts.SelectedIndexChanged += (_, _) => ShowAlertDetails();
         _alerts.DoubleClick += (_, _) => ViewVerification();
+        _alerts.KeyDown += async (_, e) =>
+        {
+            if (e.KeyCode == Keys.Delete && SelectedRows().Any(r => r.State != AlertReviewState.Dismissed))
+                await ReviewSelectedAsync(dismiss: true);
+            else if (e.KeyCode == Keys.A && e.Control) { foreach (ListViewItem item in _alerts.Items) item.Selected = true; }
+        };
         _verifyEntry.Click += async (_, _) => { if (SelectedAlert() is { } alert) await VerifyAsync(alert); };
         _viewVerification.Click += (_, _) => ViewVerification();
         _verificationNote.Text = "Verify entry checks a changed scheduled task's current state without running it, then keeps the result with the alert.";
+        _groupRepeats.CheckedChanged += (_, _) => ShowAlerts();
+        _showDismissed.CheckedChanged += (_, _) => ShowAlerts();
+        _acknowledge.Click += async (_, _) => await ReviewSelectedAsync(dismiss: false);
+        _dismiss.Click += async (_, _) => await ReviewSelectedAsync(dismiss: true);
+        _acknowledgeAll.Click += async (_, _) => await AcknowledgeAllAsync();
 
+        var bar = new FlowLayoutPanel { Dock = DockStyle.Top, AutoSize = true, Padding = new Padding(6), WrapContents = true };
+        bar.Controls.AddRange(new Control[] { _groupRepeats, _showDismissed, _acknowledge, _dismiss, _acknowledgeAll, _alertCount });
         var buttons = new FlowLayoutPanel { Dock = DockStyle.Bottom, AutoSize = true, Padding = new Padding(6), WrapContents = true };
         buttons.Controls.AddRange(new Control[] { _verifyEntry, _viewVerification, _verificationNote });
         var page = new TabPage("Alerts");
         page.Controls.Add(Split(_alerts, _alertDetails));
+        page.Controls.Add(bar);
         page.Controls.Add(buttons);
         return page;
     }
@@ -222,27 +257,139 @@ internal sealed class DashboardWindow : Form
         ShowModules();
         if (snapshot is null) return;
         _ = RefreshFindingsAsync();
-        var alerts = snapshot.Alerts.Reverse().ToArray();
-        var ids = alerts.Select(a => a.Id).ToArray();
-        if (_displayedAlerts.SequenceEqual(ids)) return;
-        var selected = _alerts.SelectedItems.Count == 0 ? (Guid?)null : ((ProtectionAlert)_alerts.SelectedItems[0].Tag!).Id;
+        _ = RefreshReviewAsync();
+        ShowAlerts();
+    }
+
+    /// <summary>
+    /// Fills the alert list: repeats of one alert as a single row (unless
+    /// Group repeats is off), with what the user acknowledged greyed out and
+    /// what they dismissed hidden. Only the display changes; the feed and the
+    /// Event Log keep every alert.
+    /// </summary>
+    private void ShowAlerts()
+    {
+        var all = AlertGrouping.Build(_snapshot?.Alerts ?? Array.Empty<ProtectionAlert>(), _review, _groupRepeats.Checked);
+        var rows = all.Where(g => _showDismissed.Checked || g.State != AlertReviewState.Dismissed).ToArray();
+        var newRows = all.Count(g => g.State == AlertReviewState.New);
+        var hidden = all.Count - rows.Length;
+        var total = _snapshot?.Alerts.Count ?? 0;
+        _alertCount.Text = _reviewStore.Problem ?? $"{rows.Length} row(s) for {total} alert(s) • {newRows} new"
+            + (hidden > 0 ? $" • {hidden} dismissed and hidden" : "");
+        _tabs.TabPages[1].Text = newRows > 0 ? $"Alerts ({newRows} new)" : "Alerts";
+        _acknowledgeAll.Enabled = !_savingReview && rows.Any(g => g.State == AlertReviewState.New);
+
+        var signature = string.Join('|', rows.Select(g => $"{g.Latest.Id}:{g.Count}:{g.State}:{g.NewCount}"));
+        if (signature == _displayedAlerts)
+        {
+            UpdateReviewButtons();
+            return;
+        }
+        // Keep the selection by the newest alert's id, or by group when a repeat replaced it.
+        var selected = SelectedRows().SelectMany(g => new[] { g.Latest.Id.ToString(), g.Key }).ToHashSet();
+        _alertRows = rows;
         _alerts.BeginUpdate();
         _alerts.Items.Clear();
-        foreach (var alert in alerts)
+        foreach (var row in rows)
         {
-            var item = new ListViewItem(new[] { alert.At.ToLocalTime().ToString("g"), alert.Severity.ToString(), alert.Module, alert.Title, "" })
+            var alert = row.Latest;
+            var item = new ListViewItem(new[]
             {
-                Tag = alert, UseItemStyleForSubItems = false,
+                row.LastSeen.ToLocalTime().ToString("g"), row.Severity.ToString(), alert.Module, alert.Title,
+                row.Count.ToString(), StatusText(row), "",
+            })
+            {
+                Tag = row, UseItemStyleForSubItems = false,
             };
+            var reviewed = row.State != AlertReviewState.New;
+            for (var i = 0; i < 6; i++) item.SubItems[i].ForeColor = reviewed ? SystemColors.GrayText : SystemColors.WindowText;
+            if (!reviewed) item.SubItems[5].Font = _bold ??= new Font(_alerts.Font, FontStyle.Bold);
             ShowVerificationCell(item);
             _alerts.Items.Add(item);
-            if (alert.Id == selected) item.Selected = true;
+            if (selected.Contains(alert.Id.ToString()) || (_groupRepeats.Checked && selected.Contains(row.Key))) item.Selected = true;
         }
         _alerts.EndUpdate();
-        _displayedAlerts = ids;
-        if (alerts.Length == 0) _alertDetails.Text = "No alerts have been recorded yet.";
+        _displayedAlerts = signature;
+        if (rows.Length == 0)
+            _alertDetails.Text = total == 0 ? "No alerts have been recorded yet."
+                : "Every alert has been dismissed. Turn on Show dismissed to see them again.";
         else if (_alerts.SelectedItems.Count == 0) _alertDetails.Text = "Select an alert to see its details.";
+        else ShowAlertDetails();
         UpdateVerificationButtons();
+        UpdateReviewButtons();
+    }
+
+    private static string StatusText(AlertGroup row) => row.State switch
+    {
+        AlertReviewState.New when row.NewCount < row.Count => $"{row.NewCount} new",
+        AlertReviewState.New => "New",
+        AlertReviewState.Acknowledged => "Acknowledged",
+        _ => "Dismissed",
+    };
+
+    private AlertGroup[] SelectedRows() => _alerts.SelectedItems.Cast<ListViewItem>().Select(i => i.Tag).OfType<AlertGroup>().ToArray();
+
+    private void UpdateReviewButtons()
+    {
+        var rows = SelectedRows();
+        var restore = rows.Length > 0 && rows.All(r => r.State == AlertReviewState.Dismissed);
+        _acknowledge.Enabled = !_savingReview && rows.Any(r => r.State != AlertReviewState.Acknowledged);
+        _dismiss.Enabled = !_savingReview && rows.Length > 0;
+        _dismiss.Text = restore ? "Show again" : "Dismiss";
+    }
+
+    /// <summary>Re-reads the review file off the UI thread, in case another dashboard changed it.</summary>
+    private async Task RefreshReviewAsync()
+    {
+        if (_refreshingReview || _savingReview || IsDisposed) return;
+        _refreshingReview = true;
+        try
+        {
+            var review = await Task.Run(() => _reviewStore.Refresh());
+            if (IsDisposed || ReferenceEquals(review, _review)) return;
+            _review = review;
+            ShowAlerts();
+        }
+        finally { _refreshingReview = false; }
+    }
+
+    /// <summary>
+    /// Acknowledges or dismisses the selected rows through their newest alert,
+    /// or shows dismissed rows again. A later repeat makes a row new again.
+    /// </summary>
+    private async Task ReviewSelectedAsync(bool dismiss)
+    {
+        var rows = SelectedRows();
+        if (rows.Length == 0) return;
+        if (dismiss && rows.All(r => r.State == AlertReviewState.Dismissed))
+            await SaveReviewAsync(set => set.Restore(rows.Select(r => r.Key), DateTimeOffset.UtcNow));
+        else
+            await SaveReviewAsync(set => set.Mark(rows.Select(r => (r.Key, r.LastSeen)), dismiss, DateTimeOffset.UtcNow));
+    }
+
+    private async Task AcknowledgeAllAsync()
+    {
+        var rows = _alertRows.Where(r => r.State == AlertReviewState.New).ToArray();
+        if (rows.Length == 0) return;
+        await SaveReviewAsync(set => set.Mark(rows.Select(r => (r.Key, r.LastSeen)), dismiss: false, DateTimeOffset.UtcNow));
+    }
+
+    private async Task SaveReviewAsync(Func<AlertReviewSet, AlertReviewSet> change)
+    {
+        if (_savingReview) return;
+        _savingReview = true;
+        UpdateReviewButtons();
+        try
+        {
+            _review = await Task.Run(() => _reviewStore.Update(change));
+        }
+        catch (Exception ex) when (ex is IOException or UnauthorizedAccessException or InvalidDataException)
+        {
+            if (IsDisposed) return;
+            MessageBox.Show(this, ex.Message, "Could not save acknowledged alerts", MessageBoxButtons.OK, MessageBoxIcon.Warning);
+        }
+        finally { _savingReview = false; }
+        if (!IsDisposed) ShowAlerts();
     }
 
     /// <summary>New activity lines from the hub, or why they cannot be read.</summary>
@@ -457,13 +604,36 @@ internal sealed class DashboardWindow : Form
     private void ShowAlertDetails()
     {
         UpdateVerificationButtons();
-        if (SelectedAlert() is not { } alert) return;
+        UpdateReviewButtons();
+        var rows = SelectedRows();
+        if (rows.Length > 1)
+        {
+            _alertDetails.Text = $"{rows.Length} rows selected ({rows.Sum(r => r.Count)} alerts). Acknowledge or Dismiss applies to all of them.";
+            return;
+        }
+        if (rows.Length == 0) return;
+        var row = rows[0];
+        var alert = row.Latest;
         _alertDetails.Text = $"{alert.Title}\r\n{alert.At.ToLocalTime():F} • {alert.Module} • {alert.Severity}\r\nCode: {alert.Code}\r\n"
             + (alert.Resource is null ? "" : $"Source: {alert.Resource}\r\n") + "\r\n" + alert.Message.Replace("\n", "\r\n")
-            + VerificationSummary(alert);
+            + VerificationSummary(alert) + Occurrences(row);
     }
 
-    private ProtectionAlert? SelectedAlert() => _alerts.SelectedItems.Count == 0 ? null : _alerts.SelectedItems[0].Tag as ProtectionAlert;
+    /// <summary>The details pane's list of a grouped row's earlier alerts.</summary>
+    private static string Occurrences(AlertGroup row)
+    {
+        if (row.Count < 2) return "";
+        const int Shown = 25;
+        var text = $"\r\n\r\nREPEATS\r\nSeen {row.Count} times, first {row.FirstSeen.ToLocalTime():g}, last {row.LastSeen.ToLocalTime():g}. "
+            + "The details above are from the newest. Earlier:\r\n";
+        foreach (var earlier in row.Alerts.Skip(1).Take(Shown))
+            text += $"  {earlier.At.ToLocalTime():g} • {earlier.Severity} • {earlier.Title}\r\n";
+        if (row.Count - 1 > Shown) text += $"  …and {row.Count - 1 - Shown} more. Turn off Group repeats to see each one.\r\n";
+        return text;
+    }
+
+    private ProtectionAlert? SelectedAlert() =>
+        _alerts.SelectedItems.Count == 1 && _alerts.SelectedItems[0].Tag is AlertGroup row ? row.Latest : null;
 
     private VerificationRecord? RecordFor(ProtectionAlert alert) =>
         VerificationFindings.LinkedAlertId(alert) is { } id && _verification.TryGetValue(id, out var record) ? record : null;
@@ -494,8 +664,9 @@ internal sealed class DashboardWindow : Form
 
     private void ShowVerificationCell(ListViewItem item)
     {
-        if (item.Tag is not ProtectionAlert alert || item.SubItems.Count < 5) return;
-        var cell = item.SubItems[4];
+        if (item.Tag is not AlertGroup row || item.SubItems.Count < 7) return;
+        var alert = row.Latest;
+        var cell = item.SubItems[6];
         var record = RecordFor(alert);
         cell.ForeColor = SystemColors.WindowText;
         if (VerificationFindings.LinkedAlertId(alert) is null) cell.Text = "";

@@ -7,7 +7,7 @@ It has four tabs:
 | Tab | What it shows |
 |---|---|
 | **Overview** | Hub connection, and every module with its running state, whether it is turned on in the settings, and what it does. **Turn on…/Turn off…** and **Change settings…** open the settings editor. |
-| **Alerts** | Recent alerts from every module, newest first, with full details for the selected one. For persistence alerts, the **Verification** column, **Verify entry** and **View verification details…** (see [verifying changed scheduled tasks](../src/WatchLattice.Persistence/README.md#verifying-changed-scheduled-tasks)). |
+| **Alerts** | Recent alerts from every module, newest first, with full details for the selected one. Repeats of the same alert share one row with a count, and you can acknowledge or dismiss rows (see [grouping, acknowledging and dismissing alerts](#grouping-acknowledging-and-dismissing-alerts)). For persistence alerts, the **Verification** column, **Verify entry** and **View verification details…** (see [verifying changed scheduled tasks](../src/WatchLattice.Persistence/README.md#verifying-changed-scheduled-tasks)). |
 | **Activity** | The hub's own recent log: modules starting, stopping, failing and recovering, checks that could not run, feed and Event Log problems. Filter by level or text. |
 | **Settings** | Every setting the hub reads, its current value, and whether it comes from appsettings.json or is the built-in default. |
 
@@ -15,6 +15,41 @@ The dashboard runs as you, with your normal rights, and cannot change
 anything by itself. **Verify entry** only reads: it checks a scheduled task,
 its COM registration and its files with your rights and saves the result in
 your own profile.
+
+## Grouping, acknowledging and dismissing alerts
+
+A busy autostart entry can raise the same alert many times. On the Alerts tab,
+**Group repeats** (on by default) shows every alert with the same module, code
+and resource (the entry, file or setting it is about) as one row:
+
+- **Last seen** and the details are from the newest alert. **Severity** is the
+  highest of all of them, so a repeat that was once a warning never reads as
+  Info.
+- **Count** is how many times it was seen. The details pane lists the earlier
+  ones under *Repeats*. Turn **Group repeats** off to see every alert on its
+  own row again.
+- **Status** is *New* until you review it. A grouped row that you reviewed
+  before it repeated shows how many are new, for example *2 new*.
+
+Select one or more rows (Ctrl+A selects all) and choose:
+
+| Action | What it does |
+|---|---|
+| **Acknowledge** | Marks the row as seen. It stays in the list, greyed out. |
+| **Dismiss** (or the Delete key) | Hides the row. **Show dismissed** brings hidden rows back into the list, where **Show again** un-hides them. |
+| **Acknowledge all** | Acknowledges every new row in the list. |
+
+Neither is permanent: when the same alert happens again, its row is *New*
+again and shows up even if you dismissed it. The tab's title shows how many
+rows are new.
+
+This only changes what the dashboard shows you. The hub, the alert feed and
+the [Windows Event Log](event-log.md) still keep every alert, with the same
+event IDs, and new warnings still raise a notification. What you acknowledged
+or dismissed is kept for your account only, in
+`%LOCALAPPDATA%\ScanAlways\alert-review.json` (the newest 2,000 rows), so it
+needs no administrator permission and survives restarts and updates. Deleting
+that file makes every row new again.
 
 ## Changing settings needs an administrator
 
@@ -128,3 +163,8 @@ checked by hand:
    *Verifying…*, then *(manual)*, with no administrator prompt. **View
    verification details…** lists both runs; the report shows the logged change
    under *At alert time* and the DLL, hash and signer under *Current state*.
+7. Alerts: repeated *Autostart entry changed* alerts for one task show as one
+   row with a count. **Acknowledge** greys it out; **Dismiss** hides it and the
+   count line says one row is hidden. After the next change to that task the
+   row is back as *1 new*. Close and reopen the dashboard: the review is kept.
+   Turn off **Group repeats**: each alert has its own row again.
