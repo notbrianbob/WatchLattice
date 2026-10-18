@@ -30,4 +30,23 @@ public static class ServiceCollectionExtensions
             status: sp.GetService<IUpdateStatusPublisher>()));
         return services;
     }
+
+    /// <summary>
+    /// Registers the install integrity check for the hub running from
+    /// <paramref name="hubDirectory"/> (its own folder by default) and binds
+    /// <see cref="InstallIntegrityOptions"/> from the "InstallIntegrity" section.
+    /// </summary>
+    public static IServiceCollection AddWatchLatticeInstallIntegrity(this IServiceCollection services,
+        IConfiguration configuration, string? hubDirectory = null)
+    {
+        services.AddOptions<InstallIntegrityOptions>().Bind(configuration.GetSection(InstallIntegrityOptions.SectionName));
+        var current = ReleaseVersion.FromAssembly(typeof(InstallIntegrityModule).Assembly);
+        services.AddSingleton(sp => new InstallIntegrityMonitor(
+            sp.GetRequiredService<IOptions<InstallIntegrityOptions>>(),
+            sp.GetRequiredService<ILogger<InstallIntegrityMonitor>>(),
+            current,
+            hubDirectory ?? AppContext.BaseDirectory,
+            alerts: sp.GetService<IAlertPublisher>()));
+        return services;
+    }
 }

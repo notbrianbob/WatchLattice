@@ -30,6 +30,7 @@ public static class AlertEventIds
         ["FirewallWatchdog"] = 4000,
         ["Persistence"] = 5000,
         ["Updater"] = 6000,
+        ["InstallIntegrity"] = 7000,
     };
 
     // The supervisor raises these under each module's own ID.
@@ -108,6 +109,9 @@ public static class AlertEventIds
         [("Persistence", "VERIFICATION_STORE_FAILED")] = 5013,
 
         [("Updater", "UPDATE_AVAILABLE")] = 6001,
+
+        [("InstallIntegrity", "INSTALL_MODIFIED")] = 7001,
+        [("InstallIntegrity", "MANIFEST_UNAVAILABLE")] = 7002,
     };
 
     // Codes that carry a variable part after a fixed prefix, e.g. BROAD_EXCLUSION:Path:C:\.

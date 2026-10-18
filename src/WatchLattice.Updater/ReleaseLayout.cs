@@ -14,6 +14,9 @@ public static class ReleaseLayout
     public const string TrayAssembly = "ScanAlways.Tray.dll";
     public const string HubSettingsFile = "appsettings.json";
 
+    /// <summary>Per-file hashes of Hub/ and Tray/, shipped in Hub/; see <see cref="InstallManifest"/>.</summary>
+    public const string FileManifestName = "WatchLattice.files.sha256";
+
     public static string PackageFileName(ReleaseVersion version) => $"WatchLattice-{version}-win-x64.zip";
 
     /// <summary>The tray installed next to the hub (…\Hub and …\Tray), or null for any other layout.</summary>
