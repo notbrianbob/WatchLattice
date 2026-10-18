@@ -24,6 +24,14 @@ notes, followed by GitHub's generated list of pull requests. See
   Install.cmd and the in-hub updater are unchanged, and `SHA256SUMS.txt`
   now lists both files. CI installs, upgrades and uninstalls it on every
   pull request. See [the MSI](docs/installing.md#the-msi). (#36)
+- **winget manifests**: each release also carries
+  `WatchLattice-<version>-winget.zip`, manifests for publishing the MSI to
+  winget as `notbrianbob.WatchLattice` (templates in `packaging/winget`),
+  rendered with the release's MSI URL, SHA-256 and ProductCode, depending on
+  the .NET 8 Desktop Runtime, and checked with `winget validate`. CI renders
+  and validates them for a test MSI on every pull request. Nothing is
+  submitted to winget automatically; see
+  [publishing to winget](docs/releasing.md#publishing-to-winget).
 
 ### Changed
 

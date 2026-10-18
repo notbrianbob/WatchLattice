@@ -1,0 +1,38 @@
+## Template: .github/scripts/Write-WingetManifest.ps1 fills in the {{...}}
+## values for a release. See packaging/winget/README.md.
+# yaml-language-server: $schema=https://aka.ms/winget-manifest.defaultLocale.1.10.0.schema.json
+
+PackageIdentifier: notbrianbob.WatchLattice
+PackageVersion: {{VERSION}}
+PackageLocale: en-US
+Publisher: WatchLattice contributors
+PublisherUrl: https://github.com/notbrianbob
+PublisherSupportUrl: https://github.com/notbrianbob/WatchLattice/issues
+Author: notbrianbob and WatchLattice contributors
+PackageName: WatchLattice
+PackageUrl: https://github.com/notbrianbob/WatchLattice
+License: MIT
+LicenseUrl: https://github.com/notbrianbob/WatchLattice/blob/main/LICENSE
+Copyright: Copyright (c) 2026 notbrianbob and WatchLattice contributors
+ShortDescription: Experimental Windows security tools that run alongside Microsoft Defender.
+Description: |-
+  WatchLattice is an experimental, open-source Windows security toolkit that
+  complements Microsoft Defender with deception-based defenses, ransomware
+  tripwires and continuous security-health monitoring. Its tools run together
+  in one background service with a tray dashboard, and each can be switched
+  on or off. It is a supplement to a real anti-malware product, not a
+  replacement for one.
+Moniker: watchlattice
+Tags:
+- security
+- defender
+- ransomware
+- canary
+- deception
+- monitoring
+ReleaseNotesUrl: https://github.com/notbrianbob/WatchLattice/releases/tag/v{{VERSION}}
+Documentations:
+- DocumentLabel: Installing
+  DocumentUrl: https://github.com/notbrianbob/WatchLattice/blob/main/docs/installing.md
+ManifestType: defaultLocale
+ManifestVersion: 1.10.0

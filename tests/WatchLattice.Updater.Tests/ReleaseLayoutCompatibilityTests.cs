@@ -52,6 +52,19 @@ public class ReleaseLayoutCompatibilityTests
             package.Descendants(wix + "File").Single(f => f.Attribute("Id")?.Value == "TrayExe").Attribute("Source")?.Value);
     }
 
+    [Fact]
+    public void WingetManifest_UsesTheMsiUpgradeCode()
+    {
+        XNamespace wix = "http://wixtoolset.org/schemas/v4/wxs";
+        var upgradeCode = XDocument.Load(Path.Join(RepositoryRoot(), "packaging/msi/Package.wxs"))
+            .Descendants(wix + "Package").Single().Attribute("UpgradeCode")!.Value;
+        var installer = File.ReadAllText(Path.Join(RepositoryRoot(), "packaging/winget/notbrianbob.WatchLattice.installer.yaml"));
+
+        // winget matches an installed copy to the package by this code.
+        Assert.Contains($"UpgradeCode: '{{{upgradeCode}}}'", installer);
+        Assert.Contains("InstallerType: msi", installer);
+    }
+
     private static string RepositoryRoot()
     {
         for (var dir = new DirectoryInfo(AppContext.BaseDirectory); dir is not null; dir = dir.Parent)
