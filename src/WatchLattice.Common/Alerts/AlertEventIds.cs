@@ -31,6 +31,7 @@ public static class AlertEventIds
         ["Persistence"] = 5000,
         ["Updater"] = 6000,
         ["InstallIntegrity"] = 7000,
+        ["HostsProxyWatchdog"] = 8000,
     };
 
     // The supervisor raises these under each module's own ID.
@@ -112,6 +113,16 @@ public static class AlertEventIds
 
         [("InstallIntegrity", "INSTALL_MODIFIED")] = 7001,
         [("InstallIntegrity", "MANIFEST_UNAVAILABLE")] = 7002,
+
+        [("HostsProxyWatchdog", "HOSTS_UNAVAILABLE")] = 8001,
+        [("HostsProxyWatchdog", "PROTECTED_HOST_OVERRIDDEN")] = 8002,
+        [("HostsProxyWatchdog", "HOSTS_PATH_MOVED")] = 8003,
+        [("HostsProxyWatchdog", "HOSTS_CHANGED")] = 8004,
+        [("HostsProxyWatchdog", "PROXY_UNAVAILABLE")] = 8005,
+        [("HostsProxyWatchdog", "PROXY_CHANGED")] = 8006,
+        [("HostsProxyWatchdog", "BASELINE_CREATED")] = 8007,
+        [("HostsProxyWatchdog", "STATE_SAVE_FAILED")] = 8008,
+        [("HostsProxyWatchdog", "STATE_UNREADABLE")] = 8009,
     };
 
     // Codes that carry a variable part after a fixed prefix, e.g. BROAD_EXCLUSION:Path:C:\.

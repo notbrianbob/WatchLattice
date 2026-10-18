@@ -11,6 +11,21 @@ notes, followed by GitHub's generated list of pull requests. See
 
 ## [Unreleased]
 
+### Added
+
+- **Hosts file and proxy watchdog** (`HostsProxyWatchdog` module, on by
+  default): every minute it reads the hosts file Windows actually uses
+  (following Tcpip's `DataBasePath`) and the proxy settings in WinINET (each
+  signed-in user and the machine, including policies and the binary
+  connection settings), WinHTTP, and `HTTP_PROXY`-style environment
+  variables. The first check records a baseline; after that every change is
+  reported with before and after. Hosts entries that block or redirect
+  Windows Update, Defender, SmartScreen or WatchLattice's update hosts are a
+  standing critical alert, and a hosts file moved to another folder is a
+  warning. Read-only; it never edits the hosts file or resets a proxy. New
+  Event IDs 8001 to 8009. See its
+  [README](src/WatchLattice.HostsProxyWatchdog/README.md).
+
 ## [0.5.0] - 2026-10-18
 
 ### Added

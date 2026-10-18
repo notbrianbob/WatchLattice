@@ -3,6 +3,7 @@ using WatchLattice.Canary;
 using WatchLattice.Decoy;
 using WatchLattice.DefenderWatchdog;
 using WatchLattice.FirewallWatchdog;
+using WatchLattice.HostsProxyWatchdog;
 using WatchLattice.Persistence;
 using WatchLattice.Updater;
 
@@ -20,6 +21,7 @@ internal static class ModuleAssemblies
         typeof(CanaryModule).Assembly,
         typeof(DefenderWatchdogModule).Assembly,
         typeof(FirewallWatchdogModule).Assembly,
+        typeof(HostsProxyWatchdogModule).Assembly,
         typeof(PersistenceModule).Assembly,
         typeof(UpdaterModule).Assembly,
     };

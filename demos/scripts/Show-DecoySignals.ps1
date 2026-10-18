@@ -57,6 +57,7 @@ $hubArgs = @(
     '--Modules:Canary:Enabled=false',
     '--Modules:DefenderWatchdog:Enabled=false',
     '--Modules:FirewallWatchdog:Enabled=false',
+    '--Modules:HostsProxyWatchdog:Enabled=false',
     '--Modules:Persistence:Enabled=false',
     '--Modules:Updater:Enabled=false',
     "--Decoy:Intensity=$Intensity",
