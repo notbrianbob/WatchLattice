@@ -11,6 +11,8 @@ notes, followed by GitHub's generated list of pull requests. See
 
 ## [Unreleased]
 
+## [0.7.0] - 2026-10-18
+
 ### Added
 
 - **MSI installer**: each release also ships
@@ -31,7 +33,10 @@ notes, followed by GitHub's generated list of pull requests. See
   the .NET 8 Desktop Runtime, and checked with `winget validate`. CI renders
   and validates them for a test MSI on every pull request. Nothing is
   submitted to winget automatically; see
-  [publishing to winget](docs/releasing.md#publishing-to-winget).
+  [publishing to winget](docs/releasing.md#publishing-to-winget). (#37)
+- [What to check by hand on Windows](docs/windows-checks.md) now has the
+  0.7.0 checks: updating from 0.6.0, then installing, reinstalling and
+  uninstalling the MSI and trying the winget manifests.
 
 ### Changed
 
@@ -42,7 +47,11 @@ notes, followed by GitHub's generated list of pull requests. See
   WatchLattice still targets and runs on the .NET 8 runtime; the installer's
   requirement is unchanged. The alert feed now restores its history and
   writes its first snapshot before the modules start, which Hosting 10 no
-  longer did on its own.
+  longer did on its own. (#34)
+- **Upgrading from 0.6.0:** **Install update** in the tray updates a zip
+  install as before. To move to the MSI, uninstall first; the MSI refuses to
+  install over an Install.cmd install (and the other way round). Nothing
+  needs reconfiguring and no new baselines are recorded.
 
 ### Fixed
 
@@ -211,7 +220,8 @@ First release.
   (#13, #14)
 - CI, CodeQL and repository hygiene. (#2, #10)
 
-[Unreleased]: https://github.com/notbrianbob/WatchLattice/compare/v0.6.0...HEAD
+[Unreleased]: https://github.com/notbrianbob/WatchLattice/compare/v0.7.0...HEAD
+[0.7.0]: https://github.com/notbrianbob/WatchLattice/compare/v0.6.0...v0.7.0
 [0.6.0]: https://github.com/notbrianbob/WatchLattice/compare/v0.5.0...v0.6.0
 [0.5.0]: https://github.com/notbrianbob/WatchLattice/compare/v0.4.0...v0.5.0
 [0.4.0]: https://github.com/notbrianbob/WatchLattice/compare/v0.3.0...v0.4.0

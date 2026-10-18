@@ -322,6 +322,8 @@ their canaries and baselines. See
 - [x] Hosts file and proxy settings watchdog
 - [x] Auto-start services and WMI event subscriptions in the persistence auditor
 - [x] Alert export (CSV and JSON) and a daily alert summary
+- [x] MSI installer for double-click and unattended installs
+- [ ] winget package (each release carries validated manifests; [submitting them](docs/releasing.md#publishing-to-winget) is a manual step)
 - [ ] Code-signed releases (the release workflow and updater are ready; signing starts once the SignPath setup in [docs/code-signing.md](docs/code-signing.md) is done)
 - [x] Reproducible demos and measured overhead
 

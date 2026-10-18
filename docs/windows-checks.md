@@ -19,7 +19,8 @@ update host.
    from the dashboard of a second signed-in user, or with `--apply-update`,
    the first user's tray restarts the same way.
 2. Do the [0.5.0 checks](#050), then update to 0.6.0 the same way and do the
-   [0.6.0 checks](#060).
+   [0.6.0 checks](#060), then update to 0.7.0 the same way and do the
+   [0.7.0 checks](#070). The 0.7.0 checks end by moving the PC to the MSI.
 
 ## 0.5.0
 
@@ -104,19 +105,52 @@ update host.
 
 ## 0.7.0
 
-1. **MSI install** (#36). Uninstall WatchLattice first (the MSI refuses to
-   install over an Install.cmd install). Double-click
-   `WatchLattice-0.7.0-win-x64.msi`: the license page, the administrator
+1. **Update from 0.6.0 with the new dependencies** (#34). After **Install
+   update** to 0.7.0, the dashboard's Overview shows every module running and
+   Activity shows the hub's startup lines. From the hub folder,
+   `.\ScanAlways.Protection.Service.exe --check-update` prints
+   *WatchLattice 0.7.0 is up to date.* The hub still runs on the .NET 8 runtime:
+   nothing asks for .NET 10.
+2. **Alert feed goes offline when the hub stops** (#36). From an elevated
+   prompt, `Stop-Service 'ScanAlways Protection'`: the tray's tooltip changes
+   to *WatchLattice: hub offline* within a few seconds, rather than after
+   the feed goes stale. `Start-Service 'ScanAlways Protection'` brings it
+   back to *hub connected*.
+3. **The installers refuse each other** (#36). With the Install.cmd copy
+   still installed, double-click `WatchLattice-0.7.0-win-x64.msi`: it stops
+   with a message saying WatchLattice was installed with Install.cmd and to
+   uninstall that first, and changes nothing.
+4. **MSI install** (#36). Uninstall WatchLattice from Settings > Apps, then
+   double-click the MSI: the license page, the administrator
    prompt and a progress bar appear, and with **Start the WatchLattice tray
    now** ticked the tray icon shows up after **Finish**, running as you (not
    elevated: Task Manager's *Elevated* column says No). Settings > Apps lists
-   WatchLattice 0.7.0. Sign out and back in: the tray starts on its own. See
-   [the MSI](installing.md#the-msi).
-2. **MSI uninstall** (#36). Uninstall WatchLattice from Settings > Apps. The
+   WatchLattice 0.7.0. Sign out and back in: the tray starts on its own.
+   `--verify-install` from `C:\Program Files\WatchLattice\Hub` exits with
+   `0`. See [the MSI](installing.md#the-msi).
+5. **MSI uninstall** (#36). Uninstall WatchLattice from Settings > Apps. The
    tray closes, `C:\Program Files\WatchLattice` and
    `C:\ProgramData\WatchLattice` are gone, the canary files in your Desktop,
    Documents and Pictures are gone, and Startup apps in Task Manager no longer
-   lists WatchLattice Tray.
+   lists WatchLattice Tray. (Upgrading and reinstalling an MSI while keeping
+   `appsettings.json` is covered by CI's `MSI installer` job; on a PC it is
+   first possible with the next release's MSI.)
+6. **Unattended MSI install** (#36). From an administrator terminal:
+
+   ```powershell
+   msiexec /i WatchLattice-0.7.0-win-x64.msi /qn /l*v $env:TEMP\wl-install.log DECOY=0 UPDATECHECK=0
+   ```
+
+   No window appears; afterwards the dashboard's Settings tab shows the decoy
+   and update checks off, and the log ends with `Installation success or
+   error status: 0`.
+7. **winget manifests** (#37). Uninstall again, download
+   `WatchLattice-0.7.0-winget.zip` from the release and follow step 2 of
+   [publishing to winget](releasing.md#publishing-to-winget):
+   `winget validate` passes, and `winget install --manifest` downloads the
+   release's MSI, checks its hash and installs it like step 4. Leave it
+   installed, or uninstall from Settings > Apps. Do not submit anything to
+   winget unless you have decided to publish.
 
 ## Already covered
 
