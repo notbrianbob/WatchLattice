@@ -1,0 +1,32 @@
+<Project Sdk="WixToolset.Sdk/5.0.2">
+  <!--
+    Builds WatchLattice-<version>-win-x64.msi from a staged release folder
+    (Hub/, Tray/, the installer scripts, LICENSE and README.md), the same one
+    the release zip is made from. Windows only; it is not part of
+    WatchLattice.sln, so `dotnet build` of the solution skips it.
+
+      dotnet build packaging/msi/WatchLattice.Installer.wixproj -c Release -p:StageDir=<stage> -p:ProductVersion=0.7.0
+
+    .github/scripts/Build-Msi.ps1 wraps this for the release workflow and CI.
+  -->
+  <PropertyGroup>
+    <OutputName>WatchLattice</OutputName>
+    <InstallerPlatform>x64</InstallerPlatform>
+    <!-- Windows Installer versions are numeric, so 0.7.0-beta.1 builds as 0.7.0. -->
+    <ProductVersion Condition="'$(ProductVersion)' == ''">0.0.1</ProductVersion>
+    <DefineConstants>StageDir=$(StageDir);ProductVersion=$(ProductVersion)</DefineConstants>
+    <!-- ICE61: same-version upgrades are allowed on purpose (see Package.wxs). -->
+    <SuppressIces>ICE61</SuppressIces>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <PackageReference Include="WixToolset.Util.wixext" Version="5.0.2" />
+    <PackageReference Include="WixToolset.Netfx.wixext" Version="5.0.2" />
+    <PackageReference Include="WixToolset.UI.wixext" Version="5.0.2" />
+  </ItemGroup>
+
+  <Target Name="RequireStageDir" BeforeTargets="Build;CoreCompile">
+    <Error Condition="'$(StageDir)' == '' Or !Exists('$(StageDir)\Hub\ScanAlways.Protection.Service.exe')"
+           Text="Pass -p:StageDir=&lt;folder with Hub\, Tray\ and the installer scripts&gt;, laid out like the release zip." />
+  </Target>
+</Project>

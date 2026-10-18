@@ -58,6 +58,18 @@
 .PARAMETER Quiet
     Accept the defaults (or the values given as parameters) without asking.
 
+.PARAMETER Msi
+    Used by the WatchLattice MSI, which runs this script from the install
+    folder after it has installed the files and the service. Does only the
+    parts that depend on the tray user: the install folder and alert feed
+    permissions, the first-run settings (without asking), the service's
+    restart-on-crash settings, the tray's sign-in entry and
+    install-state.json. Windows Installer does the rest.
+
+.PARAMETER ProductCode
+    With -Msi: the MSI's product code, recorded so uninstall.ps1 can hand an
+    uninstall over to Windows Installer.
+
 .EXAMPLE
     .\install.ps1
 
@@ -76,6 +88,8 @@ param(
     [switch]$NoTrayStart,
     [switch]$Reconfigure,
     [switch]$Quiet,
+    [switch]$Msi,
+    [string]$ProductCode,
     # Set when this script relaunches itself elevated, so its window stays open.
     [switch]$PauseAtEnd
 )
@@ -228,10 +242,20 @@ function Resolve-TrayAccount([string]$Name) {
         $Name = if ($console) { $console } else { [Security.Principal.WindowsIdentity]::GetCurrent().Name }
     }
     try {
-        $sid = (New-Object Security.Principal.NTAccount($Name)).Translate([Security.Principal.SecurityIdentifier]).Value
+        # The MSI passes the installing user as a SID.
+        if ($Name -match '^S-1-\d+(-\d+)+$') {
+            $sid = $Name
+            $Name = (New-Object Security.Principal.SecurityIdentifier($sid)).Translate([Security.Principal.NTAccount]).Value
+        }
+        else {
+            $sid = (New-Object Security.Principal.NTAccount($Name)).Translate([Security.Principal.SecurityIdentifier]).Value
+        }
     }
     catch {
         throw "Could not find the account '$Name'. Pass the tray user as -TrayUser 'COMPUTER\name'."
+    }
+    if ($sid -eq 'S-1-5-18') {
+        throw 'The tray user cannot be LocalSystem. Pass the account that uses the tray as -TrayUser (TRAYUSER for the MSI).'
     }
     $userProfile = Get-CimInstance Win32_UserProfile -Filter "SID='$sid'"
     if (-not $userProfile) {
@@ -317,6 +341,13 @@ try {
         throw 'Run this from 64-bit PowerShell (the default "Windows PowerShell"), not the x86 one.'
     }
 
+    if ($Msi) {
+        # Windows Installer has put this script in the install folder, and
+        # runs it as LocalSystem without a console to ask questions on.
+        $InstallDir = $PSScriptRoot
+        $Quiet = [switch]$true
+    }
+
     if (-not (Test-Administrator)) {
         Write-Step 'Asking for administrator rights to install the service'
         $forward = @{}
@@ -344,7 +375,7 @@ try {
             throw "This folder has no $required. Run install.ps1 from the folder you extracted the WatchLattice release zip into."
         }
     }
-    if ($packageRoot.TrimEnd('\') -eq $InstallDir) {
+    if (-not $Msi -and $packageRoot.TrimEnd('\') -eq $InstallDir) {
         throw "Run install.ps1 from the extracted release, not from $InstallDir."
     }
 
@@ -366,6 +397,15 @@ try {
     $configPath = Join-Path $hubDir 'appsettings.json'
     $statePath = Join-Path $InstallDir $StateFileName
 
+    $previousState = $null
+    if (Test-Path -LiteralPath $statePath) {
+        try { $previousState = Get-Content -Raw -LiteralPath $statePath | ConvertFrom-Json } catch { }
+    }
+    $msiInstalled = $previousState -and $previousState.PSObject.Properties.Name -contains 'InstalledBy' -and $previousState.InstalledBy -eq 'msi'
+    if ($msiInstalled -and -not $Msi) {
+        throw "WatchLattice in $InstallDir was installed from the MSI. Install a new version with its MSI, or uninstall it from Settings > Apps first."
+    }
+
     $service = Get-CimInstance Win32_Service -Filter "Name='$ServiceName'"
     if ($service) {
         $existingPath = $service.PathName.Trim().Trim('"')
@@ -375,7 +415,9 @@ try {
                 "    or install over it with -InstallDir '$([IO.Path]::GetDirectoryName([IO.Path]::GetDirectoryName($existingPath)))'.")
         }
     }
-    $upgrade = Test-Path -LiteralPath $configPath
+    # The MSI has always just installed appsettings.json; whether this is a
+    # first install is whether an earlier one left install-state.json.
+    $upgrade = if ($Msi) { $null -ne $previousState } else { Test-Path -LiteralPath $configPath }
     $askQuestions = -not $upgrade -or $Reconfigure
 
     # First-run choices, asked before anything is changed.
@@ -416,32 +458,40 @@ try {
     }
     $autostart = if ($NoTrayAutostart) { $false } elseif ($Quiet -or -not $askQuestions) { $true } else { Read-YesNo 'Start the tray companion when you sign in?' $true }
 
-    Write-Step "Installing files to $InstallDir"
-    $existing = Get-Service -Name $ServiceName -ErrorAction SilentlyContinue
-    if ($existing -and $existing.Status -ne 'Stopped') {
-        Write-Note 'Stopping the running hub service'
-        Stop-Service -Name $ServiceName -Force
+    if ($Msi) {
+        # Windows Installer has stopped the service and tray and installed the
+        # files, keeping an existing appsettings.json.
+        Write-Step "Securing $InstallDir"
+        Set-ProtectedAcl $InstallDir @('*S-1-5-32-545:(OI)(CI)RX')
     }
-    Get-Process -Name ([IO.Path]::GetFileNameWithoutExtension($TrayExeName)) -ErrorAction SilentlyContinue |
-        Where-Object { $_.Path -and $_.Path -eq $trayExe } | Stop-Process -Force
+    else {
+        Write-Step "Installing files to $InstallDir"
+        $existing = Get-Service -Name $ServiceName -ErrorAction SilentlyContinue
+        if ($existing -and $existing.Status -ne 'Stopped') {
+            Write-Note 'Stopping the running hub service'
+            Stop-Service -Name $ServiceName -Force
+        }
+        Get-Process -Name ([IO.Path]::GetFileNameWithoutExtension($TrayExeName)) -ErrorAction SilentlyContinue |
+            Where-Object { $_.Path -and $_.Path -eq $trayExe } | Stop-Process -Force
 
-    New-OwnedDirectory $InstallDir 'install folder'
-    Set-ProtectedAcl $InstallDir @('*S-1-5-32-545:(OI)(CI)RX')
-    $savedConfig = if ($upgrade) { [IO.File]::ReadAllBytes($configPath) } else { $null }
-    Copy-Item -LiteralPath (Join-Path $packageRoot 'Hub'), (Join-Path $packageRoot 'Tray') -Destination $InstallDir -Recurse -Force
-    foreach ($file in @('uninstall.ps1', 'LICENSE', 'README.md')) {
-        $source = Join-Path $packageRoot $file
-        if (Test-Path -LiteralPath $source) { Copy-Item -LiteralPath $source -Destination $InstallDir -Force }
+        New-OwnedDirectory $InstallDir 'install folder'
+        Set-ProtectedAcl $InstallDir @('*S-1-5-32-545:(OI)(CI)RX')
+        $savedConfig = if ($upgrade) { [IO.File]::ReadAllBytes($configPath) } else { $null }
+        Copy-Item -LiteralPath (Join-Path $packageRoot 'Hub'), (Join-Path $packageRoot 'Tray') -Destination $InstallDir -Recurse -Force
+        foreach ($file in @('uninstall.ps1', 'LICENSE', 'README.md')) {
+            $source = Join-Path $packageRoot $file
+            if (Test-Path -LiteralPath $source) { Copy-Item -LiteralPath $source -Destination $InstallDir -Force }
+        }
+        if ($savedConfig) {
+            Copy-Item -LiteralPath $configPath -Destination "$configPath.default" -Force
+            [IO.File]::WriteAllBytes($configPath, $savedConfig)
+            Write-Note 'Kept your appsettings.json; the release defaults are in appsettings.json.default.'
+        }
+        # Installed program files, like any installer writes them: drop the
+        # downloaded-from-the-internet mark the zip passed on, so the tray does
+        # not show an "open file" warning at every sign-in.
+        Get-ChildItem -LiteralPath $InstallDir -Recurse -File | Unblock-File
     }
-    if ($savedConfig) {
-        Copy-Item -LiteralPath $configPath -Destination "$configPath.default" -Force
-        [IO.File]::WriteAllBytes($configPath, $savedConfig)
-        Write-Note 'Kept your appsettings.json; the release defaults are in appsettings.json.default.'
-    }
-    # Installed program files, like any installer writes them: drop the
-    # downloaded-from-the-internet mark the zip passed on, so the tray does
-    # not show an "open file" warning at every sign-in.
-    Get-ChildItem -LiteralPath $InstallDir -Recurse -File | Unblock-File
 
     Write-Step "Creating the alert feed folder $FeedDir"
     New-OwnedDirectory $DataRoot 'alert feed folder'
@@ -498,16 +548,21 @@ try {
     }
 
     $shortcutPath = Join-Path ([Environment]::GetFolderPath('CommonPrograms')) 'WatchLattice.lnk'
-    $shell = New-Object -ComObject WScript.Shell
-    $shortcut = $shell.CreateShortcut($shortcutPath)
-    $shortcut.TargetPath = $trayExe
-    $shortcut.Arguments = "--feed `"$FeedPath`""
-    $shortcut.WorkingDirectory = $trayDir
-    $shortcut.Description = 'WatchLattice alerts and status'
-    $shortcut.Save()
+    if (-not $Msi) {
+        $shell = New-Object -ComObject WScript.Shell
+        $shortcut = $shell.CreateShortcut($shortcutPath)
+        $shortcut.TargetPath = $trayExe
+        $shortcut.Arguments = "--feed `"$FeedPath`""
+        $shortcut.WorkingDirectory = $trayDir
+        $shortcut.Description = 'WatchLattice alerts and status'
+        $shortcut.Save()
+    }
 
     Write-Step "Installing the '$ServiceName' service"
-    if (-not (Get-Service -Name $ServiceName -ErrorAction SilentlyContinue)) {
+    if ($Msi) {
+        # Windows Installer created the service; only its recovery settings are left.
+    }
+    elseif (-not (Get-Service -Name $ServiceName -ErrorAction SilentlyContinue)) {
         New-Service -Name $ServiceName -BinaryPathName "`"$hubExe`"" -DisplayName $ServiceDisplayName -StartupType Automatic `
             -Description 'WatchLattice hub: canary files, Defender and firewall health, persistence auditing. Complements Microsoft Defender.' | Out-Null
     }
@@ -517,14 +572,24 @@ try {
     # Restart after a crash: 1 minute, 1 minute, then 5 minutes; reset after a day.
     Invoke-Native sc.exe @('failure', $ServiceName, 'reset=', '86400', 'actions=', 'restart/60000/restart/60000/restart/300000')
 
-    [ordered]@{
+    $state = [ordered]@{
         Version       = $version
         InstalledAt   = (Get-Date).ToUniversalTime().ToString('o')
         TrayUser      = $account.Name
         TrayUserSid   = $account.Sid
         FeedDirectory = $FeedDir
         DataDirectory = $DataRoot
-    } | ConvertTo-Json | Set-Content -LiteralPath $statePath -Encoding UTF8
+        InstalledBy   = $(if ($Msi) { 'msi' } else { 'script' })
+    }
+    if ($Msi) { $state.ProductCode = $ProductCode }
+    $state | ConvertTo-Json | Set-Content -LiteralPath $statePath -Encoding UTF8
+
+    if ($Msi) {
+        # Windows Installer lists the product in Settings > Apps and starts
+        # the service once this script returns.
+        Write-Host "WatchLattice $version is set up for $($account.Name)." -ForegroundColor Green
+        exit 0
+    }
 
     $uninstallCommand = "`"$(Join-Path $env:SystemRoot 'System32\WindowsPowerShell\v1.0\powershell.exe')`" -NoProfile -ExecutionPolicy Bypass -File `"$(Join-Path $InstallDir 'uninstall.ps1')`" -PauseAtEnd"
     New-Item -Path $UninstallKey -Force | Out-Null

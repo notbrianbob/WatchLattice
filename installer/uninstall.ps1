@@ -30,6 +30,15 @@
 .PARAMETER Quiet
     Do not ask for confirmation.
 
+.PARAMETER Msi
+    Used by the WatchLattice MSI while Windows Installer removes the product.
+    Does only what Windows Installer cannot: removes the canary files, the
+    tray's sign-in entries and the data folders. Windows Installer removes
+    the service, files, shortcut, event log source and Settings > Apps entry.
+
+    Run without -Msi on an MSI install, this script hands the uninstall to
+    Windows Installer (msiexec /x), so nothing is left registered.
+
 .EXAMPLE
     & 'C:\Program Files\WatchLattice\uninstall.ps1'
 #>
@@ -39,6 +48,7 @@ param(
     [string]$InstallDir,
     [switch]$KeepData,
     [switch]$Quiet,
+    [switch]$Msi,
     # Set when this script relaunches itself elevated, so its window stays open.
     [switch]$PauseAtEnd
 )
@@ -113,6 +123,30 @@ try {
     }
     $InstallDir = [IO.Path]::GetFullPath($InstallDir).TrimEnd('\')
 
+    $state = $null
+    $statePath = Join-Path $InstallDir $StateFileName
+    if (Test-Path -LiteralPath $statePath) { $state = Get-Content -Raw -LiteralPath $statePath | ConvertFrom-Json }
+
+    if ($Msi) {
+        # Windows Installer runs this as LocalSystem, with no one to ask.
+        $Quiet = [switch]$true
+    }
+    elseif ($state -and $state.PSObject.Properties.Name -contains 'ProductCode' -and $state.ProductCode) {
+        # Installed from the MSI: let Windows Installer remove it, which runs
+        # this script with -Msi and keeps its own records straight.
+        Write-Step 'WatchLattice was installed from the MSI; removing it with Windows Installer'
+        $arguments = @('/x', $state.ProductCode)
+        if ($Quiet) { $arguments += '/qn' }
+        if ($KeepData) { $arguments += 'KEEPDATA=1' }
+        $msiexec = Start-Process -FilePath (Join-Path $env:SystemRoot 'System32\msiexec.exe') -ArgumentList $arguments -Wait -PassThru
+        # 3010: removed, and Windows wants a restart to finish.
+        if ($msiexec.ExitCode -notin 0, 3010) { throw "Windows Installer could not remove WatchLattice (exit code $($msiexec.ExitCode))." }
+        Write-Host 'WatchLattice was removed.' -ForegroundColor Green
+        $exitCode = 0
+        if ($PauseAtEnd) { Read-Host 'Press Enter to close this window' | Out-Null }
+        exit $exitCode
+    }
+
     if (-not (Test-Administrator)) {
         Write-Step 'Asking for administrator rights to remove the service'
         $arguments = @('-NoProfile', '-ExecutionPolicy', 'Bypass', '-File', "`"$PSCommandPath`"", '-InstallDir', "`"$InstallDir`"", '-PauseAtEnd')
@@ -146,10 +180,6 @@ try {
             throw [OperationCanceledException]::new()
         }
     }
-
-    $state = $null
-    $statePath = Join-Path $InstallDir $StateFileName
-    if (Test-Path -LiteralPath $statePath) { $state = Get-Content -Raw -LiteralPath $statePath | ConvertFrom-Json }
 
     Write-Step 'Stopping WatchLattice'
     Get-Process -Name ([IO.Path]::GetFileNameWithoutExtension($TrayExeName)) -ErrorAction SilentlyContinue |
@@ -186,7 +216,7 @@ try {
     }
 
     Write-Step 'Removing the service, sign-in entry and shortcuts'
-    if ($service) {
+    if ($service -and -not $Msi) {
         Invoke-Quietly { & sc.exe delete $ServiceName 2>&1 | Out-Null }
         for ($i = 0; $i -lt 60 -and (Get-Service -Name $ServiceName -ErrorAction SilentlyContinue); $i++) { Start-Sleep -Milliseconds 500 }
         if (Get-Service -Name $ServiceName -ErrorAction SilentlyContinue) {
@@ -224,7 +254,7 @@ try {
 
     # The hub registers this Application log source on its first start. Past
     # entries stay in the log; without the source they show without their text.
-    if (-not $KeepData) {
+    if (-not $KeepData -and -not $Msi) {
         try {
             if ([Diagnostics.EventLog]::SourceExists($EventSource) -and
                 [Diagnostics.EventLog]::LogNameFromSourceName($EventSource, '.') -eq 'Application') {
@@ -235,9 +265,11 @@ try {
         catch { Write-Caution "Could not remove the '$EventSource' event log source: $($_.Exception.Message)" }
     }
 
-    $shortcut = Join-Path ([Environment]::GetFolderPath('CommonPrograms')) 'WatchLattice.lnk'
-    if (Test-Path -LiteralPath $shortcut) { Remove-Item -LiteralPath $shortcut -Force }
-    if (Test-Path -LiteralPath $UninstallKey) { Remove-Item -LiteralPath $UninstallKey -Recurse -Force }
+    if (-not $Msi) {
+        $shortcut = Join-Path ([Environment]::GetFolderPath('CommonPrograms')) 'WatchLattice.lnk'
+        if (Test-Path -LiteralPath $shortcut) { Remove-Item -LiteralPath $shortcut -Force }
+        if (Test-Path -LiteralPath $UninstallKey) { Remove-Item -LiteralPath $UninstallKey -Recurse -Force }
+    }
 
     Write-Step 'Removing files'
     Set-Location -LiteralPath $env:SystemRoot
@@ -248,7 +280,8 @@ try {
     else {
         Write-Note "Kept $DataRoot and $($dataDirs[0])."
     }
-    if ($installed) { Remove-Folder $InstallDir }
+    # Under Windows Installer the install folder goes after its files do.
+    if ($installed -and -not $Msi) { Remove-Folder $InstallDir }
 
     Write-Host ''
     if ($problems) {

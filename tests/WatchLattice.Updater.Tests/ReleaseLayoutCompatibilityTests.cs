@@ -31,6 +31,27 @@ public class ReleaseLayoutCompatibilityTests
         Assert.Equal(Path.GetFileNameWithoutExtension(executable), assemblyName);
     }
 
+    [Fact]
+    public void Msi_KeepsTheNamesAndUpgradeCodeInstalledCopiesRequire()
+    {
+        XNamespace wix = "http://wixtoolset.org/schemas/v4/wxs";
+        var package = XDocument.Load(Path.Combine(RepositoryRoot(), "packaging/msi/Package.wxs"));
+
+        // Changing the UpgradeCode would install a second copy instead of upgrading.
+        Assert.Equal("21E8E3ED-618D-4DCD-8E14-79555B2974AD", package.Descendants(wix + "Package").Single().Attribute("UpgradeCode")?.Value);
+
+        var service = package.Descendants(wix + "ServiceInstall").Single();
+        Assert.Equal("ScanAlways Protection", service.Attribute("Name")?.Value);
+        Assert.Equal("auto", service.Attribute("Start")?.Value);
+        Assert.Null(service.Attribute("Account"));  // LocalSystem
+        Assert.Equal("ScanAlways Protection", package.Descendants(wix + "ServiceControl").Single().Attribute("Name")?.Value);
+
+        var serviceFile = service.Parent!.Elements(wix + "File").Single();
+        Assert.EndsWith($@"\{ReleaseLayout.HubFolder}\{ReleaseLayout.HubExecutable}", serviceFile.Attribute("Source")?.Value);
+        Assert.EndsWith($@"\{ReleaseLayout.TrayFolder}\{ReleaseLayout.TrayExecutable}",
+            package.Descendants(wix + "File").Single(f => f.Attribute("Id")?.Value == "TrayExe").Attribute("Source")?.Value);
+    }
+
     private static string RepositoryRoot()
     {
         for (var dir = new DirectoryInfo(AppContext.BaseDirectory); dir is not null; dir = dir.Parent)
