@@ -300,15 +300,8 @@ public sealed class ScriptHostAuditor : IDisposable
             : "WatchLattice only reports this; it did not stop the process. If you didn't expect it, find what started the parent program, "
               + "and run a Microsoft Defender full scan.");
 
-        var message = string.Join("\n", details);
-        if (launch.CommandLine is { } exact)
-        {
-            message = Fit(message, "\n" + BaselineApprovals.FingerprintLine(exact));
-        }
-        else
-        {
-            message = Fit(message, "");
-        }
+        var message = Fit(string.Join("\n", details),
+            launch.CommandLine is { } exact ? "\n" + BaselineApprovals.FingerprintLine(exact) : "");
         var title = assessment.Severity switch
         {
             AlertSeverity.Critical => "Highly suspicious script host launch",

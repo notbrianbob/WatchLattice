@@ -381,7 +381,15 @@ public sealed class ScriptHostAuditorTests : IDisposable
     public void Dispose()
     {
         foreach (var auditor in _auditors) auditor.Dispose();
-        try { Directory.Delete(_folder, recursive: true); } catch (IOException) { }
+        try
+        {
+            Directory.Delete(_folder, recursive: true);
+        }
+        catch (IOException)
+        {
+            // Best-effort clean-up of a temporary folder; a leftover is harmless.
+            return;
+        }
     }
 
     private sealed class Recorder : IAlertPublisher
