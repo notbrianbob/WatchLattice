@@ -59,7 +59,7 @@ public class ReleaseVersionTests
         var assembly = typeof(UpdaterModule).Assembly;
 
         Assert.Equal(ReleaseVersion.FromAssembly(assembly), ReleaseVersion.FromFile(assembly.Location));
-        Assert.Null(ReleaseVersion.FromFile(Path.Combine(AppContext.BaseDirectory, "no-such-assembly.dll")));
+        Assert.Null(ReleaseVersion.FromFile(Path.Join(AppContext.BaseDirectory, "no-such-assembly.dll")));
     }
 
     [Theory]

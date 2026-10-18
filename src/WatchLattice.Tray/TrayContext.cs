@@ -120,7 +120,7 @@ internal sealed class TrayContext : ApplicationContext
         if (_installing || _exiting || DateTime.UtcNow < _nextReplacementCheck) return false;
         _nextReplacementCheck = DateTime.UtcNow.AddSeconds(30);
         if (_window is { IsDisposed: false, Visible: true }) return false;
-        var onDisk = ReleaseVersion.FromFile(Path.Combine(AppContext.BaseDirectory, ReleaseLayout.TrayAssembly));
+        var onDisk = ReleaseVersion.FromFile(Path.Join(AppContext.BaseDirectory, ReleaseLayout.TrayAssembly));
         if (!ReleaseLayout.TrayWasReplaced(_version, onDisk)) return false;
         Program.RestartRequested = true;
         ExitThread();
