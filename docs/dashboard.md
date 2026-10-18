@@ -226,7 +226,8 @@ CI installs a release-shaped package on a Windows runner and runs
 `--describe-settings` and `--apply-settings` against the real service,
 including a refused change to a locked setting. The windows themselves
 (the administrator prompt, the editor, and the dashboard tabs) can only be
-checked by hand:
+checked by hand (for the other modules' hand checks, see
+[what to check by hand on Windows](windows-checks.md)):
 
 1. Open the dashboard. Overview lists every module; Activity shows the hub's
    startup lines; Settings lists every section.

@@ -11,6 +11,8 @@ notes, followed by GitHub's generated list of pull requests. See
 
 ## [Unreleased]
 
+## [0.6.0] - 2026-10-18
+
 ### Added
 
 - **Hosts file and proxy watchdog** (`HostsProxyWatchdog` module, on by
@@ -24,7 +26,7 @@ notes, followed by GitHub's generated list of pull requests. See
   standing critical alert, and a hosts file moved to another folder is a
   warning. Read-only; it never edits the hosts file or resets a proxy. New
   Event IDs 8001 to 8009. See its
-  [README](src/WatchLattice.HostsProxyWatchdog/README.md).
+  [README](src/WatchLattice.HostsProxyWatchdog/README.md). (#30)
 - **Services and WMI subscriptions in the persistence auditor**: the
   `Persistence` module now also inventories auto-start Windows services
   (program or service DLL, account, failure command; settings
@@ -38,19 +40,28 @@ notes, followed by GitHub's generated list of pull requests. See
   moved to a new version folder inside Windows or Program Files (Defender
   platform updates, for example) is informational when verification follows.
   Read-only; existing Event IDs are reused. See the
-  [Persistence README](src/WatchLattice.Persistence/README.md#coverage).
+  [Persistence README](src/WatchLattice.Persistence/README.md#coverage). (#31)
 - **Alert export**: **Export…** on the dashboard's Alerts tab saves the list
   as shown (grouped or not, with or without dismissed rows) to CSV or JSON,
   and `--export-alerts <path> [--format csv|json] [--group]` does the same
   from the command line for scripts. CSV cells that a spreadsheet would run as
   a formula are prefixed with `'`. See
-  [exporting alerts](docs/dashboard.md#exporting-alerts).
+  [exporting alerts](docs/dashboard.md#exporting-alerts). (#32)
 - **Daily summary**: once a day (8:00 local by default) the hub raises one
   Info alert counting the last 24 hours' alerts per module and severity, with
   the most repeated ones; the dashboard's Overview shows the latest. A
   summary missed while the PC was off is written soon after the hub starts.
   New settings section `Alerts:DailySummary` and Event ID 1007. Nothing
   leaves the PC. See [the daily summary](docs/dashboard.md#the-daily-summary).
+  (#32)
+- [What to check by hand on Windows](docs/windows-checks.md): one list of the
+  manual checks for the 0.5.0 and 0.6.0 features.
+
+### Changed
+
+- **Upgrading from 0.5.0:** the first check after the update records new
+  baselines for the hosts file and proxy settings, services and WMI
+  subscriptions as Info alerts, without warnings for what was already there.
 
 ## [0.5.0] - 2026-10-18
 
@@ -157,7 +168,8 @@ First release.
   (#13, #14)
 - CI, CodeQL and repository hygiene. (#2, #10)
 
-[Unreleased]: https://github.com/notbrianbob/WatchLattice/compare/v0.5.0...HEAD
+[Unreleased]: https://github.com/notbrianbob/WatchLattice/compare/v0.6.0...HEAD
+[0.6.0]: https://github.com/notbrianbob/WatchLattice/compare/v0.5.0...v0.6.0
 [0.5.0]: https://github.com/notbrianbob/WatchLattice/compare/v0.4.0...v0.5.0
 [0.4.0]: https://github.com/notbrianbob/WatchLattice/compare/v0.3.0...v0.4.0
 [0.3.0]: https://github.com/notbrianbob/WatchLattice/releases/tag/v0.3.0

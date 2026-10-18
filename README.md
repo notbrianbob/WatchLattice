@@ -67,8 +67,9 @@ detection and removal, and WatchLattice adds friction and tripwires around it.
 | **Persistence & Autostart Auditor** ([`src/WatchLattice.Persistence`](src/WatchLattice.Persistence/)) | Available | Records a baseline of Run/RunOnce keys, Startup files, visible scheduled tasks, auto-start services and permanent WMI event subscriptions, then reports additions, changes, removals, and gaps in coverage. Changed scheduled tasks and services are verified automatically (current definition, COM registration or service DLL, target file location, signature and hash, trusted baseline). Read-only. See its [README](src/WatchLattice.Persistence/README.md). |
 
 The **Windows tray companion** opens the **dashboard**: hub and module status,
-alerts (repeats grouped into one row, with acknowledge and dismiss), the hub's
-recent activity, and every setting. Turning a module on or
+alerts (repeats grouped into one row, with acknowledge and dismiss, and
+export to CSV or JSON), a daily summary of the last 24 hours' alerts, the
+hub's recent activity, and every setting. Turning a module on or
 off or changing a setting opens an elevated settings editor through Windows'
 administrator prompt, so only an administrator can change anything; each save
 is checked, backed up, and rolled back if the hub does not keep running. See
@@ -276,7 +277,8 @@ WatchLattice.sln
     ├── event-log.md                  # Alerts in the Windows Event Log, with event IDs
     ├── install-integrity.md          # The hub checking its own installed files
     ├── installing.md                 # Installing a release with Install.cmd
-    └── releasing.md                  # Cutting a release the updater can install
+    ├── releasing.md                  # Cutting a release the updater can install
+    └── windows-checks.md             # What to check by hand on Windows for each release
 ```
 
 The project was called ScanAlways until v0.1.0. The two executables
@@ -315,6 +317,8 @@ their canaries and baselines. See
 - [x] Grouped repeat alerts with per-user acknowledge and dismiss
 - [x] Install integrity self-check against per-file release hashes
 - [x] Hosts file and proxy settings watchdog
+- [x] Auto-start services and WMI event subscriptions in the persistence auditor
+- [x] Alert export (CSV and JSON) and a daily alert summary
 - [ ] Code-signed releases (the release workflow and updater are ready; signing starts once the SignPath setup in [docs/code-signing.md](docs/code-signing.md) is done)
 - [x] Reproducible demos and measured overhead
 
