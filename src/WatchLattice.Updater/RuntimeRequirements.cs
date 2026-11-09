@@ -64,7 +64,7 @@ public static class RuntimeRequirements
         {
             var name = framework.TryGetProperty("name", out var n) && n.ValueKind == JsonValueKind.String ? n.GetString() : null;
             var text = framework.TryGetProperty("version", out var v) && v.ValueKind == JsonValueKind.String ? v.GetString() : null;
-            if (string.IsNullOrWhiteSpace(name) || !TryParseVersion(text, out var version))
+            if (!IsFrameworkName(name) || !TryParseVersion(text, out var version))
                 throw new InvalidDataException(Path.GetFileName(runtimeConfigPath) + " names a framework without a valid name and version.");
             result.Add(new FrameworkRequirement(name!, version, rollForward));
         }
@@ -76,10 +76,11 @@ public static class RuntimeRequirements
         Func<string, IReadOnlyList<Version>> installedVersions)
     {
         var missing = new List<FrameworkRequirement>();
-        foreach (var requirement in requirements)
+        foreach (var requirement in requirements.Where(r =>
+            !installedVersions(r.Name).Any(r.IsSatisfiedBy)))
         {
-            if (missing.Any(m => string.Equals(m.Name, requirement.Name, StringComparison.OrdinalIgnoreCase))) continue;
-            if (!installedVersions(requirement.Name).Any(requirement.IsSatisfiedBy)) missing.Add(requirement);
+            if (!missing.Any(m => string.Equals(m.Name, requirement.Name, StringComparison.OrdinalIgnoreCase)))
+                missing.Add(requirement);
         }
         return missing;
     }
@@ -91,16 +92,20 @@ public static class RuntimeRequirements
     public static IReadOnlyList<Version> InstalledVersions(string frameworkName)
     {
         var versions = new List<Version>();
-        foreach (var root in DotnetRoots())
+        if (!IsFrameworkName(frameworkName)) return versions;
+        foreach (var folder in DotnetRoots().Select(root => Path.Join(root, "shared", frameworkName)).Where(Directory.Exists))
         {
-            var folder = Path.Combine(root, "shared", frameworkName);
-            if (!Directory.Exists(folder)) continue;
             try
             {
-                foreach (var dir in Directory.EnumerateDirectories(folder))
-                    if (TryParseVersion(Path.GetFileName(dir), out var version)) versions.Add(version);
+                versions.AddRange(Directory.EnumerateDirectories(folder)
+                    .Select(dir => TryParseVersion(Path.GetFileName(dir), out var version) ? version : null)
+                    .OfType<Version>());
             }
-            catch (Exception ex) when (ex is IOException or UnauthorizedAccessException) { }
+            catch (Exception ex) when (ex is IOException or UnauthorizedAccessException)
+            {
+                // An unreadable .NET folder counts as no versions there; other roots still count.
+                continue;
+            }
         }
         return versions;
     }
@@ -118,23 +123,12 @@ public static class RuntimeRequirements
     private static IEnumerable<string> DotnetRoots()
     {
         var roots = new List<string>();
-        foreach (var variable in new[] { "DOTNET_ROOT_X64", "DOTNET_ROOT" })
-        {
-            var value = Environment.GetEnvironmentVariable(variable);
-            if (!string.IsNullOrWhiteSpace(value)) roots.Add(value);
-        }
-        if (OperatingSystem.IsWindows())
-        {
-            try
-            {
-                using var setup = Microsoft.Win32.RegistryKey.OpenBaseKey(Microsoft.Win32.RegistryHive.LocalMachine,
-                    Microsoft.Win32.RegistryView.Registry64).OpenSubKey(@"SOFTWARE\dotnet\Setup\InstalledVersions\x64");
-                if (setup?.GetValue("InstallLocation") is string location && !string.IsNullOrWhiteSpace(location)) roots.Add(location);
-            }
-            catch (Exception ex) when (ex is System.Security.SecurityException or UnauthorizedAccessException or IOException) { }
-        }
+        roots.AddRange(new[] { "DOTNET_ROOT_X64", "DOTNET_ROOT" }
+            .Select(Environment.GetEnvironmentVariable)
+            .Where(value => !string.IsNullOrWhiteSpace(value))!);
+        if (OperatingSystem.IsWindows() && RegisteredInstallLocation() is { } location) roots.Add(location);
         var programFiles = Environment.GetFolderPath(Environment.SpecialFolder.ProgramFiles);
-        if (!string.IsNullOrEmpty(programFiles)) roots.Add(Path.Combine(programFiles, "dotnet"));
+        if (!string.IsNullOrEmpty(programFiles)) roots.Add(Path.Join(programFiles, "dotnet"));
         if (!OperatingSystem.IsWindows())
         {
             roots.Add("/usr/share/dotnet");
@@ -142,6 +136,27 @@ public static class RuntimeRequirements
         }
         return roots.Distinct(OperatingSystem.IsWindows() ? StringComparer.OrdinalIgnoreCase : StringComparer.Ordinal);
     }
+
+    /// <summary>Where the .NET installer says x64 .NET is, or null; the default folder is checked either way.</summary>
+    [System.Runtime.Versioning.SupportedOSPlatform("windows")]
+    private static string? RegisteredInstallLocation()
+    {
+        try
+        {
+            using var setup = Microsoft.Win32.RegistryKey.OpenBaseKey(Microsoft.Win32.RegistryHive.LocalMachine,
+                Microsoft.Win32.RegistryView.Registry64).OpenSubKey(@"SOFTWARE\dotnet\Setup\InstalledVersions\x64");
+            return setup?.GetValue("InstallLocation") is string location && !string.IsNullOrWhiteSpace(location) ? location : null;
+        }
+        catch (Exception ex) when (ex is System.Security.SecurityException or UnauthorizedAccessException or IOException)
+        {
+            return null;
+        }
+    }
+
+    /// <summary>A shared framework name such as Microsoft.NETCore.App: letters, digits and dots only, so it is never a path.</summary>
+    private static bool IsFrameworkName(string? name) =>
+        !string.IsNullOrEmpty(name) && name.Length <= 100 && name.All(c => char.IsAsciiLetterOrDigit(c) || c == '.')
+        && !name.StartsWith('.') && !name.Contains("..", StringComparison.Ordinal);
 
     private static bool TryParseVersion(string? text, out Version version)
     {

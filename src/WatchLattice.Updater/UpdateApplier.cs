@@ -141,7 +141,7 @@ public sealed class UpdateApplier
                 components.Add(new(ReleaseLayout.TrayFolder, Path.Combine(staging, ReleaseLayout.TrayFolder), trayDirectory));
 
             var missing = RuntimeRequirements.FindMissing(components.SelectMany(c => RuntimeRequirements.Read(
-                Path.Combine(c.SourceDirectory, RuntimeConfigName(c.Name)))), _installedFrameworks);
+                Path.Join(c.SourceDirectory, RuntimeConfigName(c.Name)))), _installedFrameworks);
             if (missing.Count > 0)
             {
                 _log($"WatchLattice {candidate.Version} cannot be installed yet: " + RuntimeRequirements.Describe(missing)

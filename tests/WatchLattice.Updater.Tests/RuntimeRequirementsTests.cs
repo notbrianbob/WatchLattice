@@ -57,6 +57,20 @@ public class RuntimeRequirementsTests
     }
 
     [Theory]
+    [InlineData("..\\..\\Windows")]
+    [InlineData("C:\\dotnet")]
+    [InlineData("")]
+    public void Read_RejectsAFrameworkNameThatIsAPath(string name)
+    {
+        using var temp = new TempDirectory();
+        temp.Write("app.runtimeconfig.json",
+            "{ \"runtimeOptions\": { \"framework\": { \"name\": " + System.Text.Json.JsonSerializer.Serialize(name) + ", \"version\": \"10.0.0\" } } }");
+
+        Assert.Throws<InvalidDataException>(() => RuntimeRequirements.Read(temp.Combine("app.runtimeconfig.json")));
+        Assert.Empty(RuntimeRequirements.InstalledVersions(name));
+    }
+
+    [Theory]
     [InlineData("Minor", "10.0.0", "10.0.5", true)]
     [InlineData("Minor", "10.0.0", "10.2.0", true)]
     [InlineData("Minor", "10.0.0", "11.0.0", false)]
