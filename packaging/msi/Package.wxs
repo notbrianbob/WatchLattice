@@ -14,7 +14,6 @@
 -->
 <Wix xmlns="http://wixtoolset.org/schemas/v4/wxs"
      xmlns:util="http://wixtoolset.org/schemas/v4/wxs/util"
-     xmlns:netfx="http://wixtoolset.org/schemas/v4/wxs/netfx"
      xmlns:ui="http://wixtoolset.org/schemas/v4/wxs/ui">
 
   <!-- The UpgradeCode ties every WatchLattice MSI together; never change it. -->
@@ -51,10 +50,8 @@
     <!-- Uninstall only: keep the alert feed, baselines and logs. -->
     <Property Id="KEEPDATA" Secure="yes" />
 
-    <!-- The hub and tray are framework-dependent .NET 8 apps. -->
-    <netfx:DotNetCompatibilityCheck Property="DOTNETDESKTOP8CHECK" RuntimeType="desktop" Platform="x64" Version="8.0.0" RollForward="minor" />
-    <Launch Condition="Installed OR DOTNETDESKTOP8CHECK = &quot;0&quot;"
-            Message="WatchLattice needs the .NET 8 Desktop Runtime (x64). Install it with: winget install Microsoft.DotNet.DesktopRuntime.8 (or from https://dotnet.microsoft.com/download/dotnet/8.0), then run this installer again." />
+    <!-- The hub and tray are self-contained .NET 10 apps: they carry their own
+         runtime, so there is nothing to check for here. -->
 
     <!-- An install made with Install.cmd registers this key; the two kinds of
          install would fight over the same service and folder. -->

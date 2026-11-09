@@ -12,7 +12,7 @@ The latest numbers are in [RESULTS.md](RESULTS.md).
 
 ## Run them
 
-You need the [.NET 8 SDK](https://dotnet.microsoft.com/download/dotnet/8.0).
+You need the [.NET 10 SDK](https://dotnet.microsoft.com/download/dotnet/10.0).
 Everything runs in user mode, in throwaway folders under your temp directory.
 
 ```bash

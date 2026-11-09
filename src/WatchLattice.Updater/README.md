@@ -29,18 +29,24 @@ without visiting GitHub by hand. It has two halves:
 4. Extracts with path checks: no entry may escape the staging folder, and the
    package must contain `Hub/ScanAlways.Protection.Service.exe` and
    `Tray/ScanAlways.Tray.exe`.
-5. Checks the Authenticode signature of every `.exe` and `.dll` in the package.
+5. Checks that this PC has the .NET runtime the new release needs, from the
+   release's `runtimeconfig.json` files. Releases since 0.9.0 carry their own
+   runtime and need nothing; a release built for a runtime that is missing
+   is refused with the `winget install` command for it, and nothing is
+   changed, rather than installing a hub that cannot start. (Updaters up to
+   0.8.0 do not have this check, which is why releases are self-contained.)
+6. Checks the Authenticode signature of every `.exe` and `.dll` in the package.
    Once the installed hub is signed, every file must be validly signed and
    ours by the same publisher; a broken signature is always refused. Unsigned
    installs such as v0.1.0 still accept unsigned packages. Details in
    [code signing](../../docs/code-signing.md).
-6. Stops the `ScanAlways Protection` service if it is running, then swaps files.
+7. Stops the `ScanAlways Protection` service if it is running, then swaps files.
    Every file the package replaces is first moved aside into a backup folder.
    If any step fails, all originals are moved back. Files the package does not
    contain, such as logs or anything you added, are never moved or deleted.
-7. Keeps your `appsettings.json`. The release's copy is written next to it as
+8. Keeps your `appsettings.json`. The release's copy is written next to it as
    `appsettings.json.default` so you can compare them.
-8. Starts the service again, and the tray restarts itself on the new version.
+9. Starts the service again, and the tray restarts itself on the new version.
    A tray that did not start the update (for example after `--apply-update`
    from an administrator prompt) notices within 30 seconds that its files on
    disk are a different release and restarts on them, once its dashboard is

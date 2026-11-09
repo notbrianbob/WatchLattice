@@ -14,15 +14,16 @@ other. The in-hub updater works the same after either.
 
 ## Before you start
 
-WatchLattice needs the **.NET 8 Desktop Runtime (x64)**, which also includes
-the .NET 8 Runtime the hub uses. The installer checks for it and stops with
-instructions if it is missing. To install it:
+Nothing. Since 0.9.0 the hub and the tray carry their own .NET 10 runtime
+(they are *self-contained*), so there is no .NET runtime to install first,
+and the runtime they use is the one each release was built and tested with.
+Releases up to 0.8.0 needed the .NET 8 Desktop Runtime; .NET 8 left
+Microsoft support on 10 November 2026, so update those.
 
-```powershell
-winget install Microsoft.DotNet.DesktopRuntime.8
-```
-
-or download it from <https://dotnet.microsoft.com/download/dotnet/8.0>.
+The release brings .NET runtime security fixes with it: a .NET security
+update reaches WatchLattice in the next WatchLattice release, not through
+Windows Update. Keep update checks on, and install updates when the tray
+offers them.
 
 Optionally, check the download before extracting it:
 
@@ -134,8 +135,7 @@ never follows a link or junction out of the folders it deletes.
 
 Double-click `WatchLattice-<version>-win-x64.msi`, accept the license and the
 administrator prompt, and leave **Start the WatchLattice tray now** ticked.
-It needs the same .NET 8 Desktop Runtime and stops with the same
-instructions if it is missing. It sets up exactly what Install.cmd does
+Like the zip, it needs no .NET runtime installed. It sets up exactly what Install.cmd does
 (above) for the user who runs it, with the first-run defaults: your Desktop,
 Documents and Pictures get canaries, the decoy and update checks are on, and
 the tray starts at your sign-in. Change any of them later in the dashboard's

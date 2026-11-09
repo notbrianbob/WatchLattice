@@ -12,11 +12,8 @@ InstallModes:
 - silent
 - silentWithProgress
 UpgradeBehavior: install
-# The hub and tray are framework-dependent; the Desktop Runtime includes the
-# .NET Runtime the hub needs. The MSI checks for it too and stops if missing.
-Dependencies:
-  PackageDependencies:
-  - PackageIdentifier: Microsoft.DotNet.DesktopRuntime.8
+# The hub and tray are self-contained (they carry the .NET runtime), so the
+# package has no dependencies.
 ReleaseDate: {{RELEASE_DATE}}
 Installers:
 - Architecture: x64

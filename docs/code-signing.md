@@ -20,8 +20,11 @@ publishes the hub and tray, then, when signing is configured:
 2. submits it to SignPath, which signs the files listed in
    [`.signpath/artifact-configuration.xml`](../.signpath/artifact-configuration.xml):
    `ScanAlways.Protection.Service.exe`/`.dll`, `ScanAlways.Tray.exe`/`.dll` and
-   every `WatchLattice.*.dll`. Microsoft's DLLs are already signed by Microsoft
-   and pass through unchanged;
+   every `WatchLattice.*.dll`. Microsoft's DLLs, including the .NET runtime
+   that self-contained releases (0.9.0 and later) carry, are already signed by
+   Microsoft and pass through unchanged. CI's `Test-SelfContained.ps1` warns
+   about any runtime file without a valid signature, which would need
+   attention before signing is turned on;
 3. checks with `Get-AuthenticodeSignature` that every `.exe` and `.dll` has a
    valid signature and that all of ours share one publisher, and fails the
    release otherwise;

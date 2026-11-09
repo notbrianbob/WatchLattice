@@ -11,6 +11,31 @@ notes, followed by GitHub's generated list of pull requests. See
 
 ## [Unreleased]
 
+### Changed
+
+- **.NET 10, with the runtime included.** WatchLattice now targets .NET 10
+  (LTS) instead of .NET 8, which left Microsoft support on 10 November 2026.
+  The hub and the tray are published *self-contained*: the zip and the MSI
+  carry the .NET 10 runtime, so nothing needs installing first, and the
+  installers, the MSI and the winget manifest no longer ask for the .NET 8
+  Desktop Runtime. Downloads grow from a few MB to about 85 MB. .NET
+  security fixes now arrive with WatchLattice releases rather than through
+  Windows Update. CI and the release workflow fail if a package is ever
+  framework-dependent again, because updaters up to 0.8.0 cannot check for
+  a missing runtime.
+- **Upgrading from 0.8.0:** use **Install update** in the tray, or run the
+  new MSI over an MSI install. Nothing to install first; settings,
+  baselines and alert history are kept. You can uninstall the .NET 8
+  Desktop Runtime afterwards if nothing else on the PC uses it.
+
+### Added
+
+- **Runtime check in the updater**: before changing any file,
+  `--apply-update` reads the new release's `runtimeconfig.json` files and
+  refuses a release that needs a .NET runtime this PC doesn't have, naming
+  the `winget install` command for it, instead of installing a hub that
+  cannot start. Self-contained releases need nothing and pass.
+
 ## [0.8.0] - 2026-10-18
 
 ### Added

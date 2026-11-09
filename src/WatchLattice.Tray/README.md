@@ -25,6 +25,7 @@ dotnet run -c Release --project src/WatchLattice.Tray -- --feed 'C:\ProgramData\
 
 See [shared alerts and tray setup](../../docs/alerts-and-tray.md) for publishing,
 permissions, optional login startup, delivery limits, and Windows smoke checks.
-This project targets `net8.0-windows`; `EnableWindowsTargeting` permits
-cross-compilation, but running the companion requires Windows and the .NET 8
-Desktop Runtime.
+This project targets `net10.0-windows`; `EnableWindowsTargeting` permits
+cross-compilation, but running the companion requires Windows. Releases are
+self-contained; a build published with `--self-contained false` needs the
+.NET 10 Desktop Runtime.

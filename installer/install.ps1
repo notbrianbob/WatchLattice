@@ -8,7 +8,9 @@
     Hub\ and Tray\ next to this script), or double-click Install.cmd. It asks
     for administrator rights when it needs them, then:
 
-      1. checks that the .NET 8 Runtime and Desktop Runtime are installed,
+      1. checks that the .NET runtime the release needs is there (release
+         builds carry their own, so this only matters for a build made
+         without one),
       2. copies Hub\ and Tray\ to the install folder (Program Files by default),
       3. asks which folders get canary files, and whether to run the decoy
          and the update checker, and writes those into Hub\appsettings.json,
@@ -305,17 +307,20 @@ function Assert-Runtimes([string]$PackageRoot) {
         (Join-Path $PackageRoot 'Hub\ScanAlways.Protection.Service.runtimeconfig.json'),
         (Join-Path $PackageRoot 'Tray\ScanAlways.Tray.runtimeconfig.json'))) {
         $options = (Get-Content -Raw -LiteralPath $config | ConvertFrom-Json).runtimeOptions
+        # A self-contained build (every release since 0.9.0) carries its own runtime.
+        if ($options.PSObject.Properties.Name -contains 'includedFrameworks') { continue }
         $frameworks = if ($options.PSObject.Properties.Name -contains 'frameworks') { @($options.frameworks) } else { @($options.framework) }
         foreach ($framework in $frameworks) {
             if (-not (Test-Framework $framework.name ([version]$framework.version)) -and $missing -notcontains $framework.name) {
                 $missing += $framework.name
+                $major = ([version]$framework.version).Major
             }
         }
     }
     if ($missing) {
-        throw ("WatchLattice needs the .NET 8 Desktop Runtime (x64), which also includes the .NET Runtime. Missing: $($missing -join ', ').`n" +
-            "    Install it with:  winget install Microsoft.DotNet.DesktopRuntime.8`n" +
-            "    or download it from https://dotnet.microsoft.com/download/dotnet/8.0, then run the install again.")
+        throw ("This build of WatchLattice needs the .NET $major Desktop Runtime (x64), which also includes the .NET Runtime. Missing: $($missing -join ', ').`n" +
+            "    Install it with:  winget install Microsoft.DotNet.DesktopRuntime.$major`n" +
+            "    or download it from https://dotnet.microsoft.com/download/dotnet/$major.0, then run the install again.")
     }
 }
 

@@ -244,6 +244,25 @@ update host.
     commands at the end of that README section if you don't want it on, and
     the module reports 11001 again.
 
+## Next release (.NET 10)
+
+1. **Update from 0.8.0** without installing anything first. Use **Install
+   update** in the tray. The tray restarts on its own, the dashboard's
+   Overview shows every module running, and
+   `.\ScanAlways.Protection.Service.exe --check-update` in the hub folder
+   says it is up to date. `Get-Content
+   .\ScanAlways.Protection.Service.runtimeconfig.json` shows
+   `includedFrameworks` with a 10.0 version.
+2. **No .NET runtime needed.** On a PC (or VM) without any .NET runtime
+   installed, the MSI and Install.cmd both install, and the hub and tray
+   start. (`dotnet --list-runtimes` failing or listing nothing is fine.)
+3. **The decoy and the hub's footprint.** With the decoy at `Balanced`,
+   Task Manager shows the hub's memory near what 0.8.0 used (a
+   self-contained app can use a few MB more) and no extra CPU.
+4. **Install integrity** still reports every file as matching:
+   `.\ScanAlways.Protection.Service.exe --verify-install` exits with `0`.
+   It now hashes about 500 files instead of about 60, once an hour.
+
 ## Already covered
 
 Steps 1 to 6 of [the dashboard checks](dashboard.md#what-needs-checking-on-windows)

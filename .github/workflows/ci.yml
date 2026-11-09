@@ -71,9 +71,10 @@ jobs:
         shell: pwsh
         run: |
           $stage = Join-Path $env:RUNNER_TEMP 'package'
-          dotnet publish src/WatchLattice.Hub  -c Release -r win-x64 --self-contained false -o (Join-Path $stage 'Hub')
-          dotnet publish src/WatchLattice.Tray -c Release -r win-x64 --self-contained false -o (Join-Path $stage 'Tray')
+          dotnet publish src/WatchLattice.Hub  -c Release -r win-x64 --self-contained true -o (Join-Path $stage 'Hub')
+          dotnet publish src/WatchLattice.Tray -c Release -r win-x64 --self-contained true -o (Join-Path $stage 'Tray')
           Copy-Item LICENSE, README.md, installer/* $stage
+          .github/scripts/Test-SelfContained.ps1 -Stage $stage
 
       # The release workflow's file manifest, read back by the hub's own check.
       # Built as a non-dev version because development builds skip the check.
@@ -81,7 +82,7 @@ jobs:
         shell: pwsh
         run: |
           $stage = Join-Path $env:RUNNER_TEMP 'integrity'
-          dotnet publish src/WatchLattice.Hub -c Release -r win-x64 --self-contained false -p:Version=0.0.1-ci -o (Join-Path $stage 'Hub')
+          dotnet publish src/WatchLattice.Hub -c Release -r win-x64 --self-contained true -p:Version=0.0.1-ci -o (Join-Path $stage 'Hub')
           .github/scripts/Write-InstallManifest.ps1 -Stage $stage -Version 0.0.1-ci
           $hub = Join-Path $stage 'Hub/ScanAlways.Protection.Service.exe'
           & $hub --verify-install
@@ -118,8 +119,8 @@ jobs:
         shell: pwsh
         run: |
           $stage = Join-Path $env:RUNNER_TEMP 'package'
-          dotnet publish src/WatchLattice.Hub  -c Release -r win-x64 --self-contained false -o (Join-Path $stage 'Hub')
-          dotnet publish src/WatchLattice.Tray -c Release -r win-x64 --self-contained false -o (Join-Path $stage 'Tray')
+          dotnet publish src/WatchLattice.Hub  -c Release -r win-x64 --self-contained true -o (Join-Path $stage 'Hub')
+          dotnet publish src/WatchLattice.Tray -c Release -r win-x64 --self-contained true -o (Join-Path $stage 'Tray')
           Copy-Item LICENSE, README.md $stage
           Get-ChildItem $stage -Recurse -Filter *.pdb | Remove-Item
           .github/scripts/Write-InstallManifest.ps1 -Stage $stage -Version 0.0.0-dev
