@@ -3,7 +3,7 @@
 [![CI](https://github.com/notbrianbob/WatchLattice/actions/workflows/ci.yml/badge.svg)](https://github.com/notbrianbob/WatchLattice/actions/workflows/ci.yml)
 [![CodeQL](https://github.com/notbrianbob/WatchLattice/actions/workflows/codeql.yml/badge.svg)](https://github.com/notbrianbob/WatchLattice/actions/workflows/codeql.yml)
 [![License: MIT](https://img.shields.io/badge/license-MIT-blue.svg)](LICENSE)
-![.NET 8](https://img.shields.io/badge/.NET-8.0-512BD4)
+![.NET 10](https://img.shields.io/badge/.NET-10.0-512BD4)
 ![Platform: Windows 11](https://img.shields.io/badge/platform-Windows%2011-0078D6)
 
 **Layered defense. Independent tools. Clear signals.**
@@ -133,7 +133,7 @@ numbers: [demos/RESULTS.md](demos/RESULTS.md).
 
 ## Quick start
 
-You need Windows 11 and the [.NET 8 SDK](https://dotnet.microsoft.com/download/dotnet/8.0).
+You need Windows 11 and the [.NET 10 SDK](https://dotnet.microsoft.com/download/dotnet/10.0).
 
 ```bash
 git clone https://github.com/notbrianbob/WatchLattice.git
@@ -169,7 +169,7 @@ install. See [installing WatchLattice](docs/installing.md).
 From an elevated PowerShell:
 
 ```powershell
-dotnet publish src/WatchLattice.Hub -c Release -r win-x64 --self-contained false -o C:\WatchLattice
+dotnet publish src/WatchLattice.Hub -c Release -r win-x64 --self-contained true -o C:\WatchLattice
 sc.exe create "ScanAlways Protection" binPath= "C:\WatchLattice\ScanAlways.Protection.Service.exe" start= auto
 sc.exe start "ScanAlways Protection"
 ```

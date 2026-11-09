@@ -54,7 +54,7 @@ See [alerts and tray setup](../../docs/alerts-and-tray.md).
 
 ## Conventions
 
-- `net8.0`, nullable enabled, no Windows-only dependencies in this library so it
+- `net10.0`, nullable enabled, no Windows-only dependencies in this library so it
   builds and unit-tests cross-platform.
 - Keep anything specific to a single tool in that tool's project; promote code
   here only once a second tool needs it.

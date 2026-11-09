@@ -117,8 +117,9 @@ Things to know first:
   administrator prompt. With `--silent` the MSI runs with no UI at all, so run it from an
   administrator terminal. Either way it installs for the user running winget,
   with the first-run defaults described in [the MSI](installing.md#the-msi).
-- **Dependency.** The manifest depends on `Microsoft.DotNet.DesktopRuntime.8`,
-  so winget installs the .NET 8 Desktop Runtime first if it is missing.
+- **No dependencies.** Since 0.9.0 the MSI carries its own .NET runtime, so
+  the manifest lists no dependencies. (0.7.0 and 0.8.0 depended on
+  `Microsoft.DotNet.DesktopRuntime.8`.)
 - **Updates.** `winget upgrade` runs the newer MSI, which upgrades in place
   like any MSI upgrade. The in-hub updater keeps working alongside it.
 

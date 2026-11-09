@@ -21,7 +21,7 @@ the tray alive; **Exit tray companion** stops only the companion.
 
 ## Quick start on Windows
 
-With the .NET 8 SDK installed, run these in separate terminals under the same account:
+With the .NET 10 SDK installed, run these in separate terminals under the same account:
 
 ```powershell
 dotnet run -c Release --project src/WatchLattice.Hub
@@ -31,13 +31,14 @@ dotnet run -c Release --project src/WatchLattice.Tray
 Publish each application to its own directory:
 
 ```powershell
-dotnet publish src/WatchLattice.Hub -c Release -r win-x64 --self-contained false -o C:\WatchLattice\Hub
-dotnet publish src/WatchLattice.Tray -c Release -r win-x64 --self-contained false -o C:\WatchLattice\Tray
+dotnet publish src/WatchLattice.Hub -c Release -r win-x64 --self-contained true -o C:\WatchLattice\Hub
+dotnet publish src/WatchLattice.Tray -c Release -r win-x64 --self-contained true -o C:\WatchLattice\Tray
 & C:\WatchLattice\Tray\ScanAlways.Tray.exe
 ```
 
-The published tray requires the **.NET 8 Desktop Runtime**; the hub requires the
-.NET 8 Runtime. The SDK includes these on Windows. Install the hub as documented
+Published this way, each one carries its own .NET runtime, as the releases
+do. With `--self-contained false` instead, the tray needs the **.NET 10
+Desktop Runtime** and the hub the .NET 10 Runtime. Install the hub as documented
 in the root README, using the executable's actual published path. Do not install
 the tray as a service. To start it at login, optionally create a shortcut to the
 tray executable in your own `shell:startup` folder. An autostart shortcut is

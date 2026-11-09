@@ -37,10 +37,16 @@ public sealed class UpdateApplier
     private readonly IHubServiceControl? _service;
     private readonly Action<string> _log;
     private readonly ISignatureVerifier? _signatures;
+    private readonly Func<string, IReadOnlyList<Version>> _installedFrameworks;
 
     /// <param name="signatures">Checks Authenticode signatures; null skips the check (non-Windows hosts).</param>
+    /// <param name="installedFrameworks">
+    /// The installed versions of a shared .NET framework, by name; defaults to this PC's
+    /// .NET installs. A release that needs a runtime this PC lacks is refused before any file changes.
+    /// </param>
     public UpdateApplier(IReleaseSource source, HttpClient http, UpdaterOptions options, IHubServiceControl? service,
-        Action<string> log, ISignatureVerifier? signatures = null)
+        Action<string> log, ISignatureVerifier? signatures = null,
+        Func<string, IReadOnlyList<Version>>? installedFrameworks = null)
     {
         _source = source;
         _http = http;
@@ -48,6 +54,7 @@ public sealed class UpdateApplier
         _service = service;
         _log = log;
         _signatures = signatures;
+        _installedFrameworks = installedFrameworks ?? RuntimeRequirements.InstalledVersions;
     }
 
     public async Task<UpdateOutcome> ApplyAsync(ReleaseVersion current, string hubDirectory, string? trayDirectory,
@@ -132,6 +139,15 @@ public sealed class UpdateApplier
             };
             if (trayDirectory is not null)
                 components.Add(new(ReleaseLayout.TrayFolder, Path.Combine(staging, ReleaseLayout.TrayFolder), trayDirectory));
+
+            var missing = RuntimeRequirements.FindMissing(components.SelectMany(c => RuntimeRequirements.Read(
+                Path.Combine(c.SourceDirectory, RuntimeConfigName(c.Name)))), _installedFrameworks);
+            if (missing.Count > 0)
+            {
+                _log($"WatchLattice {candidate.Version} cannot be installed yet: " + RuntimeRequirements.Describe(missing)
+                    + " Nothing was changed.");
+                return UpdateOutcome.NotAvailable;
+            }
 
             if (_signatures is not null)
             {
@@ -221,6 +237,9 @@ public sealed class UpdateApplier
         }
         return outcome;
     }
+
+    private static string RuntimeConfigName(string component) => Path.ChangeExtension(
+        component == ReleaseLayout.TrayFolder ? ReleaseLayout.TrayExecutable : ReleaseLayout.HubExecutable, ".runtimeconfig.json");
 
     private static void RemoveOldStaging(string hubDirectory)
     {

@@ -8,7 +8,7 @@ itself, register its services, and run until it is told to stop.
 ## 1. Create the project
 
 - Add a class library under `src/` named `WatchLattice.<Tool>` (for example
-  `WatchLattice.Canary`), targeting `net8.0` with nullable enabled. Use
+  `WatchLattice.Canary`), targeting `net10.0` with nullable enabled. Use
   `src/WatchLattice.Decoy/WatchLattice.Decoy.csproj` as the template.
 - Reference `WatchLattice.Common`.
 - Add it to the solution: `dotnet sln add src/WatchLattice.<Tool> --solution-folder src`.

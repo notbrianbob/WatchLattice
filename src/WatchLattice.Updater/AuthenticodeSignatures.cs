@@ -113,7 +113,11 @@ public sealed class WindowsAuthenticodeVerifier : ISignatureVerifier
         {
             try
             {
+                // X509CertificateLoader has no replacement for reading the signer of a
+                // signed file, which is what this needs; the file was already verified above.
+#pragma warning disable SYSLIB0057
                 using var certificate = X509Certificate.CreateFromSignedFile(path);
+#pragma warning restore SYSLIB0057
                 return new FileSignature(SignatureStatus.Valid, certificate.Subject);
             }
             catch (CryptographicException ex)

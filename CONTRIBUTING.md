@@ -22,7 +22,7 @@ Security problems go through [SECURITY.md](SECURITY.md), never a public issue.
 
 ## Getting set up
 
-You need the [.NET 8 SDK](https://dotnet.microsoft.com/download/dotnet/8.0).
+You need the [.NET 10 SDK](https://dotnet.microsoft.com/download/dotnet/10.0).
 Windows 11 is the target platform, but the solution builds and tests on Linux
 and macOS too.
 

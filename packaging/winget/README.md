@@ -8,7 +8,7 @@ manifest format (schema 1.10.0):
 | File | Holds |
 |---|---|
 | `notbrianbob.WatchLattice.yaml` | the version manifest |
-| `notbrianbob.WatchLattice.installer.yaml` | the MSI: URL, SHA-256, ProductCode, the MSI's fixed UpgradeCode, and the .NET 8 Desktop Runtime dependency |
+| `notbrianbob.WatchLattice.installer.yaml` | the MSI: URL, SHA-256, ProductCode, and the MSI's fixed UpgradeCode (no dependencies: the MSI carries its own .NET runtime) |
 | `notbrianbob.WatchLattice.locale.en-US.yaml` | name, publisher, description, license and links |
 
 [`.github/scripts/Write-WingetManifest.ps1`](../../.github/scripts/Write-WingetManifest.ps1)
