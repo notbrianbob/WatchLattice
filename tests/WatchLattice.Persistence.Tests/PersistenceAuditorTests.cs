@@ -35,6 +35,45 @@ public sealed class PersistenceAuditorTests : IDisposable
     }
 
     [Fact]
+    public async Task SignedOutUser_KeepsTheirBaseline_AndChangesShowWhenTheySignBackIn()
+    {
+        const string user = "Registry/HKCU-S-1-5-21-1-2-3-1001/Default/Run";
+        const string system = "Registry/HKCU-S-1-5-18/Default/Run";
+        _provider.Sources = new[]
+        {
+            new PersistenceSource(system, Array.Empty<PersistenceEntry>()),
+            new PersistenceSource(user, new[] { new PersistenceEntry("OneDrive", "String: onedrive.exe /background") }),
+        };
+        var auditor = Auditor();
+        await auditor.CheckOnceAsync(default);
+        Assert.Contains(_alerts.Items, a => a.Code == "BASELINE_CREATED" && a.Resource == user && a.Severity == AlertSeverity.Info);
+        _alerts.Items.Clear();
+
+        // Signed out: the hive is unloaded, so the provider no longer lists that user. Nothing is reported as removed.
+        _provider.Sources = new[] { new PersistenceSource(system, Array.Empty<PersistenceEntry>()) };
+        await auditor.CheckOnceAsync(default);
+        await Auditor().CheckOnceAsync(default);
+        Assert.Empty(_alerts.Items);
+        Assert.Single(AtomicJsonFile.Read<PersistenceBaseline>(_options.BaselinePath!).Sources[user]);
+
+        // Signed back in with a new entry added while they were away.
+        _provider.Sources = new[]
+        {
+            new PersistenceSource(system, Array.Empty<PersistenceEntry>()),
+            new PersistenceSource(user, new[]
+            {
+                new PersistenceEntry("OneDrive", "String: onedrive.exe /background"),
+                new PersistenceEntry("Updater", @"String: C:\Users\Public\updater.exe"),
+            }),
+        };
+        await Auditor().CheckOnceAsync(default);
+        var added = Assert.Single(_alerts.Items);
+        Assert.Equal("ENTRY_ADDED", added.Code);
+        Assert.Equal(user + "/Updater", added.Resource);
+        Assert.Equal(AlertSeverity.Warning, added.Severity);
+    }
+
+    [Fact]
     public async Task ChangesAcrossRestart_ReportBeforeAndAfter_Once()
     {
         Inventory(new PersistenceEntry("App", "old.exe"), new("Gone", "gone.exe"));
