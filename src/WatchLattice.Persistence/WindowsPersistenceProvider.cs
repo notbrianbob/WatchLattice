@@ -27,7 +27,7 @@ public sealed class WindowsPersistenceProvider : IPersistenceProvider
         if (_options.WatchRegistry) sources.AddRange(ReadRegistry(cancellationToken));
         if (_options.WatchStartupFolders)
         {
-            var folders = _options.ResolveStartupFolders();
+            var folders = StartupFolders();
             if (folders.Count == 0) sources.Add(new("Startup", Array.Empty<PersistenceEntry>(), "No Startup folders resolved for this account."));
             foreach (var folder in folders)
             {
@@ -41,43 +41,48 @@ public sealed class WindowsPersistenceProvider : IPersistenceProvider
         return sources;
     }
 
+    private const string RunKeyBase = @"Software\Microsoft\Windows\CurrentVersion\";
+    private static readonly string[] RunKeyNames = { "Run", "RunOnce" };
+    private const string ProfileListKey = @"SOFTWARE\Microsoft\Windows NT\CurrentVersion\ProfileList";
+    private const string UserShellFoldersKey = @"Software\Microsoft\Windows\CurrentVersion\Explorer\User Shell Folders";
+
+    /// <summary>The hub's own account and every signed-in user whose hive is loaded under HKEY_USERS.</summary>
+    [SupportedOSPlatform("windows")]
+    private static IReadOnlyList<UserAccount> UserAccounts()
+    {
+        using var identity = WindowsIdentity.GetCurrent();
+        string[] loaded;
+        try
+        {
+            using var users = RegistryKey.OpenBaseKey(RegistryHive.Users, RegistryView.Default);
+            loaded = users.GetSubKeyNames();
+        }
+        catch (Exception ex) when (ex is IOException or UnauthorizedAccessException or SecurityException)
+        {
+            loaded = Array.Empty<string>();
+        }
+        return UserProfiles.Select(loaded, identity.User?.Value ?? Environment.UserName);
+    }
+
     [SupportedOSPlatform("windows")]
     private static IEnumerable<PersistenceSource> ReadRegistry(CancellationToken cancellationToken)
     {
-        using var identity = WindowsIdentity.GetCurrent();
-        var account = identity.User?.Value ?? Environment.UserName;
+        foreach (var account in UserAccounts())
+        foreach (var source in ReadUserRunKeys(account, cancellationToken))
+            yield return source;
+
         var views = Environment.Is64BitOperatingSystem ? new[] { RegistryView.Registry64, RegistryView.Registry32 } : new[] { RegistryView.Registry32 };
-        foreach (var hive in new[] { RegistryHive.CurrentUser, RegistryHive.LocalMachine })
-        // HKCU\Software Run keys are shared between views; avoid duplicate alerts for the same user entry.
-        foreach (var view in hive == RegistryHive.CurrentUser ? new[] { RegistryView.Default } : views)
-        foreach (var name in new[] { "Run", "RunOnce" })
+        foreach (var view in views)
+        foreach (var name in RunKeyNames)
         {
             cancellationToken.ThrowIfCancellationRequested();
-            var keyPath = @"Software\Microsoft\Windows\CurrentVersion\" + name;
-            var id = $"Registry/{(hive == RegistryHive.CurrentUser ? "HKCU-" + account : "HKLM")}/{view}/{name}";
+            var id = $"Registry/HKLM/{view}/{name}";
             PersistenceSource source;
             try
             {
-                using var root = RegistryKey.OpenBaseKey(hive, view);
-                using var key = root.OpenSubKey(keyPath, writable: false);
-                var entries = new List<PersistenceEntry>();
-                if (key is not null)
-                {
-                    foreach (var valueName in key.GetValueNames())
-                    {
-                        var value = key.GetValue(valueName, null, RegistryValueOptions.DoNotExpandEnvironmentNames);
-                        if (value is null) throw new IOException("A registry entry changed during inventory; retrying on the next check.");
-                        var text = value switch
-                        {
-                            string[] strings => JsonSerializer.Serialize(strings),
-                            byte[] bytes => Convert.ToHexString(bytes),
-                            _ => Convert.ToString(value, System.Globalization.CultureInfo.InvariantCulture) ?? "",
-                        };
-                        if (text.Length > 65536) throw new IOException("Registry value exceeds the inventory size limit.");
-                        entries.Add(new(string.IsNullOrEmpty(valueName) ? "(Default)" : valueName, $"{key.GetValueKind(valueName)}: {text}"));
-                    }
-                }
-                source = new(id, entries);
+                using var root = RegistryKey.OpenBaseKey(RegistryHive.LocalMachine, view);
+                using var key = root.OpenSubKey(RunKeyBase + name, writable: false);
+                source = new(id, ReadValues(key));
             }
             catch (Exception ex) when (ex is IOException or UnauthorizedAccessException or SecurityException)
             {
@@ -85,6 +90,113 @@ public sealed class WindowsPersistenceProvider : IPersistenceProvider
             }
             yield return source;
         }
+    }
+
+    /// <summary>
+    /// One user's Run and RunOnce keys. The hub's own account is read through
+    /// HKCU; other users through HKEY_USERS\&lt;SID&gt;. HKCU\Software is shared
+    /// between the 32-bit and 64-bit views, so each key is read once. A user
+    /// who signs out while this runs, or whose hive this account may not read
+    /// (the hub not running elevated), is left out rather than reported:
+    /// their baseline stays as it was until they are seen again.
+    /// </summary>
+    [SupportedOSPlatform("windows")]
+    private static IReadOnlyList<PersistenceSource> ReadUserRunKeys(UserAccount account, CancellationToken cancellationToken)
+    {
+        var sources = new List<PersistenceSource>();
+        try
+        {
+            using var root = RegistryKey.OpenBaseKey(account.IsSelf ? RegistryHive.CurrentUser : RegistryHive.Users, RegistryView.Default);
+            using var hive = account.IsSelf ? null : root.OpenSubKey(account.Sid, writable: false);
+            if (!account.IsSelf && hive is null) return sources;
+            foreach (var name in RunKeyNames)
+            {
+                cancellationToken.ThrowIfCancellationRequested();
+                using var key = (hive ?? root).OpenSubKey(RunKeyBase + name, writable: false);
+                sources.Add(new(UserProfiles.RunSourceId(account.Sid, name), ReadValues(key)));
+            }
+            return sources;
+        }
+        catch (Exception ex) when (ex is IOException or UnauthorizedAccessException or SecurityException)
+        {
+            if (!account.IsSelf && (ex is not IOException || !HiveLoaded(account.Sid))) return Array.Empty<PersistenceSource>();
+            return RunKeyNames.Select(name => new PersistenceSource(UserProfiles.RunSourceId(account.Sid, name), Array.Empty<PersistenceEntry>(), ex.Message)).ToArray();
+        }
+    }
+
+    [SupportedOSPlatform("windows")]
+    private static bool HiveLoaded(string sid)
+    {
+        try
+        {
+            using var users = RegistryKey.OpenBaseKey(RegistryHive.Users, RegistryView.Default);
+            using var hive = users.OpenSubKey(sid, writable: false);
+            return hive is not null;
+        }
+        catch (Exception ex) when (ex is IOException or UnauthorizedAccessException or SecurityException)
+        {
+            return false;
+        }
+    }
+
+    /// <summary>Every value of a Run key, with its type and literal (unexpanded) data. A missing key has no entries.</summary>
+    [SupportedOSPlatform("windows")]
+    private static IReadOnlyList<PersistenceEntry> ReadValues(RegistryKey? key)
+    {
+        var entries = new List<PersistenceEntry>();
+        if (key is null) return entries;
+        foreach (var valueName in key.GetValueNames())
+        {
+            var value = key.GetValue(valueName, null, RegistryValueOptions.DoNotExpandEnvironmentNames);
+            if (value is null) throw new IOException("A registry entry changed during inventory; retrying on the next check.");
+            var text = value switch
+            {
+                string[] strings => JsonSerializer.Serialize(strings),
+                byte[] bytes => Convert.ToHexString(bytes),
+                _ => Convert.ToString(value, System.Globalization.CultureInfo.InvariantCulture) ?? "",
+            };
+            if (text.Length > 65536) throw new IOException("Registry value exceeds the inventory size limit.");
+            entries.Add(new(string.IsNullOrEmpty(valueName) ? "(Default)" : valueName, $"{key.GetValueKind(valueName)}: {text}"));
+        }
+        return entries;
+    }
+
+    /// <summary>
+    /// The configured Startup folders, or by default the hub account's and the
+    /// common Startup folder plus each other signed-in user's own Startup folder.
+    /// </summary>
+    private IReadOnlyList<string> StartupFolders()
+    {
+        var folders = _options.ResolveStartupFolders().ToList();
+        if (_options.StartupFolders.Length == 0 && OperatingSystem.IsWindows())
+            folders.AddRange(SignedInUserStartupFolders());
+        return folders.Distinct(StringComparer.OrdinalIgnoreCase).ToArray();
+    }
+
+    [SupportedOSPlatform("windows")]
+    private static IEnumerable<string> SignedInUserStartupFolders()
+    {
+        var folders = new List<string>();
+        foreach (var account in UserAccounts().Where(a => !a.IsSelf))
+        {
+            try
+            {
+                using var machine = RegistryKey.OpenBaseKey(RegistryHive.LocalMachine, RegistryView.Default);
+                using var profile = machine.OpenSubKey(ProfileListKey + "\\" + account.Sid, writable: false);
+                // ProfileImagePath uses machine-wide variables only (such as %SystemDrive%), so expanding it here is safe.
+                var profilePath = profile?.GetValue("ProfileImagePath") as string;
+                using var users = RegistryKey.OpenBaseKey(RegistryHive.Users, RegistryView.Default);
+                using var shellFolders = users.OpenSubKey(account.Sid + "\\" + UserShellFoldersKey, writable: false);
+                var startup = shellFolders?.GetValue("Startup", null, RegistryValueOptions.DoNotExpandEnvironmentNames) as string;
+                var appData = shellFolders?.GetValue("AppData", null, RegistryValueOptions.DoNotExpandEnvironmentNames) as string;
+                if (UserProfiles.StartupFolder(startup, appData, profilePath) is { } folder) folders.Add(Path.GetFullPath(folder));
+            }
+            catch (Exception ex) when (ex is IOException or UnauthorizedAccessException or SecurityException or ArgumentException or NotSupportedException)
+            {
+                // Signed out meanwhile, or not readable without elevation: that user's folder is skipped this time.
+            }
+        }
+        return folders;
     }
 
     private PersistenceSource ReadStartupFolder(string folder, CancellationToken cancellationToken)
