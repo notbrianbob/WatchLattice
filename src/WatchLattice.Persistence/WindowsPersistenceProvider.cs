@@ -67,8 +67,7 @@ public sealed class WindowsPersistenceProvider : IPersistenceProvider
     [SupportedOSPlatform("windows")]
     private static IEnumerable<PersistenceSource> ReadRegistry(CancellationToken cancellationToken)
     {
-        foreach (var account in UserAccounts())
-        foreach (var source in ReadUserRunKeys(account, cancellationToken))
+        foreach (var source in UserAccounts().SelectMany(account => ReadUserRunKeys(account, cancellationToken)))
             yield return source;
 
         var views = Environment.Is64BitOperatingSystem ? new[] { RegistryView.Registry64, RegistryView.Registry32 } : new[] { RegistryView.Registry32 };

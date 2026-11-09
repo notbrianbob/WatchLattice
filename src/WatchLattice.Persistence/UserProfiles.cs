@@ -25,14 +25,12 @@ public static class UserProfiles
     {
         var accounts = new List<UserAccount>();
         if (!string.IsNullOrEmpty(self)) accounts.Add(new(self, IsSelf: true));
-        foreach (var name in loadedHives
-                     .Where(IsSignedInUserHive)
-                     .Distinct(StringComparer.OrdinalIgnoreCase)
-                     .OrderBy(n => n, StringComparer.OrdinalIgnoreCase))
-        {
-            if (!accounts.Any(a => string.Equals(a.Sid, name, StringComparison.OrdinalIgnoreCase)))
-                accounts.Add(new(name, IsSelf: false));
-        }
+        accounts.AddRange(loadedHives
+            .Where(IsSignedInUserHive)
+            .Where(name => !string.Equals(name, self, StringComparison.OrdinalIgnoreCase))
+            .Distinct(StringComparer.OrdinalIgnoreCase)
+            .OrderBy(n => n, StringComparer.OrdinalIgnoreCase)
+            .Select(name => new UserAccount(name, IsSelf: false)));
         return accounts;
     }
 
