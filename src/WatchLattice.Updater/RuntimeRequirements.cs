@@ -75,14 +75,10 @@ public static class RuntimeRequirements
     public static IReadOnlyList<FrameworkRequirement> FindMissing(IEnumerable<FrameworkRequirement> requirements,
         Func<string, IReadOnlyList<Version>> installedVersions)
     {
-        var missing = new List<FrameworkRequirement>();
-        foreach (var requirement in requirements.Where(r =>
-            !installedVersions(r.Name).Any(r.IsSatisfiedBy)))
-        {
-            if (!missing.Any(m => string.Equals(m.Name, requirement.Name, StringComparison.OrdinalIgnoreCase)))
-                missing.Add(requirement);
-        }
-        return missing;
+        return requirements
+            .Where(r => !installedVersions(r.Name).Any(r.IsSatisfiedBy))
+            .DistinctBy(r => r.Name, StringComparer.OrdinalIgnoreCase)
+            .ToList();
     }
 
     /// <summary>
