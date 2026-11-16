@@ -180,8 +180,10 @@ resolve to the system profile instead. Either run the service under your own
 account (`obj= ".\you" password= ...`) or list your folders explicitly in
 `Decoy:ScanRoots` and `Canary:Folders`.
 
-Persistence's HKCU inventory also follows the service account. Run the hub under
-your account to monitor your current-user Run keys. The tray always runs in your
+Persistence reads every signed-in user's Run and RunOnce keys and Startup
+folder under LocalSystem, so it needs no change; see
+[whose keys are read](src/WatchLattice.Persistence/README.md#whose-run-keys-and-startup-folders-are-read).
+The tray always runs in your
 interactive session; a LocalSystem service needs an explicit shared feed path
 with read permission for the tray user. See [service and tray setup](docs/alerts-and-tray.md#localsystem-service-with-a-user-tray).
 

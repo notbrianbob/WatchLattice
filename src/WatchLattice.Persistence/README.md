@@ -7,11 +7,14 @@ default and runs inside the hub alongside the other modules.
 ## Coverage
 
 - **Registry:** `Run` and `RunOnce` under
-  `Software\Microsoft\Windows\CurrentVersion` in the current user's hive and
-  the local machine hive, including the machine's 32-bit and 64-bit views.
+  `Software\Microsoft\Windows\CurrentVersion` in the local machine hive
+  (32-bit and 64-bit views), the hub account's own hive, and the hive of
+  every signed-in user (`HKEY_USERS\<SID>`). See
+  [whose keys are read](#whose-run-keys-and-startup-folders-are-read).
   Reports the value type and literal command, without expanding variables.
-- **Startup folders:** the current user's and common Startup folders, or an
-  explicit folder list. Inventories direct files and hashes their contents.
+- **Startup folders:** the common Startup folder, the hub account's own,
+  and each signed-in user's, or an explicit folder list. Inventories direct
+  files and hashes their contents.
   A changed shortcut or script produces an alert. `desktop.ini` is ignored.
   Shortcuts are not executed or resolved, and their target binaries are not
   hashed. Large or unreadable files make that folder's inventory incomplete.
@@ -306,16 +309,45 @@ memory, and retries the save; those changes may be reported again after a crash.
 
 ## Service accounts and limits
 
-Run the hub under the account you want to monitor for current-user entries.
-Under LocalSystem, HKCU and the default user Startup folder refer to the system
-account. `StartupFolders` can explicitly include another user's Startup folder,
-but it does not change which HKCU hive is read. Machine entries and visible
-scheduled tasks are still checked. Setting up a shared tray feed does not change
-the auditor's account or permissions.
+### Whose Run keys and Startup folders are read
+
+The hub runs as LocalSystem, whose own HKCU and Startup folder belong to the
+system account, not to you. So on every check the auditor also reads each
+**signed-in user's** keys: every local, domain or Entra ID account whose
+hive is loaded under `HKEY_USERS` (any account signed in, including through
+fast user switching or Remote Desktop). Service accounts and the default
+profile are left out, because Windows does not run their Run keys at sign-in.
+
+| Source ID | What it is |
+|---|---|
+| `Registry/HKCU-<SID>/Default/Run`, `.../RunOnce` | That user's `HKEY_USERS\<SID>\Software\Microsoft\Windows\CurrentVersion\Run` (or `RunOnce`). For the hub's own account (`S-1-5-18` under LocalSystem) it is read through HKCU, as before. |
+| `Registry/HKLM/<view>/Run`, `.../RunOnce` | The machine keys, in the 64-bit and 32-bit views. |
+| `Startup/<folder>` | A Startup folder. Each signed-in user's comes from their `User Shell Folders\Startup` value; only `%USERPROFILE%` and `%APPDATA%` are expanded, with that user's values, and anything else falls back to `<profile>\AppData\Roaming\Microsoft\Windows\Start Menu\Programs\Startup`. |
+
+The source IDs are the same as in earlier versions, so the hub account's
+baseline, approvals and `IgnoredEntries` patterns keep working. The first
+time a user is seen, their existing entries become their baseline with an
+informational *Autostart baseline recorded* alert, not a warning.
+
+A user who is **signed out** has no loaded hive, so their keys are not read
+until they sign in again. Nothing is reported as removed in the meantime;
+their baseline stays as it was, and anything added or changed while they
+were away is reported on the first check after they sign in. Changes made
+and undone while a user is signed out are not seen.
+
+If you list `StartupFolders` yourself, only those folders are read, and no
+per-user Startup folders are added. Run keys have no such list: every signed-in user is
+always read. Run the hub elevated (as the service is) to read other users'
+hives; without administrator rights, hives it may not open are skipped
+rather than reported. Setting up a shared tray feed does not change the
+auditor's account or permissions.
+
+### Other limits
 
 This version does not inventory kernel drivers, services that start only on
 a trigger or on demand, WMI subscriptions outside `root\subscription`, browser
-extensions, every registry autostart location, or all user profiles. Reading
+extensions, every registry autostart location, or the keys of users who are
+not signed in. Reading
 `root\subscription` needs administrator rights, which the hub has as
 LocalSystem. Changes
 made and undone between checks can be missed. The baseline and alert feed are

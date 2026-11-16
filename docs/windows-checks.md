@@ -263,6 +263,26 @@ update host.
    `.\ScanAlways.Protection.Service.exe --verify-install` exits with `0`.
    It now hashes about 500 files instead of about 60, once an hour.
 
+## Next release: signed-in users' Run keys
+
+5. **Your Run key is watched.** After updating, the Alerts tab shows
+   *Autostart baseline recorded* (Info) for
+   `Registry/HKCU-<your SID>/Default/Run` and `RunOnce`, and for your
+   Startup folder (`whoami /user` shows your SID). No warnings for entries
+   that were already there.
+6. **A new entry alerts.** In a normal (not elevated) PowerShell:
+   `New-ItemProperty HKCU:\Software\Microsoft\Windows\CurrentVersion\Run -Name WLTest -Value 'C:\Windows\System32\notepad.exe'`.
+   Within the check interval (5 minutes by default) an *Autostart entry
+   added* warning names `Registry/HKCU-<your SID>/Default/Run/WLTest`.
+   Then `Remove-ItemProperty HKCU:\Software\Microsoft\Windows\CurrentVersion\Run -Name WLTest`
+   gives an *Autostart entry removed* Info alert.
+7. **Your Startup folder is watched.** Copy any small file into
+   `shell:startup` (Win+R) and wait for the *Autostart entry added* warning
+   naming that folder; delete it again afterwards.
+8. **Signing out is quiet.** With a second account (or after signing out
+   and in again), no *removed* alerts appear for the signed-out user's
+   entries.
+
 ## Already covered
 
 Steps 1 to 6 of [the dashboard checks](dashboard.md#what-needs-checking-on-windows)

@@ -30,6 +30,15 @@ notes, followed by GitHub's generated list of pull requests. See
 
 ### Added
 
+- **Signed-in users' Run keys and Startup folders.** The autostart auditor
+  now reads `Run` and `RunOnce` in the hive of every signed-in user
+  (`HKEY_USERS\<SID>`) and each signed-in user's Startup folder. Until now,
+  under the LocalSystem service it only read the system account's HKCU and
+  Startup folder, so entries added to *your* Run key or Startup folder were
+  missed. Each user's existing entries become their baseline on first sight
+  (Info, not a warning). Signed-out users are not reported as removed;
+  anything that changed while they were away is reported when they sign in.
+  Source IDs, Event IDs and settings are unchanged.
 - **Runtime check in the updater**: before changing any file,
   `--apply-update` reads the new release's `runtimeconfig.json` files and
   refuses a release that needs a .NET runtime this PC doesn't have, naming
