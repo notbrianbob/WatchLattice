@@ -11,6 +11,8 @@ notes, followed by GitHub's generated list of pull requests. See
 
 ## [Unreleased]
 
+## [0.9.0] - 2026-11-16
+
 ### Changed
 
 - **.NET 10, with the runtime included.** WatchLattice now targets .NET 10
@@ -22,11 +24,15 @@ notes, followed by GitHub's generated list of pull requests. See
   security fixes now arrive with WatchLattice releases rather than through
   Windows Update. CI and the release workflow fail if a package is ever
   framework-dependent again, because updaters up to 0.8.0 cannot check for
-  a missing runtime.
+  a missing runtime. (#44)
 - **Upgrading from 0.8.0:** use **Install update** in the tray, or run the
   new MSI over an MSI install. Nothing to install first; settings,
   baselines and alert history are kept. You can uninstall the .NET 8
   Desktop Runtime afterwards if nothing else on the PC uses it.
+- Release provenance attestations use `actions/attest-build-provenance`
+  v4 (#35). `gh attestation verify` works as before.
+- Dependabot no longer proposes major-version bumps for the
+  Microsoft.Extensions packages, so they stay on the .NET 10 (LTS) line.
 
 ### Added
 
@@ -38,12 +44,12 @@ notes, followed by GitHub's generated list of pull requests. See
   missed. Each user's existing entries become their baseline on first sight
   (Info, not a warning). Signed-out users are not reported as removed;
   anything that changed while they were away is reported when they sign in.
-  Source IDs, Event IDs and settings are unchanged.
+  Source IDs, Event IDs and settings are unchanged. (#45)
 - **Runtime check in the updater**: before changing any file,
   `--apply-update` reads the new release's `runtimeconfig.json` files and
   refuses a release that needs a .NET runtime this PC doesn't have, naming
   the `winget install` command for it, instead of installing a hub that
-  cannot start. Self-contained releases need nothing and pass.
+  cannot start. Self-contained releases need nothing and pass. (#44)
 
 ## [0.8.0] - 2026-10-18
 
@@ -321,7 +327,8 @@ First release.
   (#13, #14)
 - CI, CodeQL and repository hygiene. (#2, #10)
 
-[Unreleased]: https://github.com/notbrianbob/WatchLattice/compare/v0.8.0...HEAD
+[Unreleased]: https://github.com/notbrianbob/WatchLattice/compare/v0.9.0...HEAD
+[0.9.0]: https://github.com/notbrianbob/WatchLattice/compare/v0.8.0...v0.9.0
 [0.8.0]: https://github.com/notbrianbob/WatchLattice/compare/v0.7.0...v0.8.0
 [0.7.0]: https://github.com/notbrianbob/WatchLattice/compare/v0.6.0...v0.7.0
 [0.6.0]: https://github.com/notbrianbob/WatchLattice/compare/v0.5.0...v0.6.0

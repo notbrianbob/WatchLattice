@@ -4,6 +4,14 @@ updates:
     directory: /
     schedule:
       interval: weekly
+    ignore:
+      # WatchLattice targets .NET 10 (LTS): stay on the 10.0.x servicing line.
+      - dependency-name: "Microsoft.Extensions.*"
+        update-types: ["version-update:semver-major"]
+      - dependency-name: "System.Diagnostics.EventLog"
+        update-types: ["version-update:semver-major"]
+      - dependency-name: "System.Threading.AccessControl"
+        update-types: ["version-update:semver-major"]
     groups:
       microsoft-extensions:
         patterns: ["Microsoft.Extensions.*", "System.Diagnostics.EventLog", "System.Threading.AccessControl"]

@@ -3,7 +3,7 @@
 CI builds and tests everything on a Windows runner and installs a
 release-shaped package, but the dashboard windows, real Windows settings
 changes and a real update can only be checked on a Windows 11 PC. This is
-one list of those checks for the features added in 0.5.0 to 0.8.0, in an
+one list of those checks for the features added in 0.5.0 to 0.9.0, in an
 order that works on one machine. Each step links to the detailed version.
 
 Use a PC you can undo changes on. Every step below changes something
@@ -21,7 +21,8 @@ update host.
 2. Do the [0.5.0 checks](#050), then update to 0.6.0 the same way and do the
    [0.6.0 checks](#060), then update to 0.7.0 the same way and do the
    [0.7.0 checks](#070). The 0.7.0 checks end by moving the PC to the MSI.
-   Then upgrade that MSI install to 0.8.0 and do the [0.8.0 checks](#080).
+   Then upgrade that MSI install to 0.8.0 and do the [0.8.0 checks](#080),
+   then update to 0.9.0 and do the [0.9.0 checks](#090).
 
 ## 0.5.0
 
@@ -244,7 +245,7 @@ update host.
     commands at the end of that README section if you don't want it on, and
     the module reports 11001 again.
 
-## Next release (.NET 10)
+## 0.9.0
 
 1. **Update from 0.8.0** without installing anything first. Use **Install
    update** in the tray. The tray restarts on its own, the dashboard's
@@ -262,8 +263,6 @@ update host.
 4. **Install integrity** still reports every file as matching:
    `.\ScanAlways.Protection.Service.exe --verify-install` exits with `0`.
    It now hashes about 500 files instead of about 60, once an hour.
-
-## Next release: signed-in users' Run keys
 
 5. **Your Run key is watched.** After updating, the Alerts tab shows
    *Autostart baseline recorded* (Info) for
