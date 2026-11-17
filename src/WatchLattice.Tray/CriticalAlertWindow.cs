@@ -109,10 +109,7 @@ internal sealed class CriticalAlertWindow : Form
     /// <summary>Adds new critical alerts and shows the newest, opening the window if it is closed.</summary>
     public void Add(IEnumerable<ProtectionAlert> alerts, bool popUpEnabled)
     {
-        foreach (var alert in alerts)
-        {
-            if (_alerts.All(a => a.Id != alert.Id)) _alerts.Add(alert);
-        }
+        _alerts.AddRange(alerts.Where(alert => _alerts.All(a => a.Id != alert.Id)).DistinctBy(a => a.Id).ToArray());
         _alerts.Sort((a, b) => b.At.CompareTo(a.At));
         _loading = true;
         _popUp.Checked = popUpEnabled;

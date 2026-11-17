@@ -69,6 +69,7 @@ internal sealed class TrayContext : ApplicationContext
         {
             if (RestartIfReplaced()) return;
             await PollAsync();
+            WelcomeOnFirstRun();
         };
         _timer.Start();
     }
@@ -130,15 +131,15 @@ internal sealed class TrayContext : ApplicationContext
             ShowStatus(TrayStatus.Evaluate(_snapshot, _review, DateTimeOffset.UtcNow, ex.Message));
             UpdateWindow();
         }
-        finally
-        {
-            _reading = false;
-            if (!_exiting && !_welcomeChecked)
-            {
-                _welcomeChecked = true;
-                if (!_preferences.WelcomeSeen) ShowWelcome();
-            }
-        }
+        finally { _reading = false; }
+    }
+
+    /// <summary>After the first read of the feed, shows the welcome unless this user has closed it before.</summary>
+    private void WelcomeOnFirstRun()
+    {
+        if (_welcomeChecked || _exiting) return;
+        _welcomeChecked = true;
+        if (!_preferences.WelcomeSeen) ShowWelcome();
     }
 
     private void ShowStatus(TrayStatus status)
