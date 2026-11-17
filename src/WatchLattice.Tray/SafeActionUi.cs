@@ -22,7 +22,7 @@ internal static class SafeActionUi
     }
 
     /// <summary>Fills <paramref name="panel"/> with one button per action, after a short label.</summary>
-    public static void Fill(FlowLayoutPanel panel, AlertGuidance? guidance, IWin32Window owner)
+    public static void Fill(FlowLayoutPanel panel, AlertGuidance? guidance, IWin32Window owner, string label = "Help with this alert:")
     {
         panel.SuspendLayout();
         foreach (Control old in panel.Controls.Cast<Control>().ToArray())
@@ -32,7 +32,7 @@ internal static class SafeActionUi
         }
         if (guidance is { Actions.Count: > 0 })
         {
-            panel.Controls.Add(new Label { Text = "Help with this alert:", AutoSize = true, Margin = new Padding(3, 7, 3, 0) });
+            panel.Controls.Add(new Label { Text = label, AutoSize = true, Margin = new Padding(3, 7, 3, 0) });
             foreach (var action in guidance.Actions)
             {
                 var button = new Button { Text = action.Label, AutoSize = true };

@@ -19,6 +19,10 @@ public enum SafeActionKind
     OpenTaskScheduler,
     OpenServices,
     OpenProxySettings,
+    OpenDeviceSecurity,
+    OpenAppAndBrowserControl,
+    OpenWindowsUpdate,
+    OpenRemoteDesktopSettings,
 }
 
 /// <summary>One button: what it says and what it opens. Path is set only for <see cref="SafeActionKind.OpenFileLocation"/>.</summary>

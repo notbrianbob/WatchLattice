@@ -314,6 +314,13 @@ update host.
    `%LOCALAPPDATA%\ScanAlways\tray-preferences.json`, exit and restart the
    tray. The welcome opens and lists the running modules. Close it, restart the
    tray: it does not open again. **About WatchLattice…** opens it.
+6. **The security checkup only reads.** As a standard user, open the
+   dashboard's **Checkup** tab. No administrator prompt appears, and within a
+   few seconds every line has a result. Compare three of them with Windows
+   Security (real-time protection, tamper protection, memory integrity): they
+   match. Turn real-time protection off in Windows Security, choose **Run
+   again**: that line becomes **Fix** and the tab says *1 to fix*. Turn it
+   back on. **Open virus protection settings** opens the right page.
 
 ## Already covered
 

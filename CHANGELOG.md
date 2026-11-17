@@ -47,6 +47,14 @@ notes, followed by GitHub's generated list of pull requests. See
 
 ### Added
 
+- **Security checkup.** A new **Checkup** tab in the dashboard looks at
+  twelve Windows settings that make attacks harder, among them Defender's
+  real-time and tamper protection, the firewall, User Account Control,
+  SmartScreen, Remote Desktop, SMBv1, Secure Boot, memory integrity and LSA
+  protection. For each it says what it found, why it matters and where to
+  change it. It only reads, with your normal rights. See
+  [the security checkup](docs/dashboard.md#the-security-checkup).
+
 - **The tray icon shows what needs attention.** A green, amber, red or grey
   shield, each with its own mark (tick, dot, exclamation mark, dash), replaces
   the fixed icon, and the tooltip says what to look at, such as *1 critical

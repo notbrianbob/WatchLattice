@@ -79,7 +79,9 @@ verified is in [supply chain](docs/supply-chain.md).
 The **Windows tray companion** opens the **dashboard**: hub and module status,
 alerts (repeats grouped into one row, with acknowledge and dismiss, and
 export to CSV or JSON), a daily summary of the last 24 hours' alerts, the
-hub's recent activity, and every setting. Turning a module on or
+hub's recent activity, every setting, and a read-only
+[security checkup](docs/dashboard.md#the-security-checkup) of Windows settings
+that make attacks harder. Turning a module on or
 off or changing a setting opens an elevated settings editor through Windows'
 administrator prompt, so only an administrator can change anything; each save
 is checked, backed up, and rolled back if the hub does not keep running. See
@@ -364,6 +366,8 @@ their canaries and baselines. See
 - [ ] Code-signed releases (the release workflow and updater are ready; signing starts once the SignPath setup in [docs/code-signing.md](docs/code-signing.md) is done)
 - [x] Reproducible demos and measured overhead
 - [x] MITRE ATT&CK IDs on alerts, and detection checks that run in CI
+- [x] Status tray icon, a window for critical alerts, and a first-run welcome
+- [x] Read-only security checkup of Windows settings
 
 ## Contributing and security
 
