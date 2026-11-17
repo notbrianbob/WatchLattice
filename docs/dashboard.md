@@ -2,7 +2,7 @@
 
 The tray companion's window is the WatchLattice dashboard. Open it by
 double-clicking the tray icon or choosing **Open dashboard** from its menu.
-It has four tabs:
+It has five tabs:
 
 | Tab | What it shows |
 |---|---|
@@ -10,12 +10,48 @@ It has four tabs:
 | **Alerts** | Recent alerts from every module, newest first, with full details for the selected one. Repeats of the same alert share one row with a count, and you can acknowledge or dismiss rows (see [grouping, acknowledging and dismissing alerts](#grouping-acknowledging-and-dismissing-alerts)). **Export…** saves the list as CSV or JSON (see [exporting alerts](#exporting-alerts)). For persistence alerts, the **Verification** column, **Verify entry** and **View verification details…** (see [verifying changed scheduled tasks](../src/WatchLattice.Persistence/README.md#verifying-changed-scheduled-tasks)). |
 | **Activity** | The hub's own recent log: modules starting, stopping, failing and recovering, checks that could not run, feed and Event Log problems. Filter by level or text. |
 | **Settings** | Every setting the hub reads, its current value, and whether it comes from appsettings.json or is the built-in default. |
+| **Checkup** | A read-only look at Windows settings that make attacks harder, with why each matters and where to change it (see [the security checkup](#the-security-checkup)). |
 
 The dashboard runs as you, with your normal rights, and cannot change
 anything by itself. The [help buttons](#what-an-alert-means-and-what-to-do)
 under an alert only open built-in Windows screens. **Verify entry** only reads: it checks a scheduled task,
 its COM registration and its files with your rights and saves the result in
 your own profile.
+
+## The security checkup
+
+The **Checkup** tab looks at Windows settings that make attacks harder and
+says, for each one, what it found, why it matters and where in Windows to
+change it. It runs when you first open the tab and again with **Run again**.
+It only reads: it uses your normal rights, needs no administrator prompt,
+and changes nothing. The buttons under a line open the matching Windows
+Security or Settings page, where you decide.
+
+| Check | Good | Consider | Fix |
+|---|---|---|---|
+| WatchLattice is running | Service reporting, every module running | A module stopped | Service not reporting |
+| Defender real-time protection | On | | Off |
+| Defender tamper protection | On | | Off |
+| Defender security intelligence | Updated in the last 3 days | 3 to 9 days old | Older |
+| Windows Firewall | On for every network type | Off for domain or private networks | Off for public networks |
+| User Account Control | On and asks | Prompt not on the secure desktop | Off, or elevates without asking |
+| SmartScreen for apps and files | No sign it's off | | Off, or off by policy |
+| Remote Desktop | Off | On, with Network Level Authentication | On without it |
+| SMBv1 file sharing | Not installed or off | | Client or server enabled |
+| Secure Boot | On | Off or not reported | |
+| Memory integrity | On | Off | |
+| Local Security Authority protection | On | Off | |
+
+Group Policy settings are read before local ones, so a PC managed by an
+organisation shows what is actually in force. Defender's status comes from
+the same read-only `Get-MpComputerStatus` query the hub's watchdog uses. Any
+value that can't be read shows as **Couldn't check** rather than as a
+problem. Hardware protections (Secure Boot, memory integrity, LSA protection)
+are never marked **Fix**: some PCs and drivers can't use them, and turning
+them on is the owner's call.
+
+The checkup is advice, not a score. It doesn't cover everything that matters,
+such as Windows Update status, backups or account passwords.
 
 ## What an alert means and what to do
 

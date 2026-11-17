@@ -19,5 +19,6 @@
     <ProjectReference Include="../WatchLattice.Common/WatchLattice.Common.csproj" />
     <ProjectReference Include="../WatchLattice.Updater/WatchLattice.Updater.csproj" />
     <ProjectReference Include="../WatchLattice.Persistence/WatchLattice.Persistence.csproj" />
+    <ProjectReference Include="../WatchLattice.DefenderWatchdog/WatchLattice.DefenderWatchdog.csproj" />
   </ItemGroup>
 </Project>

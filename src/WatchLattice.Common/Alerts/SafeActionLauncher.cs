@@ -57,6 +57,10 @@ public static partial class SafeActionLauncher
             SafeActionKind.OpenTaskScheduler => Shell("taskschd.msc"),
             SafeActionKind.OpenServices => Shell("services.msc"),
             SafeActionKind.OpenProxySettings => Shell("ms-settings:network-proxy"),
+            SafeActionKind.OpenDeviceSecurity => Shell("windowsdefender://devicesecurity"),
+            SafeActionKind.OpenAppAndBrowserControl => Shell("windowsdefender://appbrowser"),
+            SafeActionKind.OpenWindowsUpdate => Shell("ms-settings:windowsupdate"),
+            SafeActionKind.OpenRemoteDesktopSettings => Shell("ms-settings:remotedesktop"),
             _ => null,
         };
     }

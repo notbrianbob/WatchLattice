@@ -4,7 +4,9 @@ using System.Text.Json.Nodes;
 using Microsoft.Extensions.Logging;
 using WatchLattice.Common.Activity;
 using WatchLattice.Common.Alerts;
+using WatchLattice.Common.Checkup;
 using WatchLattice.Common.Settings;
+using WatchLattice.DefenderWatchdog;
 using WatchLattice.Persistence.Verification;
 
 namespace WatchLattice.Tray;
@@ -62,6 +64,15 @@ internal sealed class DashboardWindow : Form
     private readonly Button _refreshSettings = new() { Text = "Refresh", AutoSize = true };
     private readonly Label _settingsNote = new() { AutoSize = true, Margin = new Padding(12, 7, 0, 0), MaximumSize = new Size(640, 0) };
 
+    // Checkup
+    private readonly ListView _checkup = NewList("Security checkup");
+    private readonly TextBox _checkupDetails = NewDetails("Selected check details", "Select a line to see why it matters and how to change it.");
+    private readonly FlowLayoutPanel _checkupActions = new() { Dock = DockStyle.Bottom, AutoSize = true, Padding = new Padding(6, 0, 6, 0), WrapContents = true, Visible = false };
+    private readonly Button _runCheckup = new() { Text = "Run checkup", AutoSize = true };
+    private readonly Label _checkupSummary = new() { AutoSize = true, Margin = new Padding(12, 7, 0, 0), MaximumSize = new Size(640, 0) };
+    private IReadOnlyList<CheckupItem>? _checkupItems;
+    private bool _checkingUp;
+
     // Update banner
     private readonly FlowLayoutPanel _update = new()
     {
@@ -118,9 +129,11 @@ internal sealed class DashboardWindow : Form
         _tabs.TabPages.Add(BuildAlerts());
         _tabs.TabPages.Add(BuildActivity());
         _tabs.TabPages.Add(BuildSettings());
+        _tabs.TabPages.Add(BuildCheckup());
         _tabs.SelectedIndexChanged += async (_, _) =>
         {
             if (_tabs.SelectedTab?.Text == "Settings" && _description is null) await LoadSettingsAsync();
+            if (_tabs.SelectedTab?.Text == "Checkup" && _checkupItems is null) await RunCheckupAsync();
         };
 
         Controls.Add(_tabs);
@@ -258,6 +271,133 @@ internal sealed class DashboardWindow : Form
         page.Controls.Add(_settings);
         page.Controls.Add(bar);
         return page;
+    }
+
+    /// <summary>
+    /// The security checkup: a read-only look at Windows settings that make
+    /// attacks harder (see SecurityCheckup). It runs with the user's own
+    /// rights and changes nothing; each line says where in Windows to change it.
+    /// </summary>
+    private TabPage BuildCheckup()
+    {
+        _checkup.Columns.Add("Result", 120);
+        _checkup.Columns.Add("Check", 260);
+        _checkup.Columns.Add("What we found", 560);
+        _checkup.SelectedIndexChanged += (_, _) => ShowCheckupDetails();
+        _runCheckup.Click += async (_, _) => await RunCheckupAsync();
+        _checkupSummary.Text = "Read-only: the checkup looks at settings and changes nothing.";
+        var bar = new FlowLayoutPanel { Dock = DockStyle.Top, AutoSize = true, Padding = new Padding(6), WrapContents = true };
+        bar.Controls.AddRange(new Control[] { _runCheckup, _checkupSummary });
+        var details = new Panel { Dock = DockStyle.Fill };
+        details.Controls.Add(_checkupDetails);
+        details.Controls.Add(_checkupActions);
+        var page = new TabPage("Checkup");
+        page.Controls.Add(Split(_checkup, details));
+        page.Controls.Add(bar);
+        return page;
+    }
+
+    private async Task RunCheckupAsync()
+    {
+        if (_checkingUp || IsDisposed) return;
+        _checkingUp = true;
+        _runCheckup.Enabled = false;
+        _runCheckup.Text = "Checking…";
+        try
+        {
+            var snapshot = _snapshot;
+            var items = await Task.Run(async () =>
+            {
+                var defender = await ReadDefenderAsync();
+                IMachineRegistry registry = OperatingSystem.IsWindows() ? new WindowsMachineRegistry() : new NoRegistry();
+                return SecurityCheckup.Run(registry, defender, snapshot, DateTimeOffset.UtcNow);
+            });
+            if (IsDisposed) return;
+            ShowCheckup(items);
+        }
+        finally
+        {
+            _checkingUp = false;
+            if (!IsDisposed)
+            {
+                _runCheckup.Enabled = true;
+                _runCheckup.Text = "Run again";
+            }
+        }
+    }
+
+    /// <summary>Defender's own status, read with the same read-only query the hub's watchdog uses, as this user.</summary>
+    private async Task<DefenderFacts> ReadDefenderAsync()
+    {
+        try
+        {
+            var status = await new PowerShellDefenderStatusProvider().GetStatusAsync(_closing.Token);
+            return new DefenderFacts(status.Available, status.RealTimeProtectionEnabled, status.IsTamperProtected, status.SignatureLastUpdated, status.Error);
+        }
+        catch (OperationCanceledException)
+        {
+            return new DefenderFacts(false, null, null, null, "the dashboard was closed");
+        }
+    }
+
+    private void ShowCheckup(IReadOnlyList<CheckupItem> items)
+    {
+        _checkupItems = items;
+        _checkupSummary.Text = SecurityCheckup.Summary(items) + $" • checked {DateTime.Now:t} • read-only, nothing was changed";
+        _checkup.BeginUpdate();
+        _checkup.Items.Clear();
+        foreach (var item in items.OrderBy(i => i.Status switch
+        {
+            CheckupStatus.Risk => 0,
+            CheckupStatus.Advice => 1,
+            CheckupStatus.Unknown => 2,
+            _ => 3,
+        }))
+        {
+            var row = new ListViewItem(new[] { ResultName(item.Status), item.Title, item.Finding }) { Tag = item };
+            row.ForeColor = item.Status switch
+            {
+                CheckupStatus.Risk => Color.FromArgb(0xB3, 0x26, 0x1E),
+                CheckupStatus.Advice => Color.FromArgb(0x8A, 0x5A, 0x00),
+                CheckupStatus.Unknown => SystemColors.GrayText,
+                _ => SystemColors.WindowText,
+            };
+            _checkup.Items.Add(row);
+        }
+        _checkup.EndUpdate();
+        var fix = items.Count(i => i.Status == CheckupStatus.Risk);
+        _tabs.TabPages[4].Text = fix > 0 ? $"Checkup ({fix} to fix)" : "Checkup";
+        if (_checkup.Items.Count > 0) _checkup.Items[0].Selected = true;
+        ShowCheckupDetails();
+    }
+
+    private void ShowCheckupDetails()
+    {
+        if (_checkup.SelectedItems.Count != 1 || _checkup.SelectedItems[0].Tag is not CheckupItem item)
+        {
+            SafeActionUi.Fill(_checkupActions, null, this);
+            return;
+        }
+        _checkupDetails.Text = $"{item.Title}: {ResultName(item.Status)}\r\n\r\nWHAT WE FOUND\r\n{item.Finding}\r\n\r\n"
+            + (item.WhyItMatters.Length == 0 ? "" : $"WHY IT MATTERS\r\n{item.WhyItMatters}\r\n\r\n")
+            + $"HOW TO CHANGE IT\r\n{item.HowToChange}";
+        var actions = item.Action is null ? Array.Empty<SafeAction>() : new[] { item.Action };
+        SafeActionUi.Fill(_checkupActions, new AlertGuidance("", "", actions), this, "Where to change it:");
+    }
+
+    private static string ResultName(CheckupStatus status) => status switch
+    {
+        CheckupStatus.Good => "Good",
+        CheckupStatus.Advice => "Consider",
+        CheckupStatus.Risk => "Fix",
+        _ => "Couldn't check",
+    };
+
+    /// <summary>Off Windows there is no registry: every registry check reports it couldn't check.</summary>
+    private sealed class NoRegistry : IMachineRegistry
+    {
+        public object? Read(string key, string name) => throw new PlatformNotSupportedException("The registry is only on Windows.");
+        public bool KeyExists(string key) => throw new PlatformNotSupportedException("The registry is only on Windows.");
     }
 
     public void UpdateSnapshot(AlertSnapshot? snapshot, string status)
