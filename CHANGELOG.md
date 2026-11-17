@@ -13,6 +13,18 @@ notes, followed by GitHub's generated list of pull requests. See
 
 ### Added
 
+- **What an alert means and what to do.** Every alert's details in the
+  dashboard now start with a plain-language *What this means* and *What to
+  do*, written for each alert type, and buttons that open the Windows
+  screen that helps: Windows Security, virus protection settings (for
+  exclusions), firewall settings, startup apps, Task Scheduler, Services,
+  proxy settings, Event Viewer, the canary file's location in Explorer, and
+  a Defender quick scan (asks first). The buttons only open screens; none
+  changes a setting or touches a file, and alert text never reaches a
+  command line except a validated local path for Explorer to highlight. See
+  [the dashboard](docs/dashboard.md#what-an-alert-means-and-what-to-do).
+  Event Log entries end with the same advice; the data strings are
+  unchanged.
 - **MITRE ATT&CK IDs on alerts.** Alerts that are evidence of an adversary
   technique now name it (Enterprise ATT&CK v20.1), for example T1547.001
   for a new Run key value or T1685 for a Defender exclusion. The dashboard's

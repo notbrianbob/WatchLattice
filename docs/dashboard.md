@@ -12,9 +12,52 @@ It has four tabs:
 | **Settings** | Every setting the hub reads, its current value, and whether it comes from appsettings.json or is the built-in default. |
 
 The dashboard runs as you, with your normal rights, and cannot change
-anything by itself. **Verify entry** only reads: it checks a scheduled task,
+anything by itself. The [help buttons](#what-an-alert-means-and-what-to-do)
+under an alert only open built-in Windows screens. **Verify entry** only reads: it checks a scheduled task,
 its COM registration and its files with your rights and saves the result in
 your own profile.
+
+## What an alert means and what to do
+
+Every alert's details start with two short sections in plain words:
+
+- **What this means**: what changed and why WatchLattice reports it, for
+  example that a new Defender exclusion stops Defender scanning that folder,
+  and that malware adds exclusions to hide.
+- **What to do**: most changes WatchLattice reports are made by you or by
+  software you installed, so the advice starts from "if you did this, it is
+  expected" and then says what to check or undo if nobody did. It never says
+  an alert is malware.
+
+The full alert text follows under **Details**. The same advice is the last
+line of the alert's [Event Log entry](event-log.md#what-an-entry-contains).
+
+Below the details, **Help with this alert** has buttons for the Windows
+screens that help with that alert:
+
+| Button | Opens |
+|---|---|
+| Open Windows Security | Windows Security (`windowsdefender:`) |
+| Open virus protection settings | Virus & threat protection settings, where Defender's switches and exclusions are (`windowsdefender://threatsettings`) |
+| Open firewall settings | Firewall & network protection (`windowsdefender://network`) |
+| Run a Defender quick scan | Asks first, then runs `MpCmdRun.exe -Scan -ScanType 1` from the Defender folder in a console window that stays open with the result |
+| Open file location | Explorer with the file selected (`explorer.exe /select,`), or its folder if the file is gone. Only for a plain local path such as a canary file |
+| Open startup apps | Settings > Apps > Startup (`ms-settings:startupapps`) |
+| Open Task Scheduler, Open Services | `taskschd.msc`, `services.msc` |
+| Open proxy settings | Settings > Network & internet > Proxy (`ms-settings:network-proxy`) |
+| Open Event Viewer, Open the Security log | `eventvwr.exe /c:Application` or `/c:Security` |
+
+None of them changes a setting, deletes or quarantines a file, or acts on the
+alert; you decide what to do in the screen it opens. Every button starts a
+fixed program with fixed arguments. Text from an alert is never part of a
+command line, with one exception: **Open file location** passes the alert's
+file path to Explorer, and only when it is a plain path on a local drive
+(no network paths, no `\\?\` device paths, no quotes, wildcards or `..`).
+Explorer only highlights the file, so a malicious file is not opened. The
+advice and buttons are in
+[AlertGuidance.cs](../src/WatchLattice.Common/Alerts/AlertGuidance.cs) and
+[SafeActionLauncher.cs](../src/WatchLattice.Common/Alerts/SafeActionLauncher.cs),
+and a test fails if an alert type has no advice of its own.
 
 ## Grouping, acknowledging and dismissing alerts
 
@@ -290,3 +333,11 @@ checked by hand (for the other modules' hand checks, see
    it. *Latest daily summary* shows the counts, and Event Viewer has event
    1007 from `WatchLattice`. Restart the PC the next day after that hour has
    passed: a missed summary is written about a minute after the hub starts.
+10. Alerts: select any alert. The details start with *What this means* and
+    *What to do*, and the buttons under the list match that alert (none for
+    a cleared alert). Each button opens the screen in the table in
+    [what an alert means](#what-an-alert-means-and-what-to-do).
+    **Run a Defender quick scan** asks first; *Cancel* starts nothing, *OK*
+    opens a console that shows the scan and stays open. On a canary alert,
+    **Open file location** selects the canary in Explorer, or opens its
+    folder if the canary was deleted. Selecting two rows hides the buttons.

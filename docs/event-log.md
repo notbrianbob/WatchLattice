@@ -68,7 +68,7 @@ WEF forwards) holds these strings, in this order:
 
 | # | Data |
 |---|---|
-| 1 | Readable text: title, message, module, alert code, severity, resource (when there is one), MITRE ATT&CK techniques (when mapped), alert ID and time. This is what Event Viewer's General tab shows. |
+| 1 | Readable text: title, message, module, alert code, severity, resource (when there is one), MITRE ATT&CK techniques (when mapped), alert ID and time, then a "What to do" line with the [dashboard's advice](dashboard.md#what-an-alert-means-and-what-to-do). Read the fields below rather than parsing this text: its wording changes between releases. This is what Event Viewer's General tab shows. |
 | 2 | Module ID, e.g. `DefenderWatchdog` |
 | 3 | Alert code, e.g. `REALTIME_OFF` |
 | 4 | Severity: `Info`, `Warning` or `Critical` |

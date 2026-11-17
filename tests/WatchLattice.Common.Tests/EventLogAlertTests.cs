@@ -140,6 +140,7 @@ public sealed class EventLogAlertTests
         Assert.Contains(@"Resource: C:\Users\me\Documents\a.docx", data[0]);
         Assert.Contains("Alert code: CANARY_RENAMED", data[0]);
         Assert.Contains("MITRE ATT&CK: T1486 Data Encrypted for Impact (related)", data[0]);
+        Assert.EndsWith("What to do: " + AlertGuidanceCatalog.For(alert).WhatToDo, data[0]);
         Assert.Equal(new[] { "Canary", "CANARY_RENAMED", "Critical", "Canary tripped", "Renamed  to x.locked",
             @"C:\Users\me\Documents\a.docx", alert.Id.ToString(), "2026-10-17T01:02:03.0000000Z", "T1486" }, data.Skip(1));
         Assert.DoesNotContain("Resource:", EventLogAlertService.DataOf(alert with { Resource = null })[0]);

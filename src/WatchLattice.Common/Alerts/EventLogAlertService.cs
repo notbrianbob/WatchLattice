@@ -172,6 +172,8 @@ public sealed class EventLogAlertService : BackgroundService, IAlertSink
         if (attack.Count > 0) text.Append("MITRE ATT&CK: ").Append(AttackMapping.Describe(attack)).Append("\r\n");
         text.Append("Alert ID: ").Append(alert.Id).Append("\r\n")
             .Append("Time (UTC): ").Append(at);
+        // Last, so a long message trims the advice rather than the fields above.
+        text.Append("\r\n\r\nWhat to do: ").Append(AlertGuidanceCatalog.For(alert).WhatToDo);
 
         return new[]
         {
