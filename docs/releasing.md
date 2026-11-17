@@ -52,7 +52,9 @@ not from files uploaded by hand.
      updater checks the zip's line before installing anything
    - `WatchLattice-<version>-winget.zip`, the [winget manifests](#publishing-to-winget)
      for that MSI, checked with `winget validate`. Not submitted anywhere
-   - a build provenance attestation for the zip and the MSI
+   - `WatchLattice-<version>-sbom.cdx.json`, a CycloneDX
+     [software bill of materials](supply-chain.md#software-bill-of-materials)
+   - a build provenance attestation for the zip, the MSI and the SBOM
 
    When the SignPath secrets are set, the executables and DLLs are
    Authenticode-signed before zipping, and the MSI is signed after it is

@@ -2,6 +2,7 @@
 
 [![CI](https://github.com/notbrianbob/WatchLattice/actions/workflows/ci.yml/badge.svg)](https://github.com/notbrianbob/WatchLattice/actions/workflows/ci.yml)
 [![CodeQL](https://github.com/notbrianbob/WatchLattice/actions/workflows/codeql.yml/badge.svg)](https://github.com/notbrianbob/WatchLattice/actions/workflows/codeql.yml)
+[![OpenSSF Scorecard](https://api.scorecard.dev/projects/github.com/notbrianbob/WatchLattice/badge)](https://scorecard.dev/viewer/?uri=github.com/notbrianbob/WatchLattice)
 [![License: MIT](https://img.shields.io/badge/license-MIT-blue.svg)](LICENSE)
 ![.NET 10](https://img.shields.io/badge/.NET-10.0-512BD4)
 ![Platform: Windows 11](https://img.shields.io/badge/platform-Windows%2011-0078D6)
@@ -59,7 +60,8 @@ detection and removal, and WatchLattice adds friction and tripwires around it.
 something to attack. The [threat model of WatchLattice itself](docs/threat-model.md)
 goes through each trust boundary (user to hub, hub to user, tray to elevated
 editor, internet to updater), says how each threat is handled, and lists what
-was found and fixed in the last review.
+was found and fixed in the last review. How releases are built, pinned and
+verified is in [supply chain](docs/supply-chain.md).
 
 ## Tools
 

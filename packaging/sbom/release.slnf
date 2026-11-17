@@ -1,0 +1,9 @@
+{
+  "solution": {
+    "path": "../../WatchLattice.sln",
+    "projects": [
+      "src/WatchLattice.Hub/WatchLattice.Hub.csproj",
+      "src/WatchLattice.Tray/WatchLattice.Tray.csproj"
+    ]
+  }
+}

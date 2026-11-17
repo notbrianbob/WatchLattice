@@ -13,6 +13,17 @@ notes, followed by GitHub's generated list of pull requests. See
 
 ### Security
 
+- **Software bill of materials.** Each release now includes
+  `WatchLattice-<version>-sbom.cdx.json` (CycloneDX). It lists every NuGet
+  package the hub and tray ship and the .NET runtime bundled with them,
+  and the build provenance attestation covers it. See
+  [supply chain](docs/supply-chain.md).
+- **GitHub Actions pinned to commits.** Every action in every workflow is
+  pinned to a full commit SHA, with the version in a comment, so a moved tag
+  can't change what a build runs. Dependabot keeps the pins current.
+- **OpenSSF Scorecard.** A weekly Scorecard run publishes the repository's
+  score (shown as a README badge) and lists each finding in code scanning.
+
 - **Canary files can no longer be redirected.** The hub runs as LocalSystem
   and plants canaries in folders the user owns. Before this change, a user
   who replaced a canary folder with a junction, or a canary with a link,
