@@ -183,19 +183,26 @@ public static class RedirectionSafeFile
         // No sharing: nothing else can open the file while we check and use it.
         var handle = Native.CreateFileW(Win32Path(path), desired, 0, IntPtr.Zero, create ? OpenAlways : OpenExisting,
             (uint)FileAttributes.Normal, IntPtr.Zero);
-        var error = Marshal.GetLastWin32Error();
-        if (handle.IsInvalid)
+        try
+        {
+            var error = Marshal.GetLastWin32Error();
+            if (handle.IsInvalid)
+            {
+                throw error switch
+                {
+                    2 or 3 => new FileNotFoundException($"{path} does not exist.", path),
+                    5 => new UnauthorizedAccessException($"Access to {path} is denied."),
+                    _ => new IOException($"Could not open {path}: {new Win32Exception(error).Message}", error),
+                };
+            }
+            created = create && error != AlreadyExists;
+            return handle;
+        }
+        catch
         {
             handle.Dispose();
-            throw error switch
-            {
-                2 or 3 => new FileNotFoundException($"{path} does not exist.", path),
-                5 => new UnauthorizedAccessException($"Access to {path} is denied."),
-                _ => new IOException($"Could not open {path}: {new Win32Exception(error).Message}", error),
-            };
+            throw;
         }
-        created = create && error != AlreadyExists;
-        return handle;
     }
 
     [SupportedOSPlatform("windows")]
@@ -203,13 +210,20 @@ public static class RedirectionSafeFile
     {
         const uint ReadAttributes = 0x80, ShareAll = 7, OpenExisting = 3, BackupSemantics = 0x02000000;
         var handle = Native.CreateFileW(Win32Path(folder), ReadAttributes, ShareAll, IntPtr.Zero, OpenExisting, BackupSemantics, IntPtr.Zero);
-        if (handle.IsInvalid)
+        try
         {
-            var error = Marshal.GetLastWin32Error();
-            handle.Dispose();
-            throw new IOException($"Could not open {folder}: {new Win32Exception(error).Message}", error);
+            if (handle.IsInvalid)
+            {
+                var error = Marshal.GetLastWin32Error();
+                throw new IOException($"Could not open {folder}: {new Win32Exception(error).Message}", error);
+            }
+            return handle;
         }
-        return handle;
+        catch
+        {
+            handle.Dispose();
+            throw;
+        }
     }
 
     /// <summary>Where the handle really is, with every junction and link resolved.</summary>
