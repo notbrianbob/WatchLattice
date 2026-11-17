@@ -11,6 +11,29 @@ notes, followed by GitHub's generated list of pull requests. See
 
 ## [Unreleased]
 
+### Security
+
+- **Canary files can no longer be redirected.** The hub runs as LocalSystem
+  and plants canaries in folders the user owns. Before this change, a user
+  who replaced a canary folder with a junction, or a canary with a link,
+  could make the hub overwrite or delete a file anywhere, such as in System32:
+  a local privilege escalation. Canaries are now written and deleted through
+  a handle whose real path and link count are checked first. A folder that
+  turns out to be a junction is left alone, with a warning in the log.
+  If you moved Documents, Desktop or Pictures with `mklink /J`, set the
+  canary folders to the real paths.
+- **Likely passwords and tokens are hidden in script host alerts.** Command
+  lines copied into alerts, which every user can read in the Application
+  log, now show values such as `-Password x`, `token=x` or
+  `https://user:pass@host` as `[hidden]`. Approvals still match the exact
+  command line.
+- **No startup hooks.** The hub and tray ignore `DOTNET_STARTUP_HOOKS`, so
+  the environment can't load code into the service or the elevated settings
+  editor.
+- **[Threat model](docs/threat-model.md) of WatchLattice itself.** It
+  applies STRIDE at each trust boundary and marks every threat as mitigated,
+  fixed or accepted, with the reason.
+
 ### Added
 
 - **What an alert means and what to do.** Every alert's details in the

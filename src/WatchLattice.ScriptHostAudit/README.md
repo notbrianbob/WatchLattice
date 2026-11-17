@@ -187,6 +187,11 @@ every user on the PC can read. Command lines sometimes carry passwords or
 tokens. On a PC shared with people who should not see each other's command
 lines, set `CommandLineInAlerts` to `false`: alerts then give the command
 line's length and the record ID to look it up, and approving still works.
+Even with it on, values that look like passwords, tokens or keys
+(`-Password x`, `/p:x`, `token=x`, `https://user:pass@host`, `Bearer x`,
+`ConvertTo-SecureString "x"`) are shown as `[hidden]`, and the line says so.
+A secret passed as a plain word can't be recognized, so this lowers the risk
+without removing it.
 
 ## Run
 

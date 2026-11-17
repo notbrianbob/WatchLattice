@@ -11,6 +11,10 @@
          Hub/ScanAlways.Protection.Service.exe in every release package, and
          existing services point at this file. See docs/releasing.md. -->
     <AssemblyName>ScanAlways.Protection.Service</AssemblyName>
+    <!-- Hardening: never load a DOTNET_STARTUP_HOOKS assembly. The hub runs as
+         LocalSystem and the tray's settings editor runs elevated; neither should
+         run code named by an environment variable. See docs/threat-model.md. -->
+    <StartupHookSupport>false</StartupHookSupport>
     <Description>The WatchLattice hub: one process that runs every enabled tool as a module. Runs as a console app or Windows service.</Description>
   </PropertyGroup>
 
