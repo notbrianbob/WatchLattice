@@ -13,6 +13,9 @@ namespace WatchLattice.Tray;
 /// a path from the feed) and both elevated through Windows' consent prompt:
 /// the hub's own updater when the user chooses Install update, and its own
 /// settings editor when the user chooses to change a setting.
+/// The icon's colour and shape follow <see cref="TrayStatus"/>; a critical
+/// alert also opens <see cref="CriticalAlertWindow"/>, and the first start
+/// shows <see cref="WelcomeWindow"/>.
 /// </summary>
 internal sealed class TrayContext : ApplicationContext
 {
@@ -22,6 +25,14 @@ internal sealed class TrayContext : ApplicationContext
     private readonly ContextMenuStrip _menu = new();
     private readonly ToolStripMenuItem _status = new("Waiting for hub…") { Enabled = false };
     private readonly ToolStripMenuItem _update = new() { Visible = false };
+    private readonly ToolStripMenuItem _popUpCritical = new("Open a window for critical alerts") { CheckOnClick = true };
+    private readonly TrayIcons _icons = new();
+    private readonly AlertReviewStore _reviewStore = new();
+    private TrayPreferences _preferences;
+    private AlertReviewSet _review = AlertReviewSet.Empty;
+    private CriticalAlertWindow? _critical;
+    private WelcomeWindow? _welcome;
+    private bool _welcomeChecked;
     private readonly System.Windows.Forms.Timer _timer = new() { Interval = 2000 };
     private readonly AlertNotificationCursor _cursor = new();
     private readonly ReleaseVersion _version = ReleaseVersion.FromAssembly(typeof(TrayContext).Assembly);
@@ -38,19 +49,27 @@ internal sealed class TrayContext : ApplicationContext
     public TrayContext(string path)
     {
         _path = path;
+        (_preferences, _) = TrayPreferences.Load();
+        _popUpCritical.Checked = _preferences.PopUpCriticalAlerts;
+        _popUpCritical.CheckedChanged += (_, _) => SetPopUp(_popUpCritical.Checked);
         _update.Click += (_, _) => OpenWindow();
         _menu.Items.Add(_status);
         _menu.Items.Add(_update);
         _menu.Items.Add("Open dashboard", null, (_, _) => OpenWindow());
         _menu.Items.Add(new ToolStripSeparator());
+        _menu.Items.Add(_popUpCritical);
+        _menu.Items.Add("About WatchLattice…", null, (_, _) => ShowWelcome());
+        _menu.Items.Add(new ToolStripSeparator());
         _menu.Items.Add("Exit tray companion", null, (_, _) => ExitThread());
-        _icon = new NotifyIcon { Icon = SystemIcons.Shield, Text = "WatchLattice: waiting for hub", ContextMenuStrip = _menu, Visible = true };
+        var waiting = TrayStatus.Evaluate(null, AlertReviewSet.Empty, DateTimeOffset.UtcNow);
+        _icon = new NotifyIcon { Icon = _icons.For(waiting.Level), Text = waiting.Tooltip, ContextMenuStrip = _menu, Visible = true };
         _icon.DoubleClick += (_, _) => OpenWindow();
         _icon.BalloonTipClicked += (_, _) => OpenWindow(alerts: true);
         _timer.Tick += async (_, _) =>
         {
             if (RestartIfReplaced()) return;
             await PollAsync();
+            WelcomeOnFirstRun();
         };
         _timer.Start();
     }
@@ -63,13 +82,15 @@ internal sealed class TrayContext : ApplicationContext
         {
             var watching = _window is { IsDisposed: false, Visible: true };
             var stamp = _activityStamp;
-            var (snapshot, activity, activityProblem, newStamp) = await Task.Run(() =>
+            var (snapshot, review, activity, activityProblem, newStamp) = await Task.Run(() =>
             {
+                var review = _reviewStore.Refresh();
                 var feed = AlertSnapshot.Read(_path);
                 var (lines, problem, written) = watching ? ReadActivity(stamp) : (null, null, stamp);
-                return (feed, lines, problem, written);
+                return (feed, review, lines, problem, written);
             });
             if (_exiting) return;
+            _review = review;
             _activityStamp = newStamp;
             if (activity is not null || activityProblem is not null) _window?.UpdateActivity(activity, activityProblem);
             _snapshot = snapshot;
@@ -79,12 +100,17 @@ internal sealed class TrayContext : ApplicationContext
             _statusText = fresh ? $"Hub connected • {running} module(s) running" + (attention ? " • module needs attention" : "")
                 : $"Hub offline or feed stale • last update {snapshot.HeartbeatAt.ToLocalTime():g}";
             _status.Text = fresh ? "Hub connected" : "Hub offline or feed stale";
-            _icon.Text = (fresh ? "WatchLattice: hub connected" : "WatchLattice: hub offline")
-                + (snapshot.Update is null ? "" : " • update available");
-            _icon.Icon = fresh && !attention ? SystemIcons.Shield : SystemIcons.Warning;
+            ShowStatus(TrayStatus.Evaluate(snapshot, review, DateTimeOffset.UtcNow));
 
             var alerts = _cursor.Observe(snapshot);
-            if (alerts.Count > 0)
+            _critical?.Prune(IsNew);
+            var critical = alerts.Where(a => a.Severity == AlertSeverity.Critical && IsNew(a)).ToArray();
+            if (critical.Length > 0 && _preferences.PopUpCriticalAlerts)
+            {
+                // The window replaces the balloon: it says more, and Focus assist can't hide it.
+                ShowCritical(critical);
+            }
+            else if (alerts.Count > 0)
             {
                 var mostSevere = alerts.OrderByDescending(a => a.Severity).ThenByDescending(a => a.At).First();
                 var title = alerts.Count == 1 ? mostSevere.Title : $"{alerts.Count} new WatchLattice alerts";
@@ -101,11 +127,92 @@ internal sealed class TrayContext : ApplicationContext
             if (_exiting) return;
             _statusText = "Alert feed unavailable: " + ex.Message;
             _status.Text = "Alert feed unavailable";
-            _icon.Text = "WatchLattice: alert feed unavailable";
-            _icon.Icon = SystemIcons.Warning;
+            // A critical alert from the last good read still shows red.
+            ShowStatus(TrayStatus.Evaluate(_snapshot, _review, DateTimeOffset.UtcNow, ex.Message));
             UpdateWindow();
         }
         finally { _reading = false; }
+    }
+
+    /// <summary>After the first read of the feed, shows the welcome unless this user has closed it before.</summary>
+    private void WelcomeOnFirstRun()
+    {
+        if (_welcomeChecked || _exiting) return;
+        _welcomeChecked = true;
+        if (!_preferences.WelcomeSeen) ShowWelcome();
+    }
+
+    private void ShowStatus(TrayStatus status)
+    {
+        _icon.Icon = _icons.For(status.Level);
+        _icon.Text = status.Tooltip;
+    }
+
+    /// <summary>True while the user hasn't acknowledged or dismissed this occurrence.</summary>
+    private bool IsNew(ProtectionAlert alert) =>
+        _review.Find(AlertGrouping.KeyFor(alert)) is not { } mark || alert.At > mark.ReviewedThrough;
+
+    private void ShowCritical(IReadOnlyList<ProtectionAlert> alerts)
+    {
+        if (_critical is null || _critical.IsDisposed)
+        {
+            _critical = new CriticalAlertWindow();
+            _critical.DashboardRequested += () => OpenWindow(alerts: true);
+            _critical.AcknowledgeRequested += async shown => await AcknowledgeAsync(shown);
+            _critical.PopUpChanged += on => _popUpCritical.Checked = on;
+        }
+        _critical.Add(alerts, _preferences.PopUpCriticalAlerts);
+    }
+
+    /// <summary>Marks the window's alerts as seen, the same way the dashboard's Acknowledge does.</summary>
+    private async Task AcknowledgeAsync(IReadOnlyList<ProtectionAlert> shown)
+    {
+        var groups = shown.GroupBy(AlertGrouping.KeyFor).Select(g => (g.Key, g.Max(a => a.At))).ToArray();
+        try
+        {
+            _review = await Task.Run(() => _reviewStore.Update(set => set.Mark(groups, dismiss: false, DateTimeOffset.UtcNow)));
+        }
+        catch (Exception ex) when (ex is IOException or UnauthorizedAccessException or InvalidDataException)
+        {
+            if (_exiting) return;
+            MessageBox.Show(_critical, ex.Message, "Could not save acknowledged alerts", MessageBoxButtons.OK, MessageBoxIcon.Warning);
+            return;
+        }
+        if (_exiting) return;
+        _critical?.Prune(IsNew);
+        if (_snapshot is not null) ShowStatus(TrayStatus.Evaluate(_snapshot, _review, DateTimeOffset.UtcNow));
+    }
+
+    private void SetPopUp(bool on)
+    {
+        if (_preferences.PopUpCriticalAlerts == on) return;
+        _preferences = _preferences with { PopUpCriticalAlerts = on };
+        SavePreferences();
+    }
+
+    private void ShowWelcome()
+    {
+        if (_welcome is null || _welcome.IsDisposed)
+        {
+            _welcome = new WelcomeWindow(_icons);
+            _welcome.DashboardRequested += () => OpenWindow();
+            _welcome.FormClosed += (_, _) =>
+            {
+                if (_preferences.WelcomeSeen || _exiting) return;
+                _preferences = _preferences with { WelcomeSeen = true };
+                SavePreferences();
+            };
+        }
+        _welcome.ShowModules(_snapshot);
+        _welcome.Show();
+        if (_welcome.WindowState == FormWindowState.Minimized) _welcome.WindowState = FormWindowState.Normal;
+        _welcome.Activate();
+    }
+
+    private void SavePreferences()
+    {
+        if (_preferences.Save() is { } problem)
+            _icon.ShowBalloonTip(8000, "WatchLattice", Clip(problem, 240), ToolTipIcon.Warning);
     }
 
     /// <summary>
@@ -257,6 +364,9 @@ internal sealed class TrayContext : ApplicationContext
         _icon.Dispose();
         _menu.Dispose();
         _window?.Dispose();
+        _critical?.Dispose();
+        _welcome?.Dispose();
+        _icons.Dispose();
         base.ExitThreadCore();
     }
 

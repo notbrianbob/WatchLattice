@@ -297,6 +297,23 @@ update host.
    from a Command Prompt. Within the check interval, the alert for it says
    *values that look like passwords or tokens hidden* and shows
    `-Password [hidden]`. The Security log record still has the full line.
+3. **The tray icon follows the state.** With the hub running and nothing new,
+   the icon is a green shield with a tick, and hovering says *nothing new*.
+   Stop the service (`sc.exe stop "ScanAlways Protection"` from an
+   administrator prompt): within a minute the icon turns grey with a dash.
+   Start it again and it turns green. At 200% display scaling the icon is
+   still sharp.
+4. **A critical alert opens a window.** Start typing in Notepad, then, from
+   another window, rename one of the hidden canary files on your Desktop and
+   rename it back (a canary rename is a critical alert). A red-headed window opens in the bottom right, above Notepad, and what you
+   type still goes to Notepad. The icon is red. **Acknowledge** closes the
+   window and the icon goes back to green (or amber if other warnings are
+   new). Untick **Open this window for critical alerts**, trigger again: a
+   balloon appears instead, and the tray menu item is unticked too.
+5. **The welcome shows once.** Delete
+   `%LOCALAPPDATA%\ScanAlways\tray-preferences.json`, exit and restart the
+   tray. The welcome opens and lists the running modules. Close it, restart the
+   tray: it does not open again. **About WatchLattice…** opens it.
 
 ## Already covered
 

@@ -101,7 +101,7 @@ public sealed class AlertReviewSet
 
 /// <summary>
 /// The signed-in user's acknowledged and dismissed alerts, in their own
-/// profile. Only the dashboard reads or writes it; the hub, the feed and the
+/// profile. Only the dashboard and the tray's critical alert window read or write it; the hub, the feed and the
 /// Event Log never see it. Does file I/O; call off the UI thread.
 /// </summary>
 public sealed class AlertReviewStore

@@ -757,40 +757,7 @@ internal sealed class DashboardWindow : Form
     /// Windows screen; none changes a setting, deletes a file or acts on the alert
     /// (see SafeActionLauncher). Starting a Defender scan asks first.
     /// </summary>
-    private void ShowSafeActions(AlertGuidance? guidance)
-    {
-        _safeActions.SuspendLayout();
-        foreach (Control old in _safeActions.Controls.Cast<Control>().ToArray())
-        {
-            _safeActions.Controls.Remove(old);
-            old.Dispose();
-        }
-        if (guidance is { Actions.Count: > 0 })
-        {
-            _safeActions.Controls.Add(new Label { Text = "Help with this alert:", AutoSize = true, Margin = new Padding(3, 7, 3, 0) });
-            foreach (var action in guidance.Actions)
-            {
-                var button = new Button { Text = action.Label, AutoSize = true };
-                button.Click += (_, _) => RunSafeAction(action);
-                _safeActions.Controls.Add(button);
-            }
-        }
-        _safeActions.Visible = _safeActions.Controls.Count > 0;
-        _safeActions.ResumeLayout();
-    }
-
-    private void RunSafeAction(SafeAction action)
-    {
-        if (SafeActionLauncher.NeedsConfirmation(action.Kind)
-            && MessageBox.Show(this,
-                "Start a Microsoft Defender quick scan now? A console window shows its progress and result. It usually takes a few minutes and you can keep working.",
-                "Run a Defender quick scan", MessageBoxButtons.OKCancel, MessageBoxIcon.Question) != DialogResult.OK)
-        {
-            return;
-        }
-        if (SafeActionLauncher.Launch(action) is { } problem)
-            MessageBox.Show(this, problem, action.Label, MessageBoxButtons.OK, MessageBoxIcon.Warning);
-    }
+    private void ShowSafeActions(AlertGuidance? guidance) => SafeActionUi.Fill(_safeActions, guidance, this);
 
     /// <summary>The MITRE ATT&amp;CK techniques an alert is evidence of, as one details line; empty when unmapped.</summary>
     private static string AttackLine(ProtectionAlert alert)
