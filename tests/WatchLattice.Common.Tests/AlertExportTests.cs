@@ -53,7 +53,7 @@ public sealed class AlertExportTests : IDisposable
         Assert.StartsWith("2026-10-17T16:09:00.0000000Z,2026-10-17T16:09:00.0000000Z,1,Critical,Persistence,ENTRY_CHANGED,Firewall,", lines[1]);
         Assert.Contains(",\"'=cmd|'/C calc'!A0, then more\",", lines[2]);
         Assert.Contains(",2,Warning,", lines[2]);
-        Assert.EndsWith($",New,2,{alerts[1].Id},5003", lines[2]);
+        Assert.EndsWith($",New,2,{alerts[1].Id},5003,", lines[2]);
     }
 
     [Fact]
@@ -75,9 +75,27 @@ public sealed class AlertExportTests : IDisposable
         var row = Assert.Single(root.GetProperty("rows").EnumerateArray());
         Assert.Equal("1 new", row.GetProperty("status").GetString());
         Assert.Equal(5003, row.GetProperty("eventId").GetInt32());
+        Assert.Empty(row.GetProperty("attackTechniques").EnumerateArray());
         Assert.Equal(alerts[1].Id, row.GetProperty("alertId").GetGuid());
         Assert.Equal(new[] { alerts[1].Id, alerts[0].Id },
             row.GetProperty("occurrences").EnumerateArray().Select(o => o.GetProperty("id").GetGuid()));
+    }
+
+    [Fact]
+    public void Exports_CarryTheAttackTechniques_OfAMappedAlert()
+    {
+        var alert = Alert(0, resource: @"Registry/HKLM/Registry64/Run/Updater") with { Code = "ENTRY_ADDED" };
+        var rows = AlertGrouping.Build(new[] { alert }, AlertReviewSet.Empty);
+
+        using var csv = new StringWriter();
+        AlertExport.Write(csv, rows, AlertExportFormat.Csv, grouped: true, Start);
+        Assert.EndsWith(",5002,T1547.001", csv.ToString().Split("\r\n")[1]);
+
+        using var json = new StringWriter();
+        AlertExport.Write(json, rows, AlertExportFormat.Json, grouped: true, Start);
+        using var parsed = JsonDocument.Parse(json.ToString());
+        var row = Assert.Single(parsed.RootElement.GetProperty("rows").EnumerateArray());
+        Assert.Equal(new[] { "T1547.001" }, row.GetProperty("attackTechniques").EnumerateArray().Select(e => e.GetString()));
     }
 
     [Fact]

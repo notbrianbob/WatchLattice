@@ -26,10 +26,50 @@ your hardware and your Defender configuration.
 - **Canary watcher.** No measurable CPU while armed and idle. Overwrite,
   rename and delete each raised an alert within 1 to 7 ms; the control file in
   the same folder raised none.
+- **Detection checks.** All 14 harmless, self-reverting changes (Run keys,
+  Startup folder, scheduled task, service, WMI filter, hosts, proxy,
+  firewall rule, Defender exclusion, Edge extension policy, an encoded
+  PowerShell launch and a canary) raised their expected alert on a fresh
+  Windows runner, and each undo was reported where the module reports one.
 - **Defender watchdog.** Readouts match the documented rules for each recorded
   state, and alerts fire once on change, not on every check. One live check
   (starting Windows PowerShell and running `Get-MpComputerStatus`) took about
   0.9 s, once every five minutes by default.
+
+## Detection checks
+
+Environment: `windows-latest` GitHub-hosted runner (Windows 10.0.26100, an
+elevated throwaway VM), run from the "Detection checks" job of
+[the Demos workflow](../.github/workflows/demos.yml) on 2026-11-17 for the
+pull request that added the checks, with `--include-defender` and
+`--include-audit-policy`. What each check changes, and why it is harmless,
+is in [detection-checks.md](detection-checks.md).
+
+**14 of 14 checks raised the expected alert, and every change was undone.**
+
+| Check | ATT&CK | Expected alert (Event ID) | Result | Found by one check in | Hub checks every | Undo reported |
+|---|---|---|---|---|---|---|
+| Run key value (current user) | [T1547.001](https://attack.mitre.org/techniques/T1547/001/) | `ENTRY_ADDED` (5002) | ✅ detected | 1.9 s | 5 min | yes (`ENTRY_REMOVED`) |
+| Run key value (all users) | [T1547.001](https://attack.mitre.org/techniques/T1547/001/) | `ENTRY_ADDED` (5002) | ✅ detected | 2.0 s | 5 min | yes (`ENTRY_REMOVED`) |
+| Startup folder file (current user) | [T1547.001](https://attack.mitre.org/techniques/T1547/001/) | `ENTRY_ADDED` (5002) | ✅ detected | 1.7 s | 5 min | yes (`ENTRY_REMOVED`) |
+| Scheduled task (disabled, never runs) | [T1053.005](https://attack.mitre.org/techniques/T1053/005/) | `ENTRY_ADDED` (5002) | ✅ detected | 1.6 s | 5 min | yes (`ENTRY_REMOVED`) |
+| Auto-start service (program does not exist) | [T1543.003](https://attack.mitre.org/techniques/T1543/003/) | `ENTRY_ADDED` (5002) | ✅ detected | 1.6 s | 5 min | yes (`ENTRY_REMOVED`) |
+| WMI event filter (no consumer, never runs anything) | [T1546.003](https://attack.mitre.org/techniques/T1546/003/) | `ENTRY_ADDED` (5002) | ✅ detected | 1.6 s | 5 min | yes (`ENTRY_REMOVED`) |
+| Hosts file line for a test domain | [T1557](https://attack.mitre.org/techniques/T1557/) (related) | `HOSTS_CHANGED` (8004) | ✅ detected | 0.0 s | 1 min | yes (`HOSTS_CHANGED`) |
+| Hosts file override of a protected domain | [T1685](https://attack.mitre.org/techniques/T1685/)<br>[T1557](https://attack.mitre.org/techniques/T1557/) (related) | `PROTECTED_HOST_OVERRIDDEN` (8002) | ✅ detected | 0.0 s | 1 min | yes (`PROTECTED_HOST_OVERRIDDEN_CLEARED`) |
+| Proxy server set (current user, proxy left off) | [T1557](https://attack.mitre.org/techniques/T1557/) (related) | `PROXY_CHANGED` (8006) | ✅ detected | 0.0 s | 1 min | yes (`PROXY_CHANGED`) |
+| Inbound allow firewall rule for a program that does not exist | [T1686.003](https://attack.mitre.org/techniques/T1686/003/) | `INBOUND_ALLOW_RULE_ADDED` (4012) | ✅ detected | 1.5 s | 5 min | not reported by design |
+| Microsoft Defender exclusion for a folder that does not exist | [T1685](https://attack.mitre.org/techniques/T1685/) | `EXCLUSION_ADDED` (3030) | ✅ detected | 0.9 s | 5 min | yes (`EXCLUSION_REMOVED`) |
+| Edge force-install policy for an extension that does not exist | [T1176.001](https://attack.mitre.org/techniques/T1176/001/) | `POLICY_EXTENSION_ADDED` (10006) | ✅ detected | 0.0 s | 5 min | yes (`POLICY_EXTENSION_REMOVED`) |
+| PowerShell started with an encoded command | [T1059.001](https://attack.mitre.org/techniques/T1059/001/) | `SCRIPT_HOST_LAUNCHED` (11005) | ✅ detected | 1.2 s | 30 s | not reported by design |
+| Canary file overwritten | [T1486](https://attack.mitre.org/techniques/T1486/) (related) | `CANARY_MODIFIED` (2001) | ✅ detected | 0.3 s | immediate (file events) | not reported by design |
+
+*Found by one check in* is how long the module's own check took once the
+change was made; in the hub the change is found at the module's next check,
+so up to *Hub checks every* later. A pass shows that the module's real code
+reports that kind of change on this machine. It is not a detection rate
+against real malware, which these checks do not run, and an attacker with
+administrator rights can stop the hub before making such a change.
 
 ## Run 2: Windows (GitHub Actions)
 

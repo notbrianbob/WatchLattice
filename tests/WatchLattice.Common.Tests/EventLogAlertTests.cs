@@ -135,13 +135,25 @@ public sealed class EventLogAlertTests
             "CANARY_RENAMED", AlertSeverity.Critical, "Canary tripped", "Renamed\u0007 to x.locked", @"C:\Users\me\Documents\a.docx");
         var data = EventLogAlertService.DataOf(alert);
 
-        Assert.Equal(9, data.Count);
+        Assert.Equal(10, data.Count);
         Assert.StartsWith("Canary tripped\r\n\r\nRenamed  to x.locked", data[0]);
         Assert.Contains(@"Resource: C:\Users\me\Documents\a.docx", data[0]);
         Assert.Contains("Alert code: CANARY_RENAMED", data[0]);
+        Assert.Contains("MITRE ATT&CK: T1486 Data Encrypted for Impact (related)", data[0]);
         Assert.Equal(new[] { "Canary", "CANARY_RENAMED", "Critical", "Canary tripped", "Renamed  to x.locked",
-            @"C:\Users\me\Documents\a.docx", alert.Id.ToString(), "2026-10-17T01:02:03.0000000Z" }, data.Skip(1));
+            @"C:\Users\me\Documents\a.docx", alert.Id.ToString(), "2026-10-17T01:02:03.0000000Z", "T1486" }, data.Skip(1));
         Assert.DoesNotContain("Resource:", EventLogAlertService.DataOf(alert with { Resource = null })[0]);
+    }
+
+    [Fact]
+    public void Data_LeavesTheAttackFieldsOut_ForAnUnmappedAlert()
+    {
+        var alert = new ProtectionAlert(Guid.NewGuid(), DateTimeOffset.UnixEpoch, "Hub", "DAILY_SUMMARY", AlertSeverity.Info, "Daily summary", "All quiet");
+        var data = EventLogAlertService.DataOf(alert);
+
+        Assert.Equal(10, data.Count);
+        Assert.DoesNotContain("MITRE ATT&CK", data[0]);
+        Assert.Equal("", data[9]);
     }
 
     [Fact]

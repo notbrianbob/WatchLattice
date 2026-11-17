@@ -10,6 +10,10 @@ protection rate. They measure signals and overhead, nothing more.
 
 The latest numbers are in [RESULTS.md](RESULTS.md).
 
+To check that each detection actually fires on a real Windows machine, see
+the [detection checks](detection-checks.md): harmless, self-reverting changes
+of each kind the modules watch for.
+
 ## Run them
 
 You need the [.NET 10 SDK](https://dotnet.microsoft.com/download/dotnet/10.0).

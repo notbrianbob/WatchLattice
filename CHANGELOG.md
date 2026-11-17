@@ -11,6 +11,25 @@ notes, followed by GitHub's generated list of pull requests. See
 
 ## [Unreleased]
 
+### Added
+
+- **MITRE ATT&CK IDs on alerts.** Alerts that are evidence of an adversary
+  technique now name it (Enterprise ATT&CK v20.1), for example T1547.001
+  for a new Run key value or T1685 for a Defender exclusion. The dashboard's
+  alert details show it, Event Log entries carry the IDs as a new tenth data
+  string and a line in their text, and exports have a new `AttackTechniques`
+  column. [ATT&CK coverage](docs/attack-coverage.md) lists every mapping,
+  says which are direct evidence and which only related, and lists the
+  techniques WatchLattice does not watch. Event IDs and the existing data
+  strings are unchanged.
+- **Detection checks** ([demos/detection-checks.md](demos/detection-checks.md)):
+  a harness that makes one harmless, self-reverting change of each kind the
+  modules watch for (14 checks), runs the real module code and records
+  whether it raised the expected alert. CI runs every check on a fresh
+  Windows runner, and the results are in
+  [demos/RESULTS.md](demos/RESULTS.md#detection-checks). Not part of the
+  release download.
+
 ## [0.9.0] - 2026-11-16
 
 ### Changed

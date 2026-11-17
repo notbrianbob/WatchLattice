@@ -93,6 +93,7 @@ spreadsheet or *JSON* for scripts and tickets.
 | `Status`, `NewCount` | Your review state, as the Status column shows it (*New*, *2 new*, *Acknowledged*, *Dismissed*). |
 | `AlertId` | The newest occurrence's ID, the same one the Event Log entry carries. |
 | `EventId` | Its [Event Log ID](event-log.md#event-ids). |
+| `AttackTechniques` | The [MITRE ATT&CK techniques](attack-coverage.md) the alert is evidence of (comma-separated in CSV, a list in JSON), or empty. |
 
 The JSON file also has `version` (1), `exportedAt`, `grouped`, the row and
 alert counts, and for each row an `occurrences` list with every alert's ID,
