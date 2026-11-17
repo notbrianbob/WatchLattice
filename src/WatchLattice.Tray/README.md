@@ -1,8 +1,9 @@
 # WatchLattice.Tray
 
 A Windows Forms notification-area companion for the WatchLattice hub. It reads
-the local shared alert feed and provides balloons, a connected/offline
-indicator, and the [dashboard](../../docs/dashboard.md): module status, alerts
+the local shared alert feed and provides a status icon (green, amber, red or
+grey, each with its own mark), a window for critical alerts, balloons for
+warnings, a first-run welcome, and the [dashboard](../../docs/dashboard.md): module status, alerts
 with repeats grouped and per-user acknowledge/dismiss, alert details with
 read-only persistence verification, the hub's recent activity,
 and its settings.

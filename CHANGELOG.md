@@ -47,6 +47,19 @@ notes, followed by GitHub's generated list of pull requests. See
 
 ### Added
 
+- **The tray icon shows what needs attention.** A green, amber, red or grey
+  shield, each with its own mark (tick, dot, exclamation mark, dash), replaces
+  the fixed icon, and the tooltip says what to look at, such as *1 critical
+  alert to review*. Acknowledging in the dashboard turns it green again. See
+  [the tray icon](docs/alerts-and-tray.md#the-tray-icon-critical-alerts-and-the-welcome).
+- **A window for critical alerts.** A critical alert opens a window over
+  other windows, with its guidance, safe actions and Acknowledge, instead of
+  a balloon that Focus assist can hide. It doesn't take the keyboard focus.
+  It can be turned off from the tray menu.
+- **First-run welcome.** The first start explains what WatchLattice watches,
+  what each icon means and which modules are running. **About
+  WatchLattice…** in the tray menu shows it again.
+
 - **What an alert means and what to do.** Every alert's details in the
   dashboard now start with a plain-language *What this means* and *What to
   do*, written for each alert type, and buttons that open the Windows

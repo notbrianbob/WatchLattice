@@ -12,7 +12,8 @@ Viewer, event forwarding and SIEMs. See [Event Log alerts](event-log.md) for
 the settings and event IDs.
 
 The tray is a separate, per-user Windows application. It reads the feed, shows
-new warnings/critical alerts as notification balloons, and opens the
+its state in the [icon's colour and shape](#the-tray-icon-critical-alerts-and-the-welcome),
+opens a window for new critical alerts, shows new warnings as notification balloons, and opens the
 [dashboard](dashboard.md) on double-click: module status, alert history and
 details, the hub's recent activity, and its settings. The dashboard groups
 repeated alerts into one row and lets you acknowledge or dismiss them; that
@@ -125,9 +126,44 @@ If the tray is not installed next to the hub, the banner still appears and
 explains how to run the update from the hub's folder. See the
 [updater README](../src/WatchLattice.Updater/README.md) for every step and its limits.
 
+## The tray icon, critical alerts and the welcome
+
+The tray icon is a shield whose colour **and** mark show the state, so it can
+be read without telling colours apart. Hovering shows a one-line summary,
+such as *WatchLattice: 1 critical alert to review • hub offline*.
+
+| Icon | Means |
+|---|---|
+| Green, tick | The hub is reporting, every module is fine, nothing new to review. |
+| Amber, dot | A warning you haven't acknowledged, or a module that failed, keeps restarting or stopped by itself. |
+| Grey, dash | The hub isn't reporting (service stopped, or the feed can't be read). Nothing is being watched. |
+| Red, exclamation mark | A critical alert you haven't acknowledged. This outranks grey: the alert is still true when the hub stops. |
+
+Acknowledging or dismissing in the dashboard turns the icon back to green. A
+later repeat of the same alert counts again, at its own severity.
+
+When a critical alert arrives, a window opens in the bottom corner of the
+screen, over other windows, with the alert, what it means, what to do, and
+its safe actions. It does not take the keyboard focus, so it can't swallow
+what you are typing, and Focus assist can't hide it the way it hides
+balloons. **Acknowledge** marks every critical alert in the window as seen,
+the same as in the dashboard. More critical alerts arriving while it is open
+are added to it. Turn the window off with its checkbox or the tray menu's
+**Open a window for critical alerts**; balloons are then used instead.
+
+The first time the tray starts, a welcome window explains what WatchLattice
+watches, that it works alongside Defender and removes nothing, what each icon
+means, how to keep the icon out of the hidden icons, and which modules are
+running. **About WatchLattice…** in the tray menu shows it again.
+
+Both choices are kept per user in `%LOCALAPPDATA%\ScanAlways\tray-preferences.json`.
+A damaged file falls back to the defaults: critical windows on, and the
+welcome shown again.
+
 ## Delivery behavior and limitations
 
-- Opening the tray displays existing history without replaying old balloons.
+- Opening the tray displays existing history without replaying old balloons
+  or critical windows; an unacknowledged critical alert still turns the icon red.
   New warnings and critical alerts are notified once while the tray runs.
   Multiple alerts in one poll are summarized in one balloon; all retained
   events remain available in the window. Information/recovery events do not
