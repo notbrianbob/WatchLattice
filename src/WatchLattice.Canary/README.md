@@ -87,6 +87,12 @@ or list your folders explicitly in `Folders`.
 - **Sync and backup tools.** OneDrive or similar may sync the canaries. That is
   harmless, but if a sync client ever rewrites a canary's content you'll get an
   alert; point `Folders` elsewhere if that happens.
+- **Junctioned folders are skipped.** The hub runs as LocalSystem, so it
+  refuses to write a canary through a junction or link: one a user made could
+  otherwise point it at a system file (see the
+  [threat model](../../docs/threat-model.md#elevation-of-privilege)). If you
+  moved a folder with `mklink /J`, list the folder's real path in `Folders`.
+  The log says *Did not plant canary* with the reason.
 - **Runs as you.** It can only watch folders your account can read, and it
   stops if malware kills the process. Running it as a service makes that
   harder, not impossible.

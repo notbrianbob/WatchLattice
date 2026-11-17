@@ -10,6 +10,10 @@
     <!-- Kept from the ScanAlways name: installed v0.1.0 updaters require
          Tray/ScanAlways.Tray.exe in every release package. See docs/releasing.md. -->
     <AssemblyName>ScanAlways.Tray</AssemblyName>
+    <!-- Hardening: never load a DOTNET_STARTUP_HOOKS assembly. The hub runs as
+         LocalSystem and the tray's settings editor runs elevated; neither should
+         run code named by an environment variable. See docs/threat-model.md. -->
+    <StartupHookSupport>false</StartupHookSupport>
   </PropertyGroup>
   <ItemGroup>
     <ProjectReference Include="../WatchLattice.Common/WatchLattice.Common.csproj" />

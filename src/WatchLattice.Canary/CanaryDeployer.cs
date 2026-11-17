@@ -117,7 +117,7 @@ public sealed class CanaryDeployer
         var removed = 0;
         foreach (var (path, hash) in _manifest.Files.ToList())
         {
-            if (Verify(path, hash) == CanaryState.Intact && TryDelete(path))
+            if (TryDelete(path, hash))
             {
                 _manifest.Files.Remove(path);
                 removed++;
@@ -137,23 +137,13 @@ public sealed class CanaryDeployer
         {
             var content = CanaryContent.Create(Path.GetFileName(path), _options.CanarySizeBytes);
 
-            if (File.Exists(path))
+            // The hub runs as LocalSystem and this folder belongs to the user, so
+            // the write must not follow a junction or link the user put there.
+            if (RedirectionSafeFile.Write(path, content, _options.MarkHidden) is { } refusal)
             {
-                // Ours (per the manifest) but tampered: clear read-only/hidden so we can rewrite it.
-                File.SetAttributes(path, FileAttributes.Normal);
-            }
-            File.WriteAllBytes(path, content);
-
-            if (_options.MarkHidden)
-            {
-                try
-                {
-                    File.SetAttributes(path, File.GetAttributes(path) | FileAttributes.Hidden);
-                }
-                catch (Exception ex) when (ex is IOException or UnauthorizedAccessException or PlatformNotSupportedException)
-                {
-                    // Cosmetic only.
-                }
+                _logger.LogWarning("Did not plant canary {Path}: {Reason}.", path, refusal.Reason);
+                _manifest.Files.Remove(path);
+                return false;
             }
 
             _manifest.Files[path] = Hash(content);
@@ -177,10 +167,7 @@ public sealed class CanaryDeployer
                 continue;
             }
 
-            if (Verify(path, hash) == CanaryState.Intact)
-            {
-                TryDelete(path);
-            }
+            TryDelete(path, hash);
             _manifest.Files.Remove(path);
         }
     }
@@ -215,12 +202,17 @@ public sealed class CanaryDeployer
         }
     }
 
-    private bool TryDelete(string path)
+    /// <summary>Deletes a canary only if it is still exactly what was planted, checked and deleted through one handle.</summary>
+    private bool TryDelete(string path, string expectedHash)
     {
         try
         {
-            File.SetAttributes(path, FileAttributes.Normal);
-            File.Delete(path);
+            if (!File.Exists(path)) return false;
+            if (RedirectionSafeFile.DeleteIf(path, content => Hash(content) == expectedHash, MaxCanaryBytes) is { } refusal)
+            {
+                _logger.LogInformation("Left canary {Path} in place: {Reason}.", path, refusal.Reason);
+                return false;
+            }
             _logger.LogInformation("Canary removed: {Path}", path);
             return true;
         }
@@ -242,6 +234,9 @@ public sealed class CanaryDeployer
             _logger.LogWarning("Could not save canary manifest {Path}: {Error}", _manifestPath, ex.Message);
         }
     }
+
+    // A canary is CanarySizeBytes, or a header plus 64 bytes if that is larger.
+    private int MaxCanaryBytes => Math.Max(_options.CanarySizeBytes, 0) + 1024;
 
     private static string Hash(byte[] content) => Convert.ToHexString(SHA256.HashData(content)).ToLowerInvariant();
 }

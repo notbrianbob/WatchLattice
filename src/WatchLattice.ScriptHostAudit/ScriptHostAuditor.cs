@@ -285,7 +285,7 @@ public sealed class ScriptHostAuditor : IDisposable
             launch.CommandLine is not { } commandLine
                 ? "Command line: not recorded (turn on \"Include command line in process creation events\")."
                 : _options.CommandLineInAlerts
-                    ? $"Command line: {Excerpt(Clean(commandLine), CommandLineExcerpt)}"
+                    ? CommandLineText(commandLine)
                     : $"Command line: {commandLine.Length} characters, left out because CommandLineInAlerts is off (see Security log record {launch.RecordId}).",
         };
         if (assessment.Reasons.Count > 0)
@@ -346,6 +346,13 @@ public sealed class ScriptHostAuditor : IDisposable
         var builder = new StringBuilder(text.Length);
         foreach (var c in text) builder.Append(char.IsControl(c) ? ' ' : c);
         return builder.ToString();
+    }
+
+    /// <summary>The command line for an alert, with likely passwords and tokens hidden (alerts are readable by every user).</summary>
+    private static string CommandLineText(string commandLine)
+    {
+        var (text, hidden) = CommandLineRedactor.Redact(Clean(commandLine));
+        return (hidden ? "Command line (values that look like passwords or tokens hidden): " : "Command line: ") + Excerpt(text, CommandLineExcerpt);
     }
 
     private static string Excerpt(string value, int limit) => value.Length <= limit ? value : value[..limit] + "… (truncated)";

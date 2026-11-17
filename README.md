@@ -55,6 +55,12 @@ detection and removal, and WatchLattice adds friction and tripwires around it.
 - Detecting or removing malware. WatchLattice modules observe, deceive, and
   alert; they do not quarantine or delete anything.
 
+**WatchLattice as a target.** The hub runs as LocalSystem, so it is also
+something to attack. The [threat model of WatchLattice itself](docs/threat-model.md)
+goes through each trust boundary (user to hub, hub to user, tray to elevated
+editor, internet to updater), says how each threat is handled, and lists what
+was found and fixed in the last review.
+
 ## Tools
 
 | Module | Status | What it does |

@@ -282,6 +282,22 @@ update host.
    and in again), no *removed* alerts appear for the signed-out user's
    entries.
 
+## Next release
+
+1. **Canaries skip a junctioned folder.** As a standard user, make a test
+   folder, add it to `Canary:Folders` with the editor, and let the hub plant
+   its canaries. Stop the hub. Rename the folder, then
+   `cmd /c mklink /J <folder> C:\Users\Public\Documents` and start the hub.
+   The canary log says *Did not plant canary ... a junction or link*, and
+   `C:\Users\Public\Documents` gets no canary files. Remove the junction,
+   rename the folder back and remove it from the settings.
+2. **Script host alerts hide secrets.** With the Script Host Audit and
+   process creation auditing on, run
+   `powershell -NoProfile -WindowStyle Hidden -Command "exit" -Password Hunter2`
+   from a Command Prompt. Within the check interval, the alert for it says
+   *values that look like passwords or tokens hidden* and shows
+   `-Password [hidden]`. The Security log record still has the full line.
+
 ## Already covered
 
 Steps 1 to 6 of [the dashboard checks](dashboard.md#what-needs-checking-on-windows)

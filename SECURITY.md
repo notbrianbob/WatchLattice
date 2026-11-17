@@ -43,6 +43,11 @@ service for others.
 
 ## What counts as a vulnerability
 
+[docs/threat-model.md](docs/threat-model.md) lists the threats already
+considered, how each is handled, and the limits we accept. Something it
+marks as mitigated that turns out not to be is exactly the kind of report we
+want.
+
 In scope:
 
 - Anything that lets WatchLattice be used to **weaken** a machine: for example,
