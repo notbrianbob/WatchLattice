@@ -8,8 +8,10 @@ name: Release
 #   SHA256SUMS.txt                       both of them; the updater checks the zip's line before installing
 #   WatchLattice-<version>-winget.zip    winget manifests for the MSI (packaging/winget), checked
 #                                        with `winget validate`; nothing is submitted to winget
+#   WatchLattice-<version>-sbom.cdx.json CycloneDX software bill of materials: every NuGet package
+#                                        and the bundled .NET runtime (.github/scripts/Write-Sbom.ps1)
 # with the tag's CHANGELOG.md section as the release notes,
-# plus a build provenance attestation for the zip and MSI (verify with `gh attestation verify`).
+# plus a build provenance attestation for the zip, MSI and SBOM (verify with `gh attestation verify`).
 #
 # When SignPath is configured (see docs/code-signing.md), the published
 # WatchLattice and ScanAlways executables and DLLs are Authenticode-signed
@@ -43,9 +45,8 @@ jobs:
       TAG: ${{ github.ref_name }}
 
     steps:
-      - uses: actions/checkout@v7
-
-      - uses: actions/setup-dotnet@v6
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      - uses: actions/setup-dotnet@0f4a354dd5547a28c70b7853dbd95d5b67886e73 # v6.1.0
         with:
           global-json-file: global.json
 
@@ -96,7 +97,7 @@ jobs:
       - name: Upload unsigned binaries for signing
         id: unsigned
         if: steps.signing.outputs.enabled == 'true'
-        uses: actions/upload-artifact@v7
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
         with:
           name: unsigned-${{ env.RELEASE_VERSION }}
           path: ${{ env.STAGE }}
@@ -105,7 +106,7 @@ jobs:
 
       - name: Sign with SignPath
         if: steps.signing.outputs.enabled == 'true'
-        uses: signpath/github-action-submit-signing-request@v3
+        uses: signpath/github-action-submit-signing-request@f6d04783b4569d051e0c80105fe66e82819d0092 # v3.0
         with:
           api-token: ${{ secrets.SIGNPATH_API_TOKEN }}
           organization-id: ${{ secrets.SIGNPATH_ORGANIZATION_ID }}
@@ -159,12 +160,16 @@ jobs:
           # The MSI installs the same staged (signed) files as the zip.
           .github/scripts/Build-Msi.ps1 -Stage $env:STAGE -Version $env:RELEASE_VERSION -OutFile "dist/WatchLattice-$env:RELEASE_VERSION-win-x64.msi"
 
+      - name: Software bill of materials
+        shell: pwsh
+        run: .github/scripts/Write-Sbom.ps1 -Version $env:RELEASE_VERSION -Stage $env:STAGE -OutFile "dist/WatchLattice-$env:RELEASE_VERSION-sbom.cdx.json"
+
       # The MSI file itself is signed in a second request, with its own
       # artifact configuration (.signpath/msi-artifact-configuration.xml).
       - name: Upload unsigned MSI for signing
         id: unsigned-msi
         if: steps.signing.outputs.enabled == 'true'
-        uses: actions/upload-artifact@v7
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
         with:
           name: unsigned-msi-${{ env.RELEASE_VERSION }}
           path: dist/WatchLattice-${{ env.RELEASE_VERSION }}-win-x64.msi
@@ -173,7 +178,7 @@ jobs:
 
       - name: Sign MSI with SignPath
         if: steps.signing.outputs.enabled == 'true'
-        uses: signpath/github-action-submit-signing-request@v3
+        uses: signpath/github-action-submit-signing-request@f6d04783b4569d051e0c80105fe66e82819d0092 # v3.0
         with:
           api-token: ${{ secrets.SIGNPATH_API_TOKEN }}
           organization-id: ${{ secrets.SIGNPATH_ORGANIZATION_ID }}
@@ -221,9 +226,11 @@ jobs:
           Compress-Archive -Path (Join-Path $manifests '*.yaml') -DestinationPath "dist/WatchLattice-$env:RELEASE_VERSION-winget.zip"
 
       - name: Attest build provenance
-        uses: actions/attest-build-provenance@v4
+        uses: actions/attest-build-provenance@4d101475d8b20a2381f78447822ac1eab6504dd8 # v4.2.2
         with:
-          subject-path: dist/WatchLattice-*-win-x64.*
+          subject-path: |
+            dist/WatchLattice-*-win-x64.*
+            dist/WatchLattice-*-sbom.cdx.json
 
       - name: Create GitHub release
         shell: pwsh
@@ -243,4 +250,4 @@ jobs:
           }
           $global:LASTEXITCODE = 0
           if ($env:RELEASE_VERSION.Contains('-')) { $flags += '--prerelease' }
-          gh release create $env:TAG dist/WatchLattice-$env:RELEASE_VERSION-win-x64.zip dist/WatchLattice-$env:RELEASE_VERSION-win-x64.msi dist/SHA256SUMS.txt dist/WatchLattice-$env:RELEASE_VERSION-winget.zip @flags
+          gh release create $env:TAG dist/WatchLattice-$env:RELEASE_VERSION-win-x64.zip dist/WatchLattice-$env:RELEASE_VERSION-win-x64.msi dist/SHA256SUMS.txt dist/WatchLattice-$env:RELEASE_VERSION-winget.zip dist/WatchLattice-$env:RELEASE_VERSION-sbom.cdx.json @flags

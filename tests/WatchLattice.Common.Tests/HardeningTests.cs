@@ -26,6 +26,19 @@ public sealed class HardeningTests
         Assert.DoesNotContain("| Open |", text);
     }
 
+    [Fact]
+    public void EveryWorkflowAction_IsPinnedToACommit()
+    {
+        // docs/supply-chain.md: a moved tag must not change what CI or a release runs.
+        var unpinned = Directory.EnumerateFiles(Path.Join(RepoRoot(), ".github", "workflows"), "*.yml")
+            .SelectMany(file => File.ReadLines(file).Select((line, i) => (file, line, i)))
+            .Where(x => System.Text.RegularExpressions.Regex.IsMatch(x.line, @"^\s*-?\s*uses:\s"))
+            .Where(x => !System.Text.RegularExpressions.Regex.IsMatch(x.line, @"uses:\s+\S+@[0-9a-f]{40}\s+#\s+v\d"))
+            .Select(x => $"{Path.GetFileName(x.file)}:{x.i + 1}: {x.line.Trim()}")
+            .ToList();
+        Assert.True(unpinned.Count == 0, "Pin these to a full commit SHA with a version comment:\n" + string.Join("\n", unpinned));
+    }
+
     private static string RepoRoot()
     {
         for (var dir = new DirectoryInfo(AppContext.BaseDirectory); dir is not null; dir = dir.Parent)

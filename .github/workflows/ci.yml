@@ -29,9 +29,8 @@ jobs:
       DOTNET_CLI_TELEMETRY_OPTOUT: true
 
     steps:
-      - uses: actions/checkout@v7
-
-      - uses: actions/setup-dotnet@v6
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      - uses: actions/setup-dotnet@0f4a354dd5547a28c70b7853dbd95d5b67886e73 # v6.1.0
         with:
           global-json-file: global.json
 
@@ -46,7 +45,7 @@ jobs:
 
       - name: Upload test results
         if: always()
-        uses: actions/upload-artifact@v7
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
         with:
           name: test-results-${{ matrix.os }}
           path: TestResults/*.trx
@@ -60,9 +59,8 @@ jobs:
       DOTNET_CLI_TELEMETRY_OPTOUT: true
 
     steps:
-      - uses: actions/checkout@v7
-
-      - uses: actions/setup-dotnet@v6
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      - uses: actions/setup-dotnet@0f4a354dd5547a28c70b7853dbd95d5b67886e73 # v6.1.0
         with:
           global-json-file: global.json
 
@@ -93,6 +91,11 @@ jobs:
           Write-Host 'Install integrity check reported the changed file.'
           $global:LASTEXITCODE = 0
 
+      # The release publishes this SBOM; writing it here keeps the script working.
+      - name: Software bill of materials
+        shell: pwsh
+        run: .github/scripts/Write-Sbom.ps1 -Version 0.0.1-ci -Stage (Join-Path $env:RUNNER_TEMP 'package') -OutFile (Join-Path $env:RUNNER_TEMP 'sbom/WatchLattice-0.0.1-ci-sbom.cdx.json')
+
       # Windows PowerShell 5.1, which is what users run install.ps1 with.
       - name: Install, reinstall and uninstall
         shell: powershell
@@ -106,9 +109,8 @@ jobs:
       DOTNET_CLI_TELEMETRY_OPTOUT: true
 
     steps:
-      - uses: actions/checkout@v7
-
-      - uses: actions/setup-dotnet@v6
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      - uses: actions/setup-dotnet@0f4a354dd5547a28c70b7853dbd95d5b67886e73 # v6.1.0
         with:
           global-json-file: global.json
 
@@ -152,7 +154,7 @@ jobs:
 
       - name: Upload MSI logs
         if: always()
-        uses: actions/upload-artifact@v7
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
         with:
           name: msi-logs
           path: ${{ runner.temp }}/msi-logs
@@ -162,8 +164,7 @@ jobs:
     name: Changelog
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v7
-
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
       # The release workflow turns a tag's CHANGELOG.md section into its
       # release notes; check every released version's section still reads.
       - name: Every version has release notes
