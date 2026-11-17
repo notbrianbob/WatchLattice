@@ -31,9 +31,9 @@ public static class Scenarios
     private const string ForcelistKey = EdgePolicyKey + @"\ExtensionInstallForcelist";
     private const string ProcessCreationGuid = "{0CCE922B-69AE-11D9-BED3-505054503030}";
 
-    public static string StartupFile => Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.Startup), Marker + ".txt");
+    public static string StartupFile => Path.Join(Environment.GetFolderPath(Environment.SpecialFolder.Startup), Marker + ".txt");
     public static string MissingExclusionFolder => @"C:\" + Marker + "-does-not-exist";
-    public static string HostsPath => Path.Combine(Environment.SystemDirectory, @"drivers\etc\hosts");
+    public static string HostsPath => Path.Join(Environment.SystemDirectory, @"drivers\etc\hosts");
 
     public static IReadOnlyList<Scenario> All(CheckArgs args) => new List<Scenario>
     {

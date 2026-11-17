@@ -58,12 +58,11 @@ public static class Plan
                 Outcome.Error => "⚠️ error: " + Cell(r.Detail),
                 _ => "skipped: " + Cell(r.Detail),
             };
-            var undo = r.RevertReported switch
-            {
-                true => $"yes (`{r.Scenario.ExpectedRevertCode}`)",
-                false => $"no `{r.Scenario.ExpectedRevertCode}`",
-                null => r.Scenario.ExpectedRevertCode is null ? "not reported by design" : "-",
-            };
+            string undo;
+            if (r.RevertReported is { } reported)
+                undo = reported ? $"yes (`{r.Scenario.ExpectedRevertCode}`)" : $"no `{r.Scenario.ExpectedRevertCode}`";
+            else
+                undo = r.Scenario.ExpectedRevertCode is null ? "not reported by design" : "-";
             if (r.CleanupProblem is not null) undo += " ⚠️ " + Cell(r.CleanupProblem);
             md.AppendLine($"| {r.Scenario.Name} | {Techniques(r.Scenario.Techniques(r.Alert?.Resource))} | `{r.Scenario.ExpectedCode}` ({r.Scenario.EventId}) | {result} "
                 + $"| {(r.CheckDuration is { } d ? Inv($"{d.TotalSeconds:F1} s") : "-")} | {HubInterval(r.Scenario.Probe)} | {undo} |");

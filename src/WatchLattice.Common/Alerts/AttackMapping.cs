@@ -220,8 +220,10 @@ public static class AttackMapping
         get
         {
             foreach (var code in PersistenceChangeCodes.Order(StringComparer.Ordinal))
-            foreach (var (prefix, technique) in PersistenceSources)
-                yield return ("Persistence", code, $"source `{prefix}…`", new[] { D(technique) });
+            {
+                foreach (var (prefix, technique) in PersistenceSources)
+                    yield return ("Persistence", code, $"source `{prefix}…`", new[] { D(technique) });
+            }
             foreach (var (host, tags) in ScriptHosts)
                 yield return ("ScriptHostAudit", "SCRIPT_HOST_LAUNCHED", $"host `{host}`", tags);
             yield return ("ScriptHostAudit", "SCRIPT_HOST_LAUNCHED", "any other host", new[] { R(CommandAndScriptingInterpreter) });

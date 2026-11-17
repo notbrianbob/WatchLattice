@@ -57,18 +57,31 @@ static async Task<int> RunWindowsAsync(CheckArgs parsed, IReadOnlyList<Scenario>
     };
 
     Directory.CreateDirectory(parsed.OutputDir);
-    var work = Path.Combine(Path.GetTempPath(), "watchlattice-detection-checks-" + Guid.NewGuid().ToString("N")[..8]);
+    var work = Path.Join(Path.GetTempPath(), "watchlattice-detection-checks-" + Guid.NewGuid().ToString("N")[..8]);
     Directory.CreateDirectory(work);
     var runner = new Runner(work, elevated);
     var results = await runner.RunAsync(scenarios, cts.Token);
     var summary = Plan.Summarize(results, parsed, elevated);
-    File.WriteAllText(Path.Combine(parsed.OutputDir, "summary.md"), summary);
-    File.WriteAllText(Path.Combine(parsed.OutputDir, "results.json"), Plan.ToJson(results));
+    File.WriteAllText(Path.Join(parsed.OutputDir, "summary.md"), summary);
+    File.WriteAllText(Path.Join(parsed.OutputDir, "results.json"), Plan.ToJson(results));
     Console.WriteLine();
     Console.WriteLine(summary);
-    try { Directory.Delete(work, recursive: true); } catch (IOException) { } catch (UnauthorizedAccessException) { }
+    DeleteWorkFolder(work);
 
     return results.Any(r => r.Outcome is Outcome.Missed or Outcome.Error || r.CleanupProblem is not null) ? 1 : 0;
+}
+
+// Best effort: the folder only holds throwaway module state, so a leftover copy in %TEMP% is harmless.
+static void DeleteWorkFolder(string work)
+{
+    try
+    {
+        Directory.Delete(work, recursive: true);
+    }
+    catch (Exception ex) when (ex is IOException or UnauthorizedAccessException)
+    {
+        Console.WriteLine($"Left the scratch folder {work} in place: {ex.Message}");
+    }
 }
 
 static async Task<string?> Safely(Func<Task> action)

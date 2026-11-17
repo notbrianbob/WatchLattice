@@ -56,17 +56,26 @@ public abstract class Probe : IDisposable
         return Alerts.Take();
     }
 
-    public virtual void Dispose() { }
+    public virtual void Dispose()
+    {
+        // Most probes hold nothing that needs releasing.
+    }
+
+    private static CanaryProbe CreateCanary(CapturingPublisher alerts, string folder)
+    {
+        CanaryProbe.Prepare(folder);
+        return new CanaryProbe(alerts, folder);
+    }
 
     public static Probe Create(ProbeKind kind, string workDir)
     {
-        var folder = Path.Combine(workDir, kind.ToString());
+        var folder = Path.Join(workDir, kind.ToString());
         Directory.CreateDirectory(folder);
         var alerts = new CapturingPublisher();
         return kind switch
         {
             ProbeKind.Persistence => new PersistenceProbe(alerts, folder),
-            ProbeKind.Canary => new CanaryProbe(alerts, folder),
+            ProbeKind.Canary => CreateCanary(alerts, folder),
             _ => new HostedProbe(kind, alerts, folder),
         };
     }
@@ -80,7 +89,7 @@ public sealed class PersistenceProbe : Probe
     {
         var options = Options.Create(new PersistenceOptions
         {
-            BaselinePath = Path.Combine(folder, "persistence-baseline.json"),
+            BaselinePath = Path.Join(folder, "persistence-baseline.json"),
             WatchRegistry = true,
             WatchStartupFolders = true,
             WatchScheduledTasks = true,
@@ -103,7 +112,7 @@ public sealed class HostedProbe : Probe
     public HostedProbe(ProbeKind kind, CapturingPublisher alerts, string folder) : base(alerts)
     {
         _kind = kind;
-        string P(string name) => Path.Combine(folder, name);
+        string P(string name) => Path.Join(folder, name);
         var settings = kind switch
         {
             ProbeKind.HostsProxy => new Dictionary<string, string?>
@@ -170,19 +179,22 @@ public sealed class HostedProbe : Probe
 public sealed class CanaryProbe : Probe
 {
     private static string? _documents;
+
+    /// <summary>The throwaway folder the canaries go in, set before the probe is built so the check can find them.</summary>
+    public static void Prepare(string folder) => _documents = Path.Join(folder, "Documents");
     private readonly CanaryWatcher _watcher;
     private readonly CancellationTokenSource _stop = new();
     private readonly Task _run;
 
     public CanaryProbe(CapturingPublisher alerts, string folder) : base(alerts)
     {
-        _documents = Path.Combine(folder, "Documents");
-        Directory.CreateDirectory(_documents);
+        var documents = _documents ?? throw new InvalidOperationException("Call CanaryProbe.Prepare first.");
+        Directory.CreateDirectory(documents);
         var options = new CanaryOptions
         {
-            Folders = new List<string> { _documents },
-            AlertLogPath = Path.Combine(folder, "canary-alerts.log"),
-            ManifestPath = Path.Combine(folder, "canary-manifest.json"),
+            Folders = new List<string> { documents },
+            AlertLogPath = Path.Join(folder, "canary-alerts.log"),
+            ManifestPath = Path.Join(folder, "canary-manifest.json"),
         };
         _watcher = new CanaryWatcher(Options.Create(options), NullLogger<CanaryWatcher>.Instance, alerts);
         _run = Task.Run(() => _watcher.RunAsync(_stop.Token));
@@ -210,7 +222,14 @@ public sealed class CanaryProbe : Probe
     public override void Dispose()
     {
         _stop.Cancel();
-        try { _run.Wait(TimeSpan.FromSeconds(10)); } catch (AggregateException) { }
+        try
+        {
+            _run.Wait(TimeSpan.FromSeconds(10));
+        }
+        catch (AggregateException ex)
+        {
+            Console.WriteLine("The canary watcher stopped with an error: " + ex.InnerException?.Message);
+        }
         _watcher.Dispose();
         _stop.Dispose();
     }

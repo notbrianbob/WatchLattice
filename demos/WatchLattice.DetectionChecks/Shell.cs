@@ -43,7 +43,7 @@ public static class Shell
     /// <summary>Runs a script in Windows PowerShell 5.1 (always present) from a temporary file, so no encoded command is involved.</summary>
     public static async Task PowerShellAsync(string script)
     {
-        var path = Path.Combine(Path.GetTempPath(), $"{Scenarios.Marker}-{Guid.NewGuid():N}.ps1");
+        var path = Path.Join(Path.GetTempPath(), $"{Scenarios.Marker}-{Guid.NewGuid():N}.ps1");
         await File.WriteAllTextAsync(path, "$ErrorActionPreference = 'Stop'\r\n" + script, new System.Text.UTF8Encoding(encoderShouldEmitUTF8Identifier: true));
         try
         {
