@@ -84,7 +84,10 @@ public sealed class RedirectionTests
         var options = temp.Options("a.docx", "b.pdf");
         var deployer = new CanaryDeployer(options, NullLogger.Instance);
         deployer.Deploy();
-        File.WriteAllText(Path.Join(temp.Watched, "b.pdf"), "encrypted");
+        // Windows refuses to truncate a hidden file by path, so clear the canary's hidden attribute first.
+        var changed = Path.Join(temp.Watched, "b.pdf");
+        File.SetAttributes(changed, FileAttributes.Normal);
+        File.WriteAllText(changed, "encrypted");
 
         Assert.Equal(1, deployer.RemoveAll());
 
