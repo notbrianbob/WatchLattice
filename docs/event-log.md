@@ -68,7 +68,7 @@ WEF forwards) holds these strings, in this order:
 
 | # | Data |
 |---|---|
-| 1 | Readable text: title, message, module, alert code, severity, resource (when there is one), alert ID and time. This is what Event Viewer's General tab shows. |
+| 1 | Readable text: title, message, module, alert code, severity, resource (when there is one), MITRE ATT&CK techniques (when mapped), alert ID and time. This is what Event Viewer's General tab shows. |
 | 2 | Module ID, e.g. `DefenderWatchdog` |
 | 3 | Alert code, e.g. `REALTIME_OFF` |
 | 4 | Severity: `Info`, `Warning` or `Critical` |
@@ -77,6 +77,7 @@ WEF forwards) holds these strings, in this order:
 | 7 | Resource (a path, rule, profile or setting), or empty |
 | 8 | Alert ID (a GUID, the same one the tray feed uses) |
 | 9 | Time the alert was raised, UTC, ISO 8601 |
+| 10 | MITRE ATT&CK technique IDs the alert is evidence of, comma-separated (e.g. `T1547.001`), or empty. See [ATT&CK coverage](attack-coverage.md). Added in 0.10.0. |
 
 New fields are only ever appended. Alert text can include file names chosen by
 whoever created the file, so treat it as data: control characters are replaced

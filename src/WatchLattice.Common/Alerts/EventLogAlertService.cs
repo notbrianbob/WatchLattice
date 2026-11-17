@@ -168,6 +168,8 @@ public sealed class EventLogAlertService : BackgroundService, IAlertSink
             .Append("Alert code: ").Append(alert.Code).Append("\r\n")
             .Append("Severity: ").Append(alert.Severity).Append("\r\n");
         if (!string.IsNullOrEmpty(alert.Resource)) text.Append("Resource: ").Append(alert.Resource).Append("\r\n");
+        var attack = AttackMapping.For(alert.Module, alert.Code, alert.Resource);
+        if (attack.Count > 0) text.Append("MITRE ATT&CK: ").Append(AttackMapping.Describe(attack)).Append("\r\n");
         text.Append("Alert ID: ").Append(alert.Id).Append("\r\n")
             .Append("Time (UTC): ").Append(at);
 
@@ -175,6 +177,7 @@ public sealed class EventLogAlertService : BackgroundService, IAlertSink
         {
             Clean(text.ToString()), Clean(alert.Module), Clean(alert.Code), alert.Severity.ToString(),
             Clean(alert.Title), Clean(alert.Message), Clean(alert.Resource ?? ""), alert.Id.ToString(), at,
+            AttackMapping.Ids(attack),
         };
     }
 

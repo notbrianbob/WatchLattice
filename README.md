@@ -79,6 +79,9 @@ is checked, backed up, and rolled back if the hub does not keep running. See
 Every alert is also written to the Windows **Application** event log under the
 source `WatchLattice`, with a stable event ID per alert type, so Event Viewer,
 Windows Event Forwarding and SIEM agents can pick it up. See [Event Log alerts](docs/event-log.md).
+Alerts that are evidence of an adversary technique carry its MITRE ATT&CK ID
+(for example T1547.001 for a new Run key value), with what that does and
+doesn't mean, in [ATT&CK coverage](docs/attack-coverage.md).
 
 The **Update Checker** ([`src/WatchLattice.Updater`](src/WatchLattice.Updater/)) runs
 in the hub too. It checks this repository's GitHub Releases, tells you in the
@@ -130,6 +133,13 @@ decoy's CPU, read I/O and memory at each intensity, a canary being tripped
 readout for healthy and degraded states. They show signals and costs, not
 protection against real malware, which these demos do not test. Latest
 numbers: [demos/RESULTS.md](demos/RESULTS.md).
+
+The [detection checks](demos/detection-checks.md) make one harmless,
+self-reverting change of each kind the modules watch for (a Run key value
+for a program that does not exist, a disabled scheduled task, a firewall
+rule for a missing program, and so on) and record whether the real module
+code reported it. CI runs them on a fresh Windows runner for every change to
+the modules.
 
 ## Quick start
 
@@ -284,11 +294,14 @@ WatchLattice.sln
 ├── packaging/msi/                    # WiX project for the release MSI
 ├── demos/
 │   ├── WatchLattice.Demos/           # Demo and measurement harness (not shipped)
+│   ├── WatchLattice.DetectionChecks/ # Harmless, self-reverting checks that each detection fires (not shipped)
+│   ├── detection-checks.md           # What the detection checks change and how to run them
 │   ├── scripts/                      # Windows script that observes the real hub process
 │   └── RESULTS.md                    # Latest measured results
 └── docs/
     ├── adding-a-tool.md              # How to write a new module
     ├── alerts-and-tray.md            # Shared alerts and tray deployment
+    ├── attack-coverage.md            # MITRE ATT&CK techniques each alert maps to, and known gaps
     ├── code-signing.md               # Signing releases through SignPath
     ├── dashboard.md                  # The dashboard and its settings editor
     ├── event-log.md                  # Alerts in the Windows Event Log, with event IDs
@@ -342,6 +355,7 @@ their canaries and baselines. See
 - [ ] winget package (each release carries validated manifests; [submitting them](docs/releasing.md#publishing-to-winget) is a manual step)
 - [ ] Code-signed releases (the release workflow and updater are ready; signing starts once the SignPath setup in [docs/code-signing.md](docs/code-signing.md) is done)
 - [x] Reproducible demos and measured overhead
+- [x] MITRE ATT&CK IDs on alerts, and detection checks that run in CI
 
 ## Contributing and security
 

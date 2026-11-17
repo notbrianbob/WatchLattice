@@ -21,7 +21,7 @@ public static class AlertExport
     public static readonly string[] CsvColumns =
     {
         "LastSeenUtc", "FirstSeenUtc", "Count", "Severity", "Module", "Code", "Title", "Message", "Resource",
-        "Status", "NewCount", "AlertId", "EventId",
+        "Status", "NewCount", "AlertId", "EventId", "AttackTechniques",
     };
 
     /// <summary>The format a file name asks for: .json is JSON, anything else CSV.</summary>
@@ -72,6 +72,7 @@ public static class AlertExport
                 Time(row.LastSeen), Time(row.FirstSeen), Number(row.Count), row.Severity.ToString(), alert.Module, alert.Code,
                 alert.Title, alert.Message, alert.Resource ?? "", StatusText(row), Number(row.NewCount), alert.Id.ToString(),
                 Number(AlertEventIds.For(alert.Module, alert.Code, alert.Severity)),
+                AttackMapping.Ids(AttackMapping.For(alert.Module, alert.Code, alert.Resource)),
             };
             writer.Write(string.Join(',', cells.Select(CsvCell)));
             writer.Write("\r\n");
@@ -97,6 +98,7 @@ public static class AlertExport
             rows.Select(r => new ExportRow(r.LastSeen.ToUniversalTime(), r.FirstSeen.ToUniversalTime(), r.Count, r.Severity.ToString(),
                 r.Latest.Module, r.Latest.Code, r.Latest.Title, r.Latest.Message, r.Latest.Resource, StatusText(r), r.NewCount,
                 r.Latest.Id, AlertEventIds.For(r.Latest.Module, r.Latest.Code, r.Latest.Severity),
+                AttackMapping.For(r.Latest.Module, r.Latest.Code, r.Latest.Resource).Select(t => t.Technique.Id).ToArray(),
                 r.Alerts.Select(a => new ExportOccurrence(a.Id, a.At.ToUniversalTime(), a.Severity.ToString(), a.Title)).ToArray()))
             .ToArray());
         writer.Write(JsonSerializer.Serialize(document, JsonOptions));
@@ -112,7 +114,7 @@ public static class AlertExport
 
     private sealed record ExportRow(DateTimeOffset LastSeen, DateTimeOffset FirstSeen, int Count, string Severity, string Module,
         string Code, string Title, string Message, string? Resource, string Status, int NewCount, Guid AlertId, int EventId,
-        IReadOnlyList<ExportOccurrence> Occurrences);
+        IReadOnlyList<string> AttackTechniques, IReadOnlyList<ExportOccurrence> Occurrences);
 
     private sealed record ExportOccurrence(Guid Id, DateTimeOffset At, string Severity, string Title);
 }

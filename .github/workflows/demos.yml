@@ -71,3 +71,47 @@ jobs:
           name: demo-results-${{ matrix.os }}
           path: demo-results/
           if-no-files-found: ignore
+
+  detection-checks:
+    name: Detection checks (windows-latest)
+    # Makes harmless, self-reverting changes of each kind the modules watch for
+    # and checks that the real module code reports them. See
+    # demos/detection-checks.md. GitHub-hosted runners are throwaway VMs with
+    # administrator rights, so every check (including the opt-in ones) runs.
+    runs-on: windows-latest
+    timeout-minutes: 20
+
+    env:
+      DOTNET_NOLOGO: true
+      DOTNET_CLI_TELEMETRY_OPTOUT: true
+
+    steps:
+      - uses: actions/checkout@v7
+
+      - uses: actions/setup-dotnet@v6
+        with:
+          global-json-file: global.json
+
+      - name: Build
+        run: dotnet build -c Release demos/WatchLattice.DetectionChecks
+
+      - name: Run detection checks
+        shell: pwsh
+        run: |
+          dotnet run -c Release --no-build --project demos/WatchLattice.DetectionChecks -- run --include-defender --include-audit-policy --out detection-results
+          $code = $LASTEXITCODE
+          if (Test-Path detection-results/summary.md) { Get-Content detection-results/summary.md | Add-Content $env:GITHUB_STEP_SUMMARY }
+          exit $code
+
+      - name: Remove anything an interrupted run left behind
+        if: always()
+        shell: pwsh
+        run: dotnet run -c Release --no-build --project demos/WatchLattice.DetectionChecks -- cleanup
+
+      - name: Upload results
+        if: always()
+        uses: actions/upload-artifact@v7
+        with:
+          name: detection-results
+          path: detection-results/
+          if-no-files-found: ignore

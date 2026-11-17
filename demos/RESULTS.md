@@ -31,6 +31,10 @@ your hardware and your Defender configuration.
   (starting Windows PowerShell and running `Get-MpComputerStatus`) took about
   0.9 s, once every five minutes by default.
 
+## Detection checks
+
+Recorded from the first CI run of the [detection checks](detection-checks.md); see the workflow artifact `detection-results` until then.
+
 ## Run 2: Windows (GitHub Actions)
 
 Environment: `windows-latest` GitHub-hosted runner, .NET 8, run from

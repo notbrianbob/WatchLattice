@@ -737,8 +737,15 @@ internal sealed class DashboardWindow : Form
         var row = rows[0];
         var alert = row.Latest;
         _alertDetails.Text = $"{alert.Title}\r\n{alert.At.ToLocalTime():F} • {alert.Module} • {alert.Severity}\r\nCode: {alert.Code}\r\n"
-            + (alert.Resource is null ? "" : $"Source: {alert.Resource}\r\n") + "\r\n" + alert.Message.Replace("\n", "\r\n")
+            + (alert.Resource is null ? "" : $"Source: {alert.Resource}\r\n") + AttackLine(alert) + "\r\n" + alert.Message.Replace("\n", "\r\n")
             + VerificationSummary(alert) + ApprovalSummary(alert) + Occurrences(row);
+    }
+
+    /// <summary>The MITRE ATT&amp;CK techniques an alert is evidence of, as one details line; empty when unmapped.</summary>
+    private static string AttackLine(ProtectionAlert alert)
+    {
+        var tags = AttackMapping.For(alert.Module, alert.Code, alert.Resource);
+        return tags.Count == 0 ? "" : $"MITRE ATT&CK: {AttackMapping.Describe(tags)}\r\n";
     }
 
     /// <summary>The details pane's list of a grouped row's earlier alerts.</summary>
