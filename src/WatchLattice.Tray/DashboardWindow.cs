@@ -37,6 +37,7 @@ internal sealed class DashboardWindow : Form
     private readonly Button _verifyEntry = new() { Text = "Verify entry", AutoSize = true, Enabled = false };
     private readonly Button _viewVerification = new() { Text = "View verification details…", AutoSize = true, Enabled = false };
     private readonly Label _verificationNote = new() { AutoSize = true, Margin = new Padding(12, 7, 0, 0), MaximumSize = new Size(640, 0) };
+    private readonly FlowLayoutPanel _safeActions = new() { Dock = DockStyle.Bottom, AutoSize = true, Padding = new Padding(6, 0, 6, 0), WrapContents = true, Visible = false };
     private readonly CheckBox _groupRepeats = new() { Text = "Group repeats", AutoSize = true, Checked = true, Margin = new Padding(3, 6, 12, 0) };
     private readonly CheckBox _showDismissed = new() { Text = "Show dismissed", AutoSize = true, Margin = new Padding(3, 6, 12, 0) };
     private readonly Label _alertCount = new() { AutoSize = true, Margin = new Padding(12, 7, 0, 0), MaximumSize = new Size(640, 0) };
@@ -214,6 +215,7 @@ internal sealed class DashboardWindow : Form
         var page = new TabPage("Alerts");
         page.Controls.Add(Split(_alerts, _alertDetails));
         page.Controls.Add(bar);
+        page.Controls.Add(_safeActions);
         page.Controls.Add(buttons);
         return page;
     }
@@ -731,14 +733,63 @@ internal sealed class DashboardWindow : Form
         if (rows.Length > 1)
         {
             _alertDetails.Text = $"{rows.Length} rows selected ({rows.Sum(r => r.Count)} alerts). Acknowledge or Dismiss applies to all of them.";
+            ShowSafeActions(null);
             return;
         }
-        if (rows.Length == 0) return;
+        if (rows.Length == 0)
+        {
+            ShowSafeActions(null);
+            return;
+        }
         var row = rows[0];
         var alert = row.Latest;
+        var guidance = AlertGuidanceCatalog.For(alert);
         _alertDetails.Text = $"{alert.Title}\r\n{alert.At.ToLocalTime():F} • {alert.Module} • {alert.Severity}\r\nCode: {alert.Code}\r\n"
-            + (alert.Resource is null ? "" : $"Source: {alert.Resource}\r\n") + AttackLine(alert) + "\r\n" + alert.Message.Replace("\n", "\r\n")
+            + (alert.Resource is null ? "" : $"Source: {alert.Resource}\r\n") + AttackLine(alert)
+            + $"\r\nWHAT THIS MEANS\r\n{guidance.Meaning}\r\n\r\nWHAT TO DO\r\n{guidance.WhatToDo}\r\n\r\nDETAILS\r\n"
+            + alert.Message.Replace("\n", "\r\n")
             + VerificationSummary(alert) + ApprovalSummary(alert) + Occurrences(row);
+        ShowSafeActions(guidance);
+    }
+
+    /// <summary>
+    /// One button per safe action for the selected alert. Each opens a built-in
+    /// Windows screen; none changes a setting, deletes a file or acts on the alert
+    /// (see SafeActionLauncher). Starting a Defender scan asks first.
+    /// </summary>
+    private void ShowSafeActions(AlertGuidance? guidance)
+    {
+        _safeActions.SuspendLayout();
+        foreach (Control old in _safeActions.Controls.Cast<Control>().ToArray())
+        {
+            _safeActions.Controls.Remove(old);
+            old.Dispose();
+        }
+        if (guidance is { Actions.Count: > 0 })
+        {
+            _safeActions.Controls.Add(new Label { Text = "Help with this alert:", AutoSize = true, Margin = new Padding(3, 7, 3, 0) });
+            foreach (var action in guidance.Actions)
+            {
+                var button = new Button { Text = action.Label, AutoSize = true };
+                button.Click += (_, _) => RunSafeAction(action);
+                _safeActions.Controls.Add(button);
+            }
+        }
+        _safeActions.Visible = _safeActions.Controls.Count > 0;
+        _safeActions.ResumeLayout();
+    }
+
+    private void RunSafeAction(SafeAction action)
+    {
+        if (SafeActionLauncher.NeedsConfirmation(action.Kind)
+            && MessageBox.Show(this,
+                "Start a Microsoft Defender quick scan now? A console window shows its progress and result. It usually takes a few minutes and you can keep working.",
+                "Run a Defender quick scan", MessageBoxButtons.OKCancel, MessageBoxIcon.Question) != DialogResult.OK)
+        {
+            return;
+        }
+        if (SafeActionLauncher.Launch(action) is { } problem)
+            MessageBox.Show(this, problem, action.Label, MessageBoxButtons.OK, MessageBoxIcon.Warning);
     }
 
     /// <summary>The MITRE ATT&amp;CK techniques an alert is evidence of, as one details line; empty when unmapped.</summary>
