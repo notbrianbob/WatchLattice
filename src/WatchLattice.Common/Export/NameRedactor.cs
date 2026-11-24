@@ -28,6 +28,7 @@ public sealed class NameRedactor
 
     private NameRedactor(bool enabled) => _enabled = enabled;
 
+    /// <summary>A redactor for the given names; null, empty and too-short names are skipped.</summary>
     /// <param name="userNames">The account's names: user name, and its profile folder's name when that differs.</param>
     /// <param name="computerNames">The computer's names: machine name, and the domain when it differs.</param>
     public NameRedactor(IEnumerable<string?> userNames, IEnumerable<string?> computerNames) : this(enabled: true)

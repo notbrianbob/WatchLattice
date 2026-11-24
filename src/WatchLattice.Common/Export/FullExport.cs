@@ -80,7 +80,6 @@ public static partial class FullExport
     {
         var hide = options.HideNames ? redactor : NameRedactor.None;
         var md = new StringBuilder();
-        var now = data.ExportedAt;
         var rows = data.Feed is null ? Array.Empty<AlertGroup>()
             : AlertGrouping.Build(data.Feed.Alerts.Where(a => !DailySummary.IsSummary(a)), data.Review, group: true);
 
@@ -338,7 +337,7 @@ public static partial class FullExport
         foreach (var problem in data.Problems) md.Append($"- Could not read: {Inline(hide.Apply(problem))}\n");
     }
 
-    private static string OnOff(bool? value) => value switch { true => "on", false => "**OFF**", _ => "unknown" };
+    private static string OnOff(bool? value) => value is not { } on ? "unknown" : on ? "on" : "**OFF**";
 
     private static string Time(DateTimeOffset at) =>
         at.UtcDateTime.ToString("yyyy-MM-dd HH:mm:ss'Z'", CultureInfo.InvariantCulture);

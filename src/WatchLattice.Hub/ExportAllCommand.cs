@@ -117,7 +117,7 @@ internal static class ExportAllCommand
         if (review.Problem is not null) problems.Add("the dashboard's review marks (" + review.Problem + ")");
 
         JsonObject? settings = null;
-        var settingsPath = Path.Combine(AppContext.BaseDirectory, SettingsApplier.SettingsFileName);
+        var settingsPath = Path.Join(AppContext.BaseDirectory, SettingsApplier.SettingsFileName);
         try { settings = SettingValues.Parse(await File.ReadAllTextAsync(settingsPath)); }
         catch (Exception ex) when (IsReadProblem(ex)) { problems.Add("the settings file (" + ex.Message + ")"); }
 

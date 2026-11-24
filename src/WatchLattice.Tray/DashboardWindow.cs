@@ -518,7 +518,11 @@ internal sealed class DashboardWindow : Form
             if (copy == DialogResult.Yes && !IsDisposed)
                 Clipboard.SetText(await File.ReadAllTextAsync(path, _closing.Token));
         }
-        catch (OperationCanceledException) { }
+        catch (OperationCanceledException)
+        {
+            // The dashboard was closed while the hub was still writing: there is no window left to tell.
+            return;
+        }
         catch (Exception ex) when (ex is InvalidOperationException or TimeoutException or IOException or UnauthorizedAccessException
             or InvalidDataException or System.ComponentModel.Win32Exception or System.Runtime.InteropServices.ExternalException)
         {
