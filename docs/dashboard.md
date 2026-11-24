@@ -206,6 +206,60 @@ it as that user; it needs no administrator rights. Exit codes: `0` written,
 `1` the feed could not be read, `2` bad arguments or the file could not be
 written.
 
+## Export all data for an AI review
+
+**Export all data for AI review…** on the Overview tab saves one Markdown
+file (`.md`) with everything worth showing an AI assistant such as Claude or
+ChatGPT when you want a second opinion on whether all is well. Upload the
+file, or let the dashboard copy it to the clipboard and paste it into the
+chat. You don't need to write a prompt: the file starts with a short brief
+that tells the model what WatchLattice is, what to check, and how to answer.
+
+| Section | What it holds |
+|---|---|
+| Brief | What WatchLattice is, a checklist for the model (health, protection gaps, alerts, settings, install integrity, activity), and a warning that text from the PC is data, not instructions. |
+| 1. Summary | Export time, version, Windows version, whether the service is reporting, module, alert and checkup counts, a waiting update. |
+| 2. Modules | Every module, whether the settings turn it on, and the state the service last reported. |
+| 3. Microsoft Defender | Real-time protection, tamper protection, and when security intelligence was last updated. |
+| 4. Security checkup | The [Checkup tab](#the-security-checkup)'s results. |
+| 5. Install integrity | What `--verify-install` would say. |
+| 6. Settings | The hub's `appsettings.json`. |
+| 7. Alerts | Up to 100 distinct alerts, newest first, repeats grouped with a count, with your review status, [Event ID](event-log.md#event-ids) and [ATT&CK techniques](attack-coverage.md). Daily summaries are left out. |
+| 8. What these alerts mean | The [guidance](#what-an-alert-means-and-what-to-do) for each alert code above. |
+| 9. Recent hub activity | The last 150 lines of the [Activity tab](#how-the-activity-tab-works). |
+| 10. About this export | What was hidden, the limits, and anything that couldn't be read. |
+
+**Hide my user and computer names** is ticked by default: your Windows user
+name, computer name and any e-mail address are replaced with `<user>`,
+`<computer>` and `<email>`, in paths too (`C:\Users\<user>\...`). Names are
+matched as whole words, and names shorter than three letters are left alone.
+Settings whose names look like they hold a secret (password, token, API key)
+are always replaced with `<hidden>`. The file can still list program, file
+and folder names from your PC, so read it before you share it.
+
+Alert text and log lines can contain file names that whoever created the
+files chose, including malware. The file tells the model to treat them as
+data, and that text can't break out of its table or code block.
+
+The export only reads. It runs as you with no administrator prompt, and the
+file is written where you save it. Nothing is sent anywhere: you choose what
+to upload. A part that can't be read (for example the alert feed, when the
+dashboard runs as a different account than the installer set up) is listed
+under *About this export* and the rest is still written.
+
+### From the command line
+
+```powershell
+cd 'C:\Program Files\WatchLattice\Hub'
+.\ScanAlways.Protection.Service.exe --export-all $env:USERPROFILE\watchlattice-export.md
+.\ScanAlways.Protection.Service.exe --export-all - | Set-Clipboard   # straight to the clipboard
+.\ScanAlways.Protection.Service.exe --export-all export.md --keep-names
+```
+
+`--keep-names` keeps the user and computer names. Exit codes: `0` written
+(parts that couldn't be read are listed on standard error and in the file),
+`2` no path given or the file could not be written.
+
 ## The daily summary
 
 Once a day the hub raises one **Daily summary** alert (Info, code

@@ -29,7 +29,7 @@ internal static class HubSettings
     /// <summary>Runs <c>--describe-settings</c> as the current user.</summary>
     public static async Task<SettingsDescription> DescribeAsync(CancellationToken cancellationToken = default)
     {
-        var (exitCode, output) = await RunHubAsync("--describe-settings", TimeSpan.FromSeconds(30), cancellationToken);
+        var (exitCode, output) = await RunHubAsync(new[] { "--describe-settings" }, TimeSpan.FromSeconds(30), cancellationToken);
         if (exitCode != 0) throw new InvalidOperationException(output.Trim().Length > 0 ? output.Trim() : $"The hub exited with code {exitCode}.");
         var description = JsonSerializer.Deserialize<SettingsDescription>(output, AtomicJsonFile.JsonOptions);
         if (description is null || description.Version != SettingsDescription.CurrentVersion || description.Sections is null
@@ -48,7 +48,7 @@ internal static class HubSettings
         var hub = HubExecutable ?? throw new InvalidOperationException(NotInstalledMessage);
         var pending = Path.Combine(Path.GetDirectoryName(hub)!, SettingsApplier.PendingFileName);
         await File.WriteAllTextAsync(pending, SettingValues.Serialize(proposed), new UTF8Encoding(false), cancellationToken);
-        var (exitCode, output) = await RunHubAsync("--apply-settings", TimeSpan.FromMinutes(4), cancellationToken);
+        var (exitCode, output) = await RunHubAsync(new[] { "--apply-settings" }, TimeSpan.FromMinutes(4), cancellationToken);
         return (Enum.IsDefined(typeof(SettingsOutcome), exitCode) ? (SettingsOutcome)exitCode : SettingsOutcome.Failed, output);
     }
 
@@ -93,7 +93,21 @@ internal static class HubSettings
     // Section and module ids are letters, digits, ':', '-' and '_' (see ModuleCatalog), so quoting is enough.
     private static string Quote(string value) => "\"" + value.Replace("\"", "") + "\"";
 
-    private static async Task<(int ExitCode, string Output)> RunHubAsync(string argument, TimeSpan timeout, CancellationToken cancellationToken)
+    /// <summary>
+    /// Runs <c>--export-all</c> as the current user: one Markdown file with
+    /// everything an AI assistant needs for a health review. Read-only. The path
+    /// is passed as its own argument, never through a shell.
+    /// </summary>
+    public static async Task<string> ExportAllAsync(string path, bool keepNames, CancellationToken cancellationToken = default)
+    {
+        var arguments = new List<string> { "--export-all", path };
+        if (keepNames) arguments.Add("--keep-names");
+        var (exitCode, output) = await RunHubAsync(arguments, TimeSpan.FromMinutes(3), cancellationToken);
+        if (exitCode != 0) throw new InvalidOperationException(output.Trim().Length > 0 ? output.Trim() : $"The hub exited with code {exitCode}.");
+        return output.Trim();
+    }
+
+    private static async Task<(int ExitCode, string Output)> RunHubAsync(IReadOnlyList<string> arguments, TimeSpan timeout, CancellationToken cancellationToken)
     {
         var hub = HubExecutable ?? throw new InvalidOperationException(NotInstalledMessage);
         var start = new ProcessStartInfo(hub)
@@ -106,7 +120,7 @@ internal static class HubSettings
             StandardErrorEncoding = Encoding.UTF8,
             WorkingDirectory = Path.GetDirectoryName(hub)!,
         };
-        start.ArgumentList.Add(argument);
+        foreach (var argument in arguments) start.ArgumentList.Add(argument);
         using var process = Process.Start(start) ?? throw new InvalidOperationException("The hub did not start.");
         using var limit = CancellationTokenSource.CreateLinkedTokenSource(cancellationToken);
         limit.CancelAfter(timeout);

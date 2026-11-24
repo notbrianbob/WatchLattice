@@ -21,6 +21,7 @@ bool HasSwitch(string name) => args.Any(a => string.Equals(a, name, StringCompar
 
 var listOnly = HasSwitch(ListModulesSwitch);
 var export = ExportCommand.Parse(args, out var otherArgs);
+var exportAll = ExportAllCommand.Parse(otherArgs, out otherArgs);
 var hostArgs = otherArgs.Where(a => !commandSwitches.Contains(a, StringComparer.OrdinalIgnoreCase)).ToArray();
 
 var catalog = ModuleCatalog.Discover(ModuleAssemblies.All);
@@ -54,6 +55,12 @@ if (HasSwitch(CheckUpdateSwitch) || HasSwitch(ApplyUpdateSwitch))
 if (export is not null)
 {
     return ExportCommand.Run(export, builder.Configuration);
+}
+
+// Writes one Markdown file with everything an AI assistant needs for a health review; read-only.
+if (exportAll is not null)
+{
+    return await ExportAllCommand.RunAsync(exportAll, builder.Configuration, catalog);
 }
 
 // Compares the installed files with the release's file list once and prints the result.

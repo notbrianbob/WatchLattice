@@ -79,9 +79,11 @@ verified is in [supply chain](docs/supply-chain.md).
 The **Windows tray companion** opens the **dashboard**: hub and module status,
 alerts (repeats grouped into one row, with acknowledge and dismiss, and
 export to CSV or JSON), a daily summary of the last 24 hours' alerts, the
-hub's recent activity, every setting, and a read-only
+hub's recent activity, every setting, a read-only
 [security checkup](docs/dashboard.md#the-security-checkup) of Windows settings
-that make attacks harder. Turning a module on or
+that make attacks harder, and
+[Export all data for AI review](docs/dashboard.md#export-all-data-for-an-ai-review):
+one Markdown file to upload to Claude or ChatGPT for a second opinion. Turning a module on or
 off or changing a setting opens an elevated settings editor through Windows'
 administrator prompt, so only an administrator can change anything; each save
 is checked, backed up, and rolled back if the hub does not keep running. See
@@ -359,6 +361,7 @@ their canaries and baselines. See
 - [x] Hosts file and proxy settings watchdog
 - [x] Auto-start services and WMI event subscriptions in the persistence auditor
 - [x] Alert export (CSV and JSON) and a daily alert summary
+- [x] One-file "Export all data" for an AI assistant to review, with names hidden
 - [x] MSI installer for double-click and unattended installs
 - [x] Browser extension watchdog (Edge, Chrome, Firefox)
 - [x] Script host launch auditing from process creation events (opt-in)
