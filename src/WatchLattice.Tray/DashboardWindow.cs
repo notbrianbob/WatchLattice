@@ -5,6 +5,7 @@ using Microsoft.Extensions.Logging;
 using WatchLattice.Common.Activity;
 using WatchLattice.Common.Alerts;
 using WatchLattice.Common.Checkup;
+using WatchLattice.Common.Export;
 using WatchLattice.Common.Settings;
 using WatchLattice.DefenderWatchdog;
 using WatchLattice.Persistence.Verification;
@@ -32,6 +33,9 @@ internal sealed class DashboardWindow : Form
     private readonly Button _editModules = new() { Text = "Change settings…", AutoSize = true, FlatStyle = FlatStyle.System };
     private readonly Label _modulesNote = new() { AutoSize = true, Margin = new Padding(0, 8, 0, 0) };
     private readonly TextBox _summary = NewDetails("Latest daily summary", "No daily summary yet.");
+    private readonly Button _exportAll = new() { Text = "Export all data for AI review…", AutoSize = true };
+    private readonly CheckBox _hideNames = new() { Text = "Hide my user and computer names", AutoSize = true, Checked = true, Margin = new Padding(3, 6, 12, 0) };
+    private readonly Label _exportAllNote = new() { AutoSize = true, Margin = new Padding(0, 7, 0, 0), MaximumSize = new Size(640, 0) };
 
     // Alerts
     private readonly ListView _alerts = NewList("Recent alerts");
@@ -178,11 +182,16 @@ internal sealed class DashboardWindow : Form
         var buttons = new FlowLayoutPanel { Dock = DockStyle.Bottom, AutoSize = true, Padding = new Padding(6), WrapContents = true };
         buttons.Controls.AddRange(new Control[] { _toggle, _editModules, _modulesNote });
         _modulesNote.Text = "Changes need administrator permission: Windows asks once when the settings editor opens.";
+        _exportAll.Click += async (_, _) => await ExportAllAsync();
+        _exportAllNote.Text = "One Markdown file with status, settings, checkup, alerts and activity, to paste or upload to Claude or ChatGPT.";
+        var exportBar = new FlowLayoutPanel { Dock = DockStyle.Bottom, AutoSize = true, Padding = new Padding(6, 0, 6, 6), WrapContents = true };
+        exportBar.Controls.AddRange(new Control[] { _exportAll, _hideNames, _exportAllNote });
         var summary = new GroupBox { Text = "Latest daily summary", Dock = DockStyle.Bottom, Height = 170, Padding = new Padding(6) };
         summary.Controls.Add(_summary);
         var page = new TabPage("Overview");
         page.Controls.Add(_modules);
         page.Controls.Add(buttons);
+        page.Controls.Add(exportBar);
         page.Controls.Add(summary);
         page.Controls.Add(new Label
         {
@@ -309,7 +318,7 @@ internal sealed class DashboardWindow : Form
             var items = await Task.Run(async () =>
             {
                 var defender = await ReadDefenderAsync();
-                IMachineRegistry registry = OperatingSystem.IsWindows() ? new WindowsMachineRegistry() : new NoRegistry();
+                IMachineRegistry registry = OperatingSystem.IsWindows() ? new WindowsMachineRegistry() : new NoMachineRegistry();
                 return SecurityCheckup.Run(registry, defender, snapshot, DateTimeOffset.UtcNow);
             });
             if (IsDisposed) return;
@@ -394,12 +403,6 @@ internal sealed class DashboardWindow : Form
     };
 
     /// <summary>Off Windows there is no registry: every registry check reports it couldn't check.</summary>
-    private sealed class NoRegistry : IMachineRegistry
-    {
-        public object? Read(string key, string name) => throw new PlatformNotSupportedException("The registry is only on Windows.");
-        public bool KeyExists(string key) => throw new PlatformNotSupportedException("The registry is only on Windows.");
-    }
-
     public void UpdateSnapshot(AlertSnapshot? snapshot, string status)
     {
         _snapshot = snapshot;
@@ -485,6 +488,52 @@ internal sealed class DashboardWindow : Form
     /// Saves the rows the Alerts tab shows (grouped or not, with or without
     /// dismissed rows, as set) to a CSV or JSON file the user picks.
     /// </summary>
+    /// <summary>
+    /// "Export all data": asks where to save, has the hub write one Markdown
+    /// file (see FullExport), then offers to copy it to the clipboard so it can
+    /// be pasted straight into a chat with an AI assistant.
+    /// </summary>
+    private async Task ExportAllAsync()
+    {
+        using var dialog = new SaveFileDialog
+        {
+            Title = "Export all data for AI review",
+            Filter = "Markdown file (*.md)|*.md|Text file (*.txt)|*.txt",
+            FileName = FullExport.FileNameFor(DateTimeOffset.Now),
+            DefaultExt = "md", AddExtension = true, OverwritePrompt = true,
+        };
+        if (dialog.ShowDialog(this) != DialogResult.OK) return;
+        var path = dialog.FileName;
+        var keepNames = !_hideNames.Checked;
+        _exportAll.Enabled = false;
+        _exportAll.Text = "Exporting…";
+        try
+        {
+            await HubSettings.ExportAllAsync(path, keepNames, _closing.Token);
+            if (IsDisposed) return;
+            _exportAllNote.Text = $"Saved to {path}. Upload it, or paste it into a chat with Claude or ChatGPT.";
+            var copy = MessageBox.Show(this,
+                $"Saved to {path}.\n\nCopy it to the clipboard too, so you can paste it straight into a chat with an AI assistant?",
+                "Export all data", MessageBoxButtons.YesNo, MessageBoxIcon.Information);
+            if (copy == DialogResult.Yes && !IsDisposed)
+                Clipboard.SetText(await File.ReadAllTextAsync(path, _closing.Token));
+        }
+        catch (OperationCanceledException) { }
+        catch (Exception ex) when (ex is InvalidOperationException or TimeoutException or IOException or UnauthorizedAccessException
+            or InvalidDataException or System.ComponentModel.Win32Exception or System.Runtime.InteropServices.ExternalException)
+        {
+            if (!IsDisposed) MessageBox.Show(this, ex.Message, "Could not export all data", MessageBoxButtons.OK, MessageBoxIcon.Warning);
+        }
+        finally
+        {
+            if (!IsDisposed)
+            {
+                _exportAll.Enabled = true;
+                _exportAll.Text = "Export all data for AI review…";
+            }
+        }
+    }
+
     private async Task ExportAlertsAsync()
     {
         var rows = _alertRows;

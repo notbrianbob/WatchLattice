@@ -11,6 +11,20 @@ notes, followed by GitHub's generated list of pull requests. See
 
 ## [Unreleased]
 
+### Added
+
+- **Export all data for an AI review.** The dashboard's Overview tab has
+  **Export all data for AI review…**, and the hub has
+  `--export-all <path or -> [--keep-names]`. Both write one Markdown file to
+  upload or paste into Claude, ChatGPT or another assistant: a short brief
+  telling the model what WatchLattice is and what to check, then the
+  version, module health, Defender's state, the security checkup, install
+  integrity, settings, alerts with their guidance, and recent hub activity.
+  Your user name, computer name and e-mail addresses are hidden unless you
+  untick the box, and settings that look like secrets are always hidden.
+  Read-only, no administrator rights, and nothing is sent anywhere. See
+  [the dashboard](docs/dashboard.md#export-all-data-for-an-ai-review).
+
 ## [0.10.0] - 2026-11-17
 
 ### Security

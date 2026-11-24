@@ -21,3 +21,11 @@ public sealed class WindowsMachineRegistry : IMachineRegistry
         return sub is not null;
     }
 }
+
+/// <summary>For non-Windows builds and tests: every read says the registry isn't there, so each check comes out Unknown.</summary>
+public sealed class NoMachineRegistry : IMachineRegistry
+{
+    public object? Read(string key, string name) => throw new PlatformNotSupportedException("The registry is only on Windows.");
+
+    public bool KeyExists(string key) => throw new PlatformNotSupportedException("The registry is only on Windows.");
+}

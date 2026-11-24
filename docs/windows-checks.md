@@ -323,6 +323,27 @@ update host.
    again**: that line becomes **Fix** and the tab says *1 to fix*. Turn it
    back on. **Open virus protection settings** opens the right page.
 
+## Next release
+
+1. **Export all data.** As a standard user, open the dashboard's Overview
+   tab and choose **Export all data for AI review…**. No administrator
+   prompt appears. Save the suggested file name: within a minute (reading
+   Defender's status can take a few seconds) the note under the button says
+   where it was saved, and a question offers to copy it. Choose **Yes** and
+   paste into Notepad: it is the same text as the file.
+2. Open the file. It starts with *To the AI assistant reading this*, and
+   sections 1 to 10 are all there. The modules match the Overview tab, the
+   checkup matches the Checkup tab, and *Install integrity* says
+   *Verified*. Search for your Windows user name and computer name
+   (`whoami`, `hostname`): neither appears; paths show `C:\Users\<user>\`.
+3. Untick **Hide my user and computer names** and export again: your user
+   name now appears in paths, and section 10 says names were **kept**.
+4. Upload the file to Claude or ChatGPT with no other text. The answer
+   starts with an overall verdict and goes through health, Defender, alerts
+   and settings without being asked.
+5. From the hub folder, `.\ScanAlways.Protection.Service.exe --export-all -`
+   prints the same file and exits with `0`.
+
 ## Already covered
 
 Steps 1 to 6 of [the dashboard checks](dashboard.md#what-needs-checking-on-windows)
