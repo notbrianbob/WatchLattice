@@ -43,7 +43,9 @@ notes, followed by GitHub's generated list of pull requests. See
   a whole one after an escape such as `\t` in a setting.
 - **Stricter checks on text from outside.** Approval tokens, extension IDs
   and *Open file location* paths are refused when they end in a line break
-  or contain control characters.
+  or contain control characters. The updater refuses a download address
+  whose path contains a step up written as an escape (`..%5C`), which
+  passed its "this repository's releases only" check before.
 
 ### Fixed
 

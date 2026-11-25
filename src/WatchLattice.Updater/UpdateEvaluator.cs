@@ -37,8 +37,22 @@ public static class UpdateEvaluator
         return new UpdateCandidate(release, version, package, checksums, problem);
     }
 
+    /// <summary>
+    /// An HTTPS address under this repository's release downloads on
+    /// github.com, with nothing in its path that could lead back out of them.
+    /// </summary>
     public static bool IsReleaseDownload(Uri url, string repository) =>
         url.Scheme == Uri.UriSchemeHttps && url.IsDefaultPort && string.IsNullOrEmpty(url.UserInfo)
         && string.Equals(url.Host, "github.com", StringComparison.OrdinalIgnoreCase)
-        && url.AbsolutePath.StartsWith($"/{repository}/releases/download/", StringComparison.OrdinalIgnoreCase);
+        && url.AbsolutePath.StartsWith($"/{repository}/releases/download/", StringComparison.OrdinalIgnoreCase)
+        && !ClimbsOut(url.AbsolutePath);
+
+    /// <summary>
+    /// A "." or ".." step in the path once escapes are undone and backslashes
+    /// read as slashes. <see cref="Uri"/> resolves the plain spellings itself
+    /// but keeps one written as <c>..%5C</c>, which a server could still
+    /// read as a step up.
+    /// </summary>
+    private static bool ClimbsOut(string path) =>
+        Uri.UnescapeDataString(path).Replace('\\', '/').Split('/').Any(step => step is "." or "..");
 }

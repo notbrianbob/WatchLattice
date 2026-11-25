@@ -238,6 +238,18 @@ public class FoundByFuzzingTests
         Assert.Throws<InvalidDataException>(() => GitHubReleaseSource.Parse(Encoding.UTF8.GetBytes(json)));
     }
 
+    [Theory]
+    [InlineData("https://github.com/notbrianbob/WatchLattice/releases/download/%2e%2e%5c")]
+    [InlineData("https://github.com/notbrianbob/WatchLattice/releases/download/v1.0.0/..%5C..%5C..%5C..%5C..%5Csomeone-else/tool/releases/download/v1/a.zip")]
+    [InlineData("https://github.com/notbrianbob/WatchLattice/releases/download/v1.0.0/%2E%5Ca.zip")]
+    public void ReleaseDownload_WithAStepUpWrittenAsAnEscape_IsNotThisRepositorys(string address)
+    {
+        // Found by the first nightly-sized run. Uri resolves "../" and "%2e%2e/" itself, but keeps "..%5C" in the path.
+        Assert.False(UpdateEvaluator.IsReleaseDownload(new Uri(address), "notbrianbob/WatchLattice"));
+        Assert.True(UpdateEvaluator.IsReleaseDownload(new Uri("https://github.com/notbrianbob/WatchLattice/releases/download/v1.0.0/a.zip"), "notbrianbob/WatchLattice"));
+        Assert.True(UpdateEvaluator.IsReleaseDownload(new Uri("https://github.com/notbrianbob/WatchLattice/releases/download/v1.0.0-rc.1/WatchLattice-1.0.0-rc.1-win-x64.zip"), "notbrianbob/WatchLattice"));
+    }
+
     [Fact]
     public void ReleaseMetadata_ASizeThatIsNotANumber_IsUnknownRatherThanAnError()
     {
