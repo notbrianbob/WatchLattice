@@ -45,7 +45,10 @@ dotnet run -c Release --project src/WatchLattice.Hub
    on the approach. New tools use the **New tool proposal** template.
 2. Branch from `main` and keep each pull request focused on one thing.
 3. Add or update tests. Shared code is tested in `tests/WatchLattice.Common.Tests`,
-   each tool in `tests/WatchLattice.<Tool>.Tests`.
+   each tool in `tests/WatchLattice.<Tool>.Tests`. Code that reads something
+   another person or program can write (a file, a registry value, a command
+   line, a download) also gets a fuzz test in `tests/WatchLattice.Fuzz.Tests`;
+   see [docs/fuzzing.md](docs/fuzzing.md#adding-a-reader).
 4. Update the relevant README(s), including the Tools table in the top-level
    README when you add or change a tool.
 5. Make sure `dotnet build` and `dotnet test` pass. CI runs both on Windows and

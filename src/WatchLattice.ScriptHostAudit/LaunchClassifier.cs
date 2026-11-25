@@ -185,7 +185,7 @@ public sealed class LaunchClassifier
     {
         var trimmed = part.Trim();
         if (trimmed.Length == 0 || trimmed == "*") return null;
-        return new Regex("^" + Regex.Escape(trimmed).Replace(@"\*", ".*").Replace(@"\?", ".") + "$",
+        return new Regex("^" + Regex.Escape(trimmed).Replace(@"\*", ".*").Replace(@"\?", ".") + @"\z",
             RegexOptions.IgnoreCase | RegexOptions.CultureInvariant | RegexOptions.Singleline, RegexTimeout);
     }
 

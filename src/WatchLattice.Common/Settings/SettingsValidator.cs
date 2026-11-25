@@ -143,18 +143,18 @@ public static class SettingsValidator
     public static IEnumerable<KeyValuePair<string, string?>> ToConfiguration(JsonObject root)
     {
         var values = new List<KeyValuePair<string, string?>>();
-        void Walk(JsonNode? node, string path)
+        void Walk(JsonNode? node, string? path)
         {
             switch (node)
             {
                 case JsonObject o:
-                    foreach (var (key, child) in o) Walk(child, path.Length == 0 ? key : path + ":" + key);
+                    foreach (var (key, child) in o) Walk(child, path is null ? key : path + ":" + key);
                     break;
                 case JsonArray a:
                     for (var i = 0; i < a.Count; i++) Walk(a[i], path + ":" + i.ToString(CultureInfo.InvariantCulture));
                     break;
                 case JsonValue v when v.TryGetValue<JsonElement>(out var e):
-                    values.Add(new(path, e.ValueKind switch
+                    values.Add(new(path!, e.ValueKind switch
                     {
                         JsonValueKind.String => e.GetString(),
                         JsonValueKind.Null => null,
@@ -164,15 +164,15 @@ public static class SettingsValidator
                     }));
                     break;
                 case JsonValue v:
-                    values.Add(new(path, v.TryGetValue<string>(out var s) ? s
+                    values.Add(new(path!, v.TryGetValue<string>(out var s) ? s
                         : v.TryGetValue<bool>(out var b) ? (b ? "True" : "False") : v.ToJsonString()));
                     break;
                 case null:
-                    values.Add(new(path, null));
+                    values.Add(new(path!, null));
                     break;
             }
         }
-        Walk(root, "");
+        Walk(root, null);
         return values;
     }
 
@@ -193,16 +193,16 @@ public static class SettingsValidator
     private static Dictionary<string, JsonNode?> Flatten(JsonObject root)
     {
         var values = new Dictionary<string, JsonNode?>(StringComparer.OrdinalIgnoreCase);
-        void Walk(JsonObject node, string prefix)
+        void Walk(JsonObject node, string? prefix)
         {
             foreach (var (key, child) in node)
             {
-                var path = prefix.Length == 0 ? key : prefix + ":" + key;
+                var path = prefix is null ? key : prefix + ":" + key;
                 if (child is JsonObject o) Walk(o, path);
                 else values[path] = child;
             }
         }
-        Walk(root, "");
+        Walk(root, null);
         return values;
     }
 }

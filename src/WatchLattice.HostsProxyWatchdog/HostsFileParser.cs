@@ -48,11 +48,13 @@ public static class HostsFileParser
     /// <summary>Lower case, without a trailing dot, internationalized names in their ASCII form. Null if it isn't a host name.</summary>
     public static string? NormalizeHost(string? value)
     {
-        var host = value?.Trim().TrimEnd('.');
+        var host = value is null ? null : WithoutTrailingDots(value);
         if (string.IsNullOrEmpty(host) || host.Length > 253)
         {
             return null;
         }
+        // Lower case first, so a name is mapped the same way however it was typed.
+        host = host.ToLowerInvariant();
         try
         {
             host = Idn.GetAscii(host);
@@ -61,7 +63,18 @@ public static class HostsFileParser
         {
             // Not a valid IDN; keep the text so the entry is still visible.
         }
-        return host.ToLowerInvariant();
+        // The mapping turns other kinds of full stop into a dot and drops invisible characters,
+        // which can leave a trailing dot behind; without it the name would match no watched domain.
+        host = WithoutTrailingDots(host).ToLowerInvariant();
+        return host.Length == 0 ? null : host;
+    }
+
+    /// <summary>Trimmed, with any dots and spaces at the end removed together, so reading the result again changes nothing.</summary>
+    private static string WithoutTrailingDots(string text)
+    {
+        var end = text.Length;
+        while (end > 0 && (text[end - 1] == '.' || char.IsWhiteSpace(text[end - 1]))) end--;
+        return text[..end].TrimStart();
     }
 
     /// <summary>True when <paramref name="host"/> is <paramref name="domain"/> or one of its subdomains.</summary>

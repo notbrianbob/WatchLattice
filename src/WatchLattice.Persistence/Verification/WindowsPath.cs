@@ -73,7 +73,13 @@ public static class WindowsPath
             return end < 0 ? text[1..] : text[1..end];
         }
         var exe = text.IndexOf(".exe", StringComparison.OrdinalIgnoreCase);
-        if (exe >= 0 && (exe + 4 == text.Length || text[exe + 4] == ' ')) return text[..(exe + 4)];
+        if (exe >= 0)
+        {
+            // Windows ignores dots after a name, so "a.exe. -k" still runs a.exe.
+            var end = exe + 4;
+            while (end < text.Length && text[end] == '.') end++;
+            if (end == text.Length || text[end] == ' ') return text[..end];
+        }
         var space = text.IndexOf(' ');
         return space < 0 ? text : text[..space];
     }
@@ -142,9 +148,10 @@ public static class WindowsPath
             return new(PathResolution.Network, path, "A network path. It was not opened, so no network host was contacted.");
 
         if (path.IndexOfAny(PathInvalid) >= 0) return new(PathResolution.Invalid, path, "The path contains wildcard or quote characters.");
-        var colon = path.IndexOf(':', 2);
-        if (colon >= 0 || (path.Length > 1 && path[1] == ':' && !IsDriveLetter(path[0])))
-            return new(PathResolution.Invalid, path, "The path names an alternate data stream or is malformed.");
+        // The only colon a path may hold is the one after a drive letter.
+        var colon = path.IndexOf(':');
+        if (colon == 1 && IsDriveLetter(path[0])) colon = path.IndexOf(':', 2);
+        if (colon >= 0) return new(PathResolution.Invalid, path, "The path names an alternate data stream or is malformed.");
 
         if (IsDriveRooted(path))
         {

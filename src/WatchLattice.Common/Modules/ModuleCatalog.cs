@@ -76,6 +76,6 @@ public sealed partial class ModuleCatalog
     public IReadOnlyList<IWatchLatticeModule> ResolveEnabled(IConfiguration configuration) =>
         Modules.Where(m => IsEnabled(m, configuration)).ToList();
 
-    [GeneratedRegex("^[A-Za-z][A-Za-z0-9_-]*$")]
+    [GeneratedRegex(@"\A[A-Za-z][A-Za-z0-9_-]*\z")]
     private static partial Regex IdPattern();
 }

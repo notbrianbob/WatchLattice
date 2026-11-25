@@ -72,6 +72,6 @@ public sealed record InstallManifest(ReleaseVersion Version, IReadOnlyDictionary
     private static bool IsInstallPath(string name) =>
         (name.StartsWith(ReleaseLayout.HubFolder + "/", StringComparison.OrdinalIgnoreCase)
             || name.StartsWith(ReleaseLayout.TrayFolder + "/", StringComparison.OrdinalIgnoreCase))
-        && !name.Contains('\\') && !name.Contains(':')
+        && !name.Contains('\\') && !name.Contains(':') && !name.Any(char.IsControl)
         && name.Split('/').All(part => part.Length > 0 && part != "." && part != "..");
 }

@@ -141,6 +141,10 @@ organization".
 - **An update that adds permissions is not reported.** Extensions update
   themselves; only additions and removals are compared, not versions or
   permissions.
+- **Profiles and extensions on another computer are not opened.** A Firefox
+  profile or an unpacked Chromium extension whose path is a network share is
+  reported as not opened (the extension under its ID, without a name or
+  version), because reading it as LocalSystem would contact that server.
 - **It trusts the browser's own records.** Something that edits a profile's
   preferences to hide an extension, or an attacker with administrator rights
   who stops the hub or edits its inventory, is not caught.

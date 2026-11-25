@@ -35,11 +35,25 @@ public sealed record TaskFacts(bool? Enabled, string? UserId, string? GroupId, s
 {
     private const string TaskNamespace = "http://schemas.microsoft.com/windows/2004/02/mit/task";
 
+    /// <summary>A real task nests about eight elements deep. Anything far beyond that is not read.</summary>
+    private const int MaxXmlDepth = 64;
+
     /// <summary>Parses the JSON the auditor logged for a task (see <see cref="WindowsPersistenceProvider.ScheduledTaskScript"/>).</summary>
     public static TaskFacts FromProjection(string json)
     {
-        var root = JsonNode.Parse(json, documentOptions: new JsonDocumentOptions { MaxDepth = 16 }) as JsonObject
-            ?? throw new InvalidDataException("The logged task definition is not a JSON object.");
+        try
+        {
+            return FromProjection(LoggedJson.Parse(json) as JsonObject
+                ?? throw new InvalidDataException("The logged task definition is not a JSON object."));
+        }
+        catch (InvalidOperationException ex)
+        {
+            throw LoggedJson.NotText(ex);
+        }
+    }
+
+    private static TaskFacts FromProjection(JsonObject root)
+    {
         var actions = Items(Get(root, "Actions")).Select(a =>
         {
             var execute = Text(Get(a, "Execute"));
@@ -60,6 +74,16 @@ public sealed record TaskFacts(bool? Enabled, string? UserId, string? GroupId, s
     {
         XDocument document;
         var settings = new XmlReaderSettings { DtdProcessing = DtdProcessing.Prohibit, XmlResolver = null, MaxCharactersInDocument = 4 * 1024 * 1024 };
+        // A task's ComHandler data may hold any XML, and whoever registers the task writes it. Loading a
+        // document takes time that grows much faster than its nesting depth (40,000 levels took seconds,
+        // 200,000 minutes), so the depth is checked first, in one pass that does not.
+        using (var probe = XmlReader.Create(new StringReader(xml), settings))
+        {
+            while (probe.Read())
+            {
+                if (probe.Depth > MaxXmlDepth) throw new InvalidDataException($"The task definition is nested more than {MaxXmlDepth} elements deep.");
+            }
+        }
         using (var reader = XmlReader.Create(new StringReader(xml), settings)) document = XDocument.Load(reader);
         var task = document.Root ?? throw new InvalidDataException("The task definition is empty.");
         if (task.Name.LocalName != "Task") throw new InvalidDataException("The task definition is not a Task element.");
@@ -293,7 +317,7 @@ public static class TaskComparison
     {
         var result = new Dictionary<string, string?>(StringComparer.OrdinalIgnoreCase);
         if (json is null) return result;
-        var root = JsonNode.Parse(json, documentOptions: new JsonDocumentOptions { MaxDepth = 16 });
+        var root = LoggedJson.Parse(json);
         void Walk(JsonNode? node, string path)
         {
             switch (node)
@@ -313,9 +337,39 @@ public static class TaskComparison
                     break;
             }
         }
-        Walk(root, "");
+        try { Walk(root, ""); }
+        catch (InvalidOperationException ex) { throw LoggedJson.NotText(ex); }
         return result;
     }
 
     private static string Bool(bool value) => value ? "true" : "false";
+}
+
+/// <summary>
+/// Reads the JSON the auditor logged for a task. That JSON carries text chosen
+/// by whoever registered the task, so everything that can be wrong with it is
+/// reported the same two ways, <see cref="JsonException"/> and
+/// <see cref="InvalidDataException"/>, which every caller already handles.
+/// </summary>
+internal static class LoggedJson
+{
+    public static JsonNode? Parse(string json)
+    {
+        try
+        {
+            // As UTF-8, because the text overload throws ArgumentException for half of a surrogate pair. Repeated
+            // property names are refused here, because a JsonObject otherwise throws ArgumentException when first read.
+            return JsonNode.Parse(System.Text.Encoding.UTF8.GetBytes(json),
+                documentOptions: new JsonDocumentOptions { MaxDepth = 16, AllowDuplicateProperties = false });
+        }
+        catch (InvalidOperationException ex)
+        {
+            // Looking for repeated names reads each name, and one with a broken \u escape cannot be read.
+            throw NotText(ex);
+        }
+    }
+
+    /// <summary>A string spelled with a broken \u escape parses, then throws InvalidOperationException when it is read.</summary>
+    public static InvalidDataException NotText(InvalidOperationException ex) =>
+        new("The logged task definition holds text that is not valid: " + ex.Message, ex);
 }

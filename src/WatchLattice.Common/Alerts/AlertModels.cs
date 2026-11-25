@@ -60,7 +60,8 @@ public sealed record UpdateNotice(string CurrentVersion, string LatestVersion, s
     public bool TryGetReleasePage(out Uri page)
     {
         page = null!;
-        if (!Uri.TryCreate(ReleaseUrl, UriKind.Absolute, out var uri) || uri.Scheme != Uri.UriSchemeHttps
+        if (ReleaseUrl is null || !ReleaseUrl.StartsWith("https://", StringComparison.OrdinalIgnoreCase)
+            || !Uri.TryCreate(ReleaseUrl, UriKind.Absolute, out var uri) || uri.Scheme != Uri.UriSchemeHttps
             || !string.Equals(uri.Host, "github.com", StringComparison.OrdinalIgnoreCase) || !uri.IsDefaultPort
             || !string.IsNullOrEmpty(uri.UserInfo)) return false;
         page = uri;

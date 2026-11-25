@@ -30,8 +30,24 @@ public sealed class GitHubReleaseSource : IReleaseSource
         return Parse(bytes);
     }
 
-    /// <summary>Parses one release object from the GitHub REST API.</summary>
+    /// <summary>
+    /// Parses one release object from the GitHub REST API. Anything else is
+    /// refused with <see cref="JsonException"/> or <see cref="InvalidDataException"/>.
+    /// </summary>
     public static ReleaseInfo Parse(ReadOnlySpan<byte> json)
+    {
+        try
+        {
+            return Read(json);
+        }
+        catch (InvalidOperationException ex)
+        {
+            // A value of the wrong kind where a string or number belongs, or text spelled with a broken \u escape.
+            throw new InvalidDataException("Release metadata is not in the expected form: " + ex.Message, ex);
+        }
+    }
+
+    private static ReleaseInfo Read(ReadOnlySpan<byte> json)
     {
         var reader = new Utf8JsonReader(json);
         using var document = JsonDocument.ParseValue(ref reader);
@@ -50,8 +66,9 @@ public sealed class GitHubReleaseSource : IReleaseSource
             foreach (var asset in list.EnumerateArray())
             {
                 if (assets.Count == MaxAssets) throw new InvalidDataException("Release lists too many assets.");
+                if (asset.ValueKind != JsonValueKind.Object) throw new InvalidDataException("Release metadata lists an asset that is not an object.");
                 assets.Add(new ReleaseAsset(RequiredString(asset, "name"), RequiredUri(asset, "browser_download_url"),
-                    asset.TryGetProperty("size", out var size) && size.TryGetInt64(out var bytes) ? bytes : -1));
+                    asset.TryGetProperty("size", out var size) && size.ValueKind == JsonValueKind.Number && size.TryGetInt64(out var bytes) ? bytes : -1));
             }
         }
 
@@ -69,9 +86,15 @@ public sealed class GitHubReleaseSource : IReleaseSource
         element.TryGetProperty(property, out var value) && value.ValueKind == JsonValueKind.String
             ? Clip(value.GetString()!, 200) : null;
 
-    private static Uri RequiredUri(JsonElement element, string property) =>
-        Uri.TryCreate(RequiredString(element, property), UriKind.Absolute, out var uri) && uri.Scheme == Uri.UriSchemeHttps
+    private static Uri RequiredUri(JsonElement element, string property)
+    {
+        // Only text that says it is https is handed to the URL parser at all: other text takes the parser down
+        // its file-path branches, which this never needs.
+        var text = RequiredString(element, property);
+        return text.StartsWith("https://", StringComparison.OrdinalIgnoreCase)
+            && Uri.TryCreate(text, UriKind.Absolute, out var uri) && uri.Scheme == Uri.UriSchemeHttps
             ? uri : throw new InvalidDataException($"Release metadata '{property}' is not an https URL.");
+    }
 
     private static bool Bool(JsonElement element, string property) =>
         element.TryGetProperty(property, out var value) && value.ValueKind == JsonValueKind.True;

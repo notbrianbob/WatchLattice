@@ -7,10 +7,12 @@ looks at how WatchLattice could be attacked, abused or fooled. It uses
 Elevation of privilege) at each trust boundary. For what WatchLattice is meant
 to protect *against*, see the [README's threat model](../README.md#threat-model).
 
-Reviewed 2026-11-17, against the code after 0.9.0. Each row is either
-**Mitigated** (and says how), **Fixed** (found in this review and changed in
-the same pull request, with a test), or **Accepted** (a known limit, with the
-reason). [SECURITY.md](../SECURITY.md) says how to report something missing
+Reviewed 2026-11-17, against the code after 0.9.0. On 2026-11-25 everything
+the hub reads from a lower-trust source was put through [fuzz tests](fuzzing.md),
+and the rows that came out of that say so. Each row is either
+**Mitigated** (and says how), **Fixed** (found in a review or by the fuzz
+tests and changed in the same pull request, with a test), or **Accepted** (a
+known limit, with the reason). [SECURITY.md](../SECURITY.md) says how to report something missing
 from this list.
 
 ## What is worth protecting
@@ -56,6 +58,7 @@ The boundaries that matter most are:
 | Malware running as the user sets the CLR profiler variables (`CORECLR_ENABLE_PROFILING`, `CORECLR_PROFILER_PATH`) for the same purpose. | Accepted | .NET has no switch to refuse a profiler. With an administrator account, [UAC is not a security boundary](https://learn.microsoft.com/en-us/windows/security/application-security/application-control/user-account-control/): malware running as that user can wait for any elevation prompt. The hub service is not affected, because services don't take environment variables from the user. |
 | Something other than the tray starts the settings editor with its own `--approve` value, to approve a malicious autostart entry. | Mitigated | It still needs the UAC prompt. The editor opens with the approval as an unsaved change, and nothing is saved until someone presses Save. Approvals are matched by SHA-256 of the exact entry. |
 | The updater installs a malicious release. | Accepted, partly mitigated | Updates are started by the user, downloaded over HTTPS from GitHub Releases and checked against `SHA256SUMS.txt`. They are staged inside the protected install folder, so no new writable location is added. A release that needs a missing runtime is refused. But the checksum comes from the same release, so someone who controls the repository could publish a bad one. Authenticode pinning starts once releases are signed ([code signing](code-signing.md)). Until then, the build provenance attestation can be checked by hand ([updater limits](../src/WatchLattice.Updater/README.md#honest-limits)). |
+| A user points a browser profile at a network path (a Chromium extension's `path` in `Preferences`, or a Firefox profile in `profiles.ini`), so the hub, as LocalSystem, contacts a server of the user's choice and offers it the computer's sign-in. | **Fixed** | Found by the fuzz tests. Paths that lead to another computer or to a device (`\\server\share`, `//server/share`, `\\?\`) are now reported in the profile's place and never opened. Persistence verification already refused them. A symbolic link inside a profile that points to a share is still followed; creating one takes administrator rights or Developer Mode. |
 | A module loads code that isn't part of the release. | Mitigated | Modules are compiled into the hub. There is no plug-in folder, and the install integrity check covers every file. |
 
 ## Tampering
@@ -65,6 +68,8 @@ The boundaries that matter most are:
 | Malware edits a module's baseline, so its change looks like it was always there. | Mitigated | Baselines live in the SYSTEM profile, which needs administrator rights. |
 | Malware forges alerts in the tray. | Mitigated | Only SYSTEM and Administrators can write the feed. The tray only reads it. |
 | Malware edits the user's review file to hide alerts. | Accepted | The review file only records what the user acknowledged or dismissed, in their own view. The alert itself stays in the feed and the Event Log. |
+| A program running as the user installs a service from a folder users can write to, and spells the path so the change is graded as routine (`x.exe. -k …`, or a quoted `\SystemRoot\Temp\…`). | **Fixed** | Found by the fuzz tests. Both spellings are now read the way Windows reads them, so the alert is graded as a program in a user-writable folder. Installing a service still takes administrator rights. |
+| A hosts entry redirects a watched domain but is written with another kind of dot or an invisible character, so it doesn't match. | **Fixed** | Found by the fuzz tests. Names are compared in one form: lower case, in their ASCII (IDN) form, without trailing dots. Editing the hosts file takes administrator rights. |
 | An administrator-level attacker stops the service or edits anything. | Accepted | This is out of scope, as the [README](../README.md#threat-model) says: user-mode tools can't defend against administrator rights. The *Module failed* and Defender or firewall alerts may still be the first sign. |
 
 ## Spoofing
@@ -79,6 +84,8 @@ The boundaries that matter most are:
 | Threat | Status | Mitigation |
 |---|---|---|
 | Command lines copied from the Security log (administrators only) into alerts, which every user can read in the Application log, reveal passwords or tokens. | **Fixed** | Found in this review. Values that look like secrets (`-Password x`, `/p:x`, `token=x`, `user:pass@host`, `Bearer x`, `ConvertTo-SecureString "x"`) are now replaced with `[hidden]` before a command line goes into an alert ([CommandLineRedactor](../src/WatchLattice.ScriptHostAudit/CommandLineRedactor.cs)). Approvals still match the exact command line. A secret passed as a plain positional word can't be told apart from anything else, so `CommandLineInAlerts=false` is still the way to keep command lines out completely. The module is off by default. |
+| A secret on a command line stays visible because only part of the value is quoted (`password=""secret`) or a quote is never closed. | **Fixed** | Found by the fuzz tests. A value that starts with a quote now runs through every quoted and unquoted piece joined to it, and an unclosed quote takes the rest of the line. A value that starts unquoted still ends at the next quote, so `abc"def"` keeps `"def"`; the module README lists that limit. |
+| An *Export all data* file with names hidden still shows part of a user name, because a long line was clipped in the middle of it, or the name followed an escape such as `\t` in a setting. | **Fixed** | Found by the fuzz tests. Names are now hidden before text is clipped, and in settings before they are written as JSON. |
 | Alerts show other users of the PC file paths, extension names and hosts file entries. | Accepted | The Application log is readable by every user, and WatchLattice is built for one person's PC. The feed itself is readable only by the tray user and administrators. On a shared PC, turn off Event Log alerts (`Alerts:EventLog:Enabled`). |
 | A person shares an *Export all data* file with an AI service, and it reveals who they are or a secret from the settings. | Mitigated | The export runs as the person, never elevated, and writes only where they save it; nothing is uploaded. User name, computer name and e-mail addresses are replaced by default, and setting values whose names look like secrets are always hidden ([FullExport](../src/WatchLattice.Common/Export/FullExport.cs), [NameRedactor](../src/WatchLattice.Common/Export/NameRedactor.cs)). Program and file names stay, because the review needs them; the docs say to read the file before sharing it. |
 | Text an attacker chose (a file or task name) in an *Export all data* file tells the AI assistant to say everything is fine. | Mitigated | The file's brief tells the model that text from the PC is data, never instructions. That text is flattened to one line, can't add a table column or close a code block, and is clipped. A model can still be fooled, so the export supports the person's own judgment and the dashboard, and doesn't replace them. |
@@ -89,6 +96,7 @@ The boundaries that matter most are:
 | Threat | Status | Mitigation |
 |---|---|---|
 | Malware floods alerts (for example by touching canaries over and over) to fill the disk. | Mitigated | Canary alerts are debounced per file, the feed keeps the newest 200 alerts (`Alerts:HistoryLimit`), and the Event Log queue is bounded (256) and reports how many it dropped. |
+| A program running as the user writes something the hub can't read (an extension named `__MSG__`, a profile file with a broken escape, a service whose program is one character, a task definition nested thousands of levels deep, two Startup entries whose names differ only by case), and the module that reads it stops reporting. | **Fixed** | Found by the fuzz tests, which list each case in [what they found](fuzzing.md#what-it-has-found). Every reader of such input now either reads it or refuses it with the error its caller handles, an unreadable entry is reported under its ID, deep nesting is refused at 64 levels, and the command line redactor has a time limit. Before, this was not silent: the browser watchdog said it could not read the profiles, and the supervisor restarted the persistence auditor and raised *Module failed*. But nothing was compared until the input changed. |
 | The same flood pushes an earlier, real alert out of the dashboard. | Accepted | Repeats group into one row, but 200 distinct alerts push older ones out of the feed. The earlier alert stays in the Event Log and in the module's own alert log. |
 | A user holds an opportunistic lock on a file the decoy or persistence auditor reads, to stall it. | Accepted | That stalls one module's read until the lock breaks or the check is cancelled. Other modules keep running, and the supervisor reports a module that stops. |
 | Malware stops or disables the service. | Accepted | It takes administrator rights. Standard users can't stop it, because the default service permissions only let them query it. |
@@ -105,6 +113,10 @@ The boundaries that matter most are:
 Each boundary above was followed through the code: every file the hub opens
 under a user-controlled path, every process the tray or editor starts, every
 value copied from a lower-trust source into an alert, and the installer's
-permission changes. The three **Fixed** rows were the gaps found. Each has a
-test that fails without the fix. Repeat the review when a module starts
-writing outside its own state, or when a new process boundary is added.
+permission changes. Three of the **Fixed** rows were the gaps found that
+way. The others were found on 2026-11-25 by the [fuzz tests](fuzzing.md),
+which generate inputs for every reader of lower-trust text instead of
+following the code by eye. Each Fixed row has a test that fails without the
+fix. Repeat the review when a module starts writing outside its own state,
+or when a new process boundary is added, and give every new reader of
+lower-trust input a fuzz test.

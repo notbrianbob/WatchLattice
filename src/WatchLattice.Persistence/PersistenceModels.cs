@@ -27,8 +27,8 @@ public static class PersistenceDiff
 {
     public static IReadOnlyList<PersistenceChange> Compare(IEnumerable<PersistenceEntry> previous, IEnumerable<PersistenceEntry> current)
     {
-        var before = previous.ToDictionary(e => e.Id, StringComparer.OrdinalIgnoreCase);
-        var after = current.ToDictionary(e => e.Id, StringComparer.OrdinalIgnoreCase);
+        var before = MergeSameIds(previous).ToDictionary(e => e.Id, StringComparer.OrdinalIgnoreCase);
+        var after = MergeSameIds(current).ToDictionary(e => e.Id, StringComparer.OrdinalIgnoreCase);
         var changes = new List<PersistenceChange>();
         foreach (var entry in after.Values)
         {
@@ -39,4 +39,18 @@ public static class PersistenceDiff
             changes.Add(new(PersistenceChangeKind.Removed, entry.Id, entry.Command, null));
         return changes;
     }
+
+    /// <summary>
+    /// Entries whose IDs differ only by case become one entry holding each
+    /// distinct command, so a change to any of them still shows, and nothing
+    /// that keys entries by ID (this comparison, the stored baseline) can be
+    /// stopped by a pair of look-alike names.
+    /// </summary>
+    public static IReadOnlyList<PersistenceEntry> MergeSameIds(IEnumerable<PersistenceEntry> entries) => entries
+        .GroupBy(e => e.Id, StringComparer.OrdinalIgnoreCase)
+        .Select(group => group.Skip(1).Any()
+            ? new PersistenceEntry(group.Select(e => e.Id).Order(StringComparer.Ordinal).First(),
+                string.Join("\n", group.Select(e => e.Command).Distinct(StringComparer.Ordinal).Order(StringComparer.Ordinal)))
+            : group.First())
+        .ToList();
 }

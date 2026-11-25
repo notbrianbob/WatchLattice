@@ -37,7 +37,8 @@ public sealed record ServiceDefinition(int Type, int Start, string? ImagePath, s
     public static ServiceDefinition? TryParse(string? projection)
     {
         if (string.IsNullOrWhiteSpace(projection) || !projection.TrimStart().StartsWith('{')) return null;
-        try { return JsonSerializer.Deserialize<ServiceDefinition>(projection, Json); }
+        // As UTF-8: the text overload throws ArgumentException for half of a surrogate pair, which a registry value can hold.
+        try { return JsonSerializer.Deserialize<ServiceDefinition>(System.Text.Encoding.UTF8.GetBytes(projection), Json); }
         catch (JsonException) { return null; }
     }
 }
@@ -77,8 +78,11 @@ public static class ServiceAnalysis
     public static string NormalizeImagePath(string imagePath)
     {
         var text = imagePath.Trim();
-        if (text.StartsWith(@"\SystemRoot\", StringComparison.OrdinalIgnoreCase)) return "%SystemRoot%" + text[11..];
-        if (text.StartsWith(@"System32\", StringComparison.OrdinalIgnoreCase)) return @"%SystemRoot%\" + text;
+        // A quoted prefix is read the same way, so quoting a path never makes it look like a different folder.
+        var quote = text.StartsWith('"') ? "\"" : "";
+        var rest = text[quote.Length..];
+        if (rest.StartsWith(@"\SystemRoot\", StringComparison.OrdinalIgnoreCase)) return quote + "%SystemRoot%" + rest[11..];
+        if (rest.StartsWith(@"System32\", StringComparison.OrdinalIgnoreCase)) return quote + @"%SystemRoot%\" + rest;
         return text;
     }
 

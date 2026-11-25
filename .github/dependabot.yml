@@ -16,7 +16,7 @@ updates:
       microsoft-extensions:
         patterns: ["Microsoft.Extensions.*", "System.Diagnostics.EventLog", "System.Threading.AccessControl"]
       test-tooling:
-        patterns: ["xunit*", "Microsoft.NET.Test.Sdk"]
+        patterns: ["xunit*", "Microsoft.NET.Test.Sdk", "FsCheck*"]
 
   - package-ecosystem: github-actions
     directory: /

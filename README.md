@@ -60,8 +60,11 @@ detection and removal, and WatchLattice adds friction and tripwires around it.
 something to attack. The [threat model of WatchLattice itself](docs/threat-model.md)
 goes through each trust boundary (user to hub, hub to user, tray to elevated
 editor, internet to updater), says how each threat is handled, and lists what
-was found and fixed in the last review. How releases are built, pinned and
-verified is in [supply chain](docs/supply-chain.md).
+was found and fixed in the last review. Everything the hub reads that someone
+else can write (browser profiles, the hosts file, autostart entries, command
+lines, update metadata, settings) is covered by [fuzz tests](docs/fuzzing.md),
+which run on every pull request and at a larger scale every night. How
+releases are built, pinned and verified is in [supply chain](docs/supply-chain.md).
 
 ## Tools
 
@@ -301,6 +304,7 @@ WatchLattice.sln
 │   ├── WatchLattice.Persistence.Tests/
 │   ├── WatchLattice.ScriptHostAudit.Tests/
 │   ├── WatchLattice.Updater.Tests/
+│   ├── WatchLattice.Fuzz.Tests/      # Fuzz and property-based tests of everything that reads untrusted input
 │   └── installer/                    # Install, upgrade and uninstall tests (zip and MSI) run by CI
 ├── installer/                        # Install.cmd, install.ps1, uninstall.ps1 (shipped in the release zip)
 ├── packaging/msi/                    # WiX project for the release MSI
@@ -317,8 +321,10 @@ WatchLattice.sln
     ├── code-signing.md               # Signing releases through SignPath
     ├── dashboard.md                  # The dashboard and its settings editor
     ├── event-log.md                  # Alerts in the Windows Event Log, with event IDs
+    ├── fuzzing.md                    # The fuzz tests: what they cover, how to run them, what they found
     ├── install-integrity.md          # The hub checking its own installed files
     ├── installing.md                 # Installing a release with Install.cmd or the MSI
+    ├── openssf-best-practices.md     # Draft answers for the OpenSSF Best Practices badge
     ├── releasing.md                  # Cutting a release the updater can install
     └── windows-checks.md             # What to check by hand on Windows for each release
 ```

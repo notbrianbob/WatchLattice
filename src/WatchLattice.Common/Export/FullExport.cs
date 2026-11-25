@@ -240,9 +240,30 @@ public static partial class FullExport
         md.Append("`Modules:<Id>:Enabled` turns each module on or off; the other sections are each module's own settings.\n\n");
         var copy = SettingValues.Clone(settings);
         RedactSecrets(copy);
+        // Names are hidden in each value before it is written as JSON. In the written text a name can follow an
+        // escape such as \t or \n, whose letter makes it look like part of a longer word; the pass over the
+        // finished text below is kept for names in setting names.
+        var hidden = HideNames(copy, hide)!;
         // Relaxed escaping keeps paths and placeholders readable; this is Markdown for a person or a model, never HTML.
-        var json = copy.ToJsonString(new JsonSerializerOptions { WriteIndented = true, Encoder = JavaScriptEncoder.UnsafeRelaxedJsonEscaping });
+        var json = hidden.ToJsonString(new JsonSerializerOptions { WriteIndented = true, Encoder = JavaScriptEncoder.UnsafeRelaxedJsonEscaping });
         md.Append("```json\n").Append(Fence(hide.Apply(json))).Append("\n```\n\n");
+    }
+
+    private static JsonNode? HideNames(JsonNode? node, NameRedactor hide)
+    {
+        switch (node)
+        {
+            case JsonObject obj:
+                var section = new JsonObject();
+                foreach (var (key, value) in obj) section[key] = HideNames(value, hide);
+                return section;
+            case JsonArray array:
+                return new JsonArray(array.Select(item => HideNames(item, hide)).ToArray());
+            case JsonValue value when value.TryGetValue<string>(out var text):
+                return JsonValue.Create(hide.Apply(text));
+            default:
+                return node?.DeepClone();
+        }
     }
 
     /// <summary>Blanks the value of every setting whose name looks like it holds a secret.</summary>
@@ -318,8 +339,9 @@ public static partial class FullExport
         md.Append("```text\n");
         foreach (var entry in entries)
         {
-            var line = $"{Time(entry.At)} {entry.Level,-11} {entry.Source}: {Clip(OneLine(entry.Message), options.MaxTextLength)}";
-            md.Append(Fence(hide.Apply(line))).Append('\n');
+            // Names are hidden before the line is shortened: a name cut in half no longer matches, and half of it would be left in.
+            var message = Clip(OneLine(hide.Apply(entry.Message)), options.MaxTextLength);
+            md.Append(Fence($"{Time(entry.At)} {entry.Level,-11} {OneLine(hide.Apply(entry.Source))}: {message}")).Append('\n');
         }
         md.Append("```\n\n");
     }

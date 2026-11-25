@@ -11,7 +11,62 @@ notes, followed by GitHub's generated list of pull requests. See
 
 ## [Unreleased]
 
+### Security
+
+- **Fuzz tests for everything the hub reads that someone else can write.**
+  A new test project gives browser profiles, the hosts file and proxy
+  settings, autostart entries, command lines, update metadata, settings,
+  approvals and exports about 200,000 generated inputs on every pull
+  request, and many more every night with a new random seed. Each reader
+  must read its input or refuse it the way its caller expects. See
+  [fuzz tests](docs/fuzzing.md), which also lists everything below. None of
+  these defects was seen being used, and none let anyone run code or gain
+  rights.
+- **Browser profiles and extensions on another computer are no longer
+  opened.** A Chromium extension's folder or a Firefox profile could be set
+  to a network path, and the hub, as LocalSystem, would have contacted that
+  server. Such paths are now reported and left alone.
+- **A file the hub can't read no longer stops a module.** An extension named
+  `__MSG__` or a browser profile with a broken escape stopped the extension
+  scan for every browser and user. A service or task whose program is one
+  character stopped the persistence auditor each time it restarted. Task
+  definitions nested thousands of levels deep kept a CPU core busy for
+  minutes and are now refused beyond 64 levels.
+- **Services in user-writable folders are graded that way however the path
+  is spelled**, including `x.exe. -k …` and a quoted `\SystemRoot\…`.
+- **Hosts entries written with another kind of dot or an invisible
+  character** now match the watched domain.
+- **More secrets hidden.** The command line redactor now hides a value that
+  is only partly quoted (`password=""secret`) or whose quote is never
+  closed, and can no longer be slowed down by a very long URL. *Export all
+  data* no longer leaves half a user name where a long line was clipped, or
+  a whole one after an escape such as `\t` in a setting.
+- **Stricter checks on text from outside.** Approval tokens, extension IDs
+  and *Open file location* paths are refused when they end in a line break
+  or contain control characters.
+
+### Fixed
+
+- An approval for an autostart entry whose name ends in a space, or contains
+  half of a surrogate pair, now matches its entry instead of being asked for
+  again.
+- The settings editor refuses a file in which one setting is written twice
+  (also when the two differ only by case), and names the setting, instead of
+  failing part of the way through its checks.
+- The update check reports release metadata, checksums, version text and
+  `runtimeconfig.json` files it can't read as unreadable, where some shapes
+  raised an unexpected error.
+- Two autostart entries whose names differ only by case (possible in a
+  Startup folder made case-sensitive) are compared as one entry instead of
+  making the stored inventory look damaged.
+- Defender and firewall status that contains text that is not valid Unicode,
+  or a date outside the calendar, is reported as unavailable instead of
+  raising an error.
+
 ### Added
+
+- **Draft answers for the [OpenSSF Best Practices badge](docs/openssf-best-practices.md)**,
+  with what is met, what is not met yet and why.
 
 - **Export all data for an AI review.** The dashboard's Overview tab has
   **Export all data for AI review…**, and the hub has
