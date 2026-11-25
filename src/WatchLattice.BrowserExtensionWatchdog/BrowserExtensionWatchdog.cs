@@ -67,7 +67,7 @@ public sealed class BrowserExtensionWatchdog : IDisposable
         _time = time ?? TimeProvider.System;
         _ignored = (_options.IgnoredExtensionIds ?? Array.Empty<string>())
             .Where(p => !string.IsNullOrWhiteSpace(p))
-            .Select(p => new Regex("^" + Regex.Escape(p.Trim()).Replace(@"\*", ".*").Replace(@"\?", ".") + "$",
+            .Select(p => new Regex("^" + Regex.Escape(p.Trim()).Replace(@"\*", ".*").Replace(@"\?", ".") + @"\z",
                 RegexOptions.IgnoreCase | RegexOptions.CultureInvariant, TimeSpan.FromMilliseconds(100)))
             .ToArray();
     }

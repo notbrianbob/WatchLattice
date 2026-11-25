@@ -77,8 +77,9 @@ public static class DefenderStatusParser
                 SettingsError = String(root, "PreferencesError"),
             };
         }
-        catch (JsonException ex)
+        catch (Exception ex) when (ex is JsonException or InvalidOperationException or ArgumentException)
         {
+            // Not JSON, or JSON holding text that cannot be read (half of a surrogate pair, a broken \u escape).
             return DefenderStatus.Unavailable($"Could not parse Defender status: {ex.Message}");
         }
     }
@@ -108,7 +109,9 @@ public static class DefenderStatusParser
         if (text.StartsWith("/Date(", StringComparison.Ordinal))
         {
             var digits = new string(text.Skip(6).TakeWhile(c => char.IsDigit(c) || c == '-').ToArray());
+            // FromUnixTimeMilliseconds throws outside the years 1 to 9999.
             return long.TryParse(digits, NumberStyles.Integer, CultureInfo.InvariantCulture, out var ms)
+                && ms >= DateTimeOffset.MinValue.ToUnixTimeMilliseconds() && ms <= DateTimeOffset.MaxValue.ToUnixTimeMilliseconds()
                 ? DateTimeOffset.FromUnixTimeMilliseconds(ms)
                 : null;
         }

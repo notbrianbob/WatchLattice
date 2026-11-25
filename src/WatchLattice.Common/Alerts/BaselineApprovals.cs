@@ -23,8 +23,19 @@ public sealed record ApprovedEntry(string Resource, string Sha256)
 
     public static ApprovedEntry For(string resource, string value) => new(resource, Fingerprint(value));
 
+    /// <summary>
+    /// A resource as a settings file can hold it: trimmed, because settings
+    /// are stored and edited one trimmed line each, and with half of a
+    /// surrogate pair (which a registry value name can hold but UTF-8 cannot)
+    /// replaced the way writing the file replaces it. Without this an
+    /// approval for such an entry would never match it again, and its alert
+    /// could not be approved.
+    /// </summary>
+    public static string Stored(string resource) => Encoding.UTF8.GetString(Encoding.UTF8.GetBytes(resource)).Trim();
+
+    /// <summary>True for this entry (compared in its <see cref="Stored"/> form) with exactly this value.</summary>
     public bool Matches(string resource, string value) =>
-        string.Equals(Resource, resource, StringComparison.OrdinalIgnoreCase)
+        string.Equals(Resource, Stored(resource), StringComparison.OrdinalIgnoreCase)
         && string.Equals(Sha256, Fingerprint(value), StringComparison.OrdinalIgnoreCase);
 
     public override string ToString() => $"{Prefix}{Sha256} {Resource}";
@@ -34,8 +45,8 @@ public sealed record ApprovedEntry(string Resource, string Sha256)
         entry = null!;
         if (text is null || text.Length < Prefix.Length + 66 || !text.StartsWith(Prefix, StringComparison.OrdinalIgnoreCase)) return false;
         var hash = text.Substring(Prefix.Length, 64);
-        var resource = text[(Prefix.Length + 65)..];
-        if (!IsHex(hash) || text[Prefix.Length + 64] != ' ' || resource.Trim().Length == 0 || resource.Length > MaxResourceLength
+        var resource = Stored(text[(Prefix.Length + 65)..]);
+        if (!IsHex(hash) || text[Prefix.Length + 64] != ' ' || resource.Length == 0 || resource.Length > MaxResourceLength
             || resource.Any(char.IsControl)) return false;
         entry = new(resource, hash.ToLowerInvariant());
         return true;
@@ -176,6 +187,7 @@ public static partial class BaselineApprovals
         : "Autostart entry, exactly as it is now: " + entry.Resource;
 
     // Chromium IDs are 32 letters a-p; Firefox IDs are an email-like name or a {GUID}.
-    [GeneratedRegex(@"^[A-Za-z0-9@._{}+-]{1,200}$", RegexOptions.CultureInvariant)]
+    // \z, not $: in .NET, $ also matches just before a line break at the end, which would let one through.
+    [GeneratedRegex(@"\A[A-Za-z0-9@._{}+-]{1,200}\z", RegexOptions.CultureInvariant)]
     private static partial Regex ExtensionId();
 }

@@ -152,17 +152,67 @@ public static class SettingValues
         _ => node.ToJsonString(),
     };
 
+    /// <summary>
+    /// Reads appsettings.json text. Anything the hub itself could not start
+    /// with is refused here, with <see cref="JsonException"/> or
+    /// <see cref="InvalidDataException"/>: text that is not JSON, a setting
+    /// written twice in one section (in any letter case, which .NET
+    /// configuration also refuses), and text spelled with a broken \u escape.
+    /// </summary>
     public static JsonObject Parse(string json)
     {
-        // Notepad and Windows PowerShell's Set-Content -Encoding UTF8 start the file with a byte order mark.
-        var node = JsonNode.Parse(json.TrimStart('\uFEFF'), documentOptions: new JsonDocumentOptions
+        try
         {
-            CommentHandling = JsonCommentHandling.Skip,
-            AllowTrailingCommas = true,
-            MaxDepth = 32,
-        });
-        return node as JsonObject ?? throw new InvalidDataException("The settings file must contain a JSON object.");
+            // Notepad and Windows PowerShell's Set-Content -Encoding UTF8 start the file with a byte order mark.
+            // Parsed as UTF-8, because the text overload throws ArgumentException for half of a surrogate pair.
+            var node = JsonNode.Parse(System.Text.Encoding.UTF8.GetBytes(json.TrimStart('\uFEFF')), documentOptions: new JsonDocumentOptions
+            {
+                CommentHandling = JsonCommentHandling.Skip,
+                AllowTrailingCommas = true,
+                MaxDepth = 32,
+                AllowDuplicateProperties = false,
+            });
+            var root = node as JsonObject ?? throw new InvalidDataException("The settings file must contain a JSON object.");
+            RefuseRepeatedNames(root, null, new HashSet<string>(StringComparer.OrdinalIgnoreCase));
+            // Reads every string once, so text that cannot be read is refused now rather than when a setting is checked.
+            _ = root.ToJsonString();
+            return root;
+        }
+        catch (InvalidOperationException ex)
+        {
+            throw new InvalidDataException("The settings file holds text that is not valid: " + ex.Message, ex);
+        }
     }
+
+    /// <summary>
+    /// One configuration path, one value: "Enabled" and "enabled" in the same
+    /// section, or "A:B" beside a section A with a setting B, are the same
+    /// path to the hub.
+    /// </summary>
+    private static void RefuseRepeatedNames(JsonNode? node, string? path, HashSet<string> values)
+    {
+        switch (node)
+        {
+            case JsonObject section:
+                var names = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+                foreach (var (key, child) in section)
+                {
+                    var childPath = path is null ? key : path + ":" + key;
+                    if (!names.Add(key)) throw Repeated(childPath);
+                    RefuseRepeatedNames(child, childPath, values);
+                }
+                break;
+            case JsonArray list:
+                for (var i = 0; i < list.Count; i++) RefuseRepeatedNames(list[i], path + ":" + i.ToString(CultureInfo.InvariantCulture), values);
+                break;
+            default:
+                if (path is not null && !values.Add(path)) throw Repeated(path);
+                break;
+        }
+    }
+
+    private static InvalidDataException Repeated(string path) =>
+        new($"The settings file sets \"{path}\" more than once. Names are compared without regard to letter case.");
 
     public static string Serialize(JsonObject root) =>
         root.ToJsonString(new JsonSerializerOptions { WriteIndented = true }) + Environment.NewLine;

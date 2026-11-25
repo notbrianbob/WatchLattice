@@ -35,6 +35,19 @@ public static class RuntimeRequirements
     /// </summary>
     public static IReadOnlyList<FrameworkRequirement> Read(string runtimeConfigPath)
     {
+        try
+        {
+            return ReadFile(runtimeConfigPath);
+        }
+        catch (InvalidOperationException ex)
+        {
+            // A value of the wrong kind, or text spelled with a broken \u escape.
+            throw new InvalidDataException(Path.GetFileName(runtimeConfigPath) + " is not in the expected form: " + ex.Message, ex);
+        }
+    }
+
+    private static IReadOnlyList<FrameworkRequirement> ReadFile(string runtimeConfigPath)
+    {
         if (!File.Exists(runtimeConfigPath)) return Array.Empty<FrameworkRequirement>();
         JsonDocument document;
         try
@@ -47,7 +60,8 @@ public static class RuntimeRequirements
             throw new InvalidDataException(Path.GetFileName(runtimeConfigPath) + " is not valid JSON: " + ex.Message, ex);
         }
         using var disposeDocument = document;
-        if (!document.RootElement.TryGetProperty("runtimeOptions", out var options) || options.ValueKind != JsonValueKind.Object)
+        if (document.RootElement.ValueKind != JsonValueKind.Object
+            || !document.RootElement.TryGetProperty("runtimeOptions", out var options) || options.ValueKind != JsonValueKind.Object)
             throw new InvalidDataException(Path.GetFileName(runtimeConfigPath) + " has no runtimeOptions.");
         if (options.TryGetProperty("includedFrameworks", out _)) return Array.Empty<FrameworkRequirement>();
 
@@ -62,6 +76,8 @@ public static class RuntimeRequirements
         var result = new List<FrameworkRequirement>();
         foreach (var framework in frameworks)
         {
+            if (framework.ValueKind != JsonValueKind.Object)
+                throw new InvalidDataException(Path.GetFileName(runtimeConfigPath) + " lists a framework that is not an object.");
             var name = framework.TryGetProperty("name", out var n) && n.ValueKind == JsonValueKind.String ? n.GetString() : null;
             var text = framework.TryGetProperty("version", out var v) && v.ValueKind == JsonValueKind.String ? v.GetString() : null;
             if (!IsFrameworkName(name) || !TryParseVersion(text, out var version))
@@ -152,7 +168,7 @@ public static class RuntimeRequirements
     /// <summary>A shared framework name such as Microsoft.NETCore.App: letters, digits and dots only, so it is never a path.</summary>
     private static bool IsFrameworkName(string? name) =>
         !string.IsNullOrEmpty(name) && name.Length <= 100 && name.All(c => char.IsAsciiLetterOrDigit(c) || c == '.')
-        && !name.StartsWith('.') && !name.Contains("..", StringComparison.Ordinal);
+        && !name.StartsWith('.') && !name.EndsWith('.') && !name.Contains("..", StringComparison.Ordinal);
 
     private static bool TryParseVersion(string? text, out Version version)
     {

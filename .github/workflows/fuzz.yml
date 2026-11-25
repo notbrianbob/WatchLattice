@@ -1,0 +1,85 @@
+name: Fuzz
+
+# Runs the fuzz tests (tests/WatchLattice.Fuzz.Tests) every night with a new
+# random seed and many more inputs than a pull request does. Pull requests
+# run the same tests with a fixed seed, so they stay quick and repeatable.
+# A failed run prints its seed and the reduced input; start this workflow by
+# hand with that seed to run it again. See docs/fuzzing.md.
+on:
+  schedule:
+    - cron: '43 3 * * *'
+  workflow_dispatch:
+    inputs:
+      seed:
+        description: Seed to run again (empty picks a random one)
+        required: false
+        type: string
+      scale:
+        description: How many times the usual number of inputs (1 to 1000)
+        required: false
+        default: '50'
+        type: string
+
+permissions:
+  contents: read
+
+concurrency:
+  group: fuzz-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  fuzz:
+    name: Fuzz (${{ matrix.os }})
+    runs-on: ${{ matrix.os }}
+    timeout-minutes: 60
+    strategy:
+      fail-fast: false
+      matrix:
+        # Paths, host names and zip entries are read differently on each.
+        os: [windows-latest, ubuntu-latest]
+
+    env:
+      DOTNET_NOLOGO: true
+      DOTNET_CLI_TELEMETRY_OPTOUT: true
+
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - uses: actions/setup-dotnet@0f4a354dd5547a28c70b7853dbd95d5b67886e73 # v6.1.0
+        with:
+          global-json-file: global.json
+
+      - name: Build
+        run: dotnet build tests/WatchLattice.Fuzz.Tests -c Release
+
+      # The inputs reach the script through the environment, never as text
+      # pasted into it. Anything that is not a number is ignored.
+      - name: Choose the seed
+        id: seed
+        shell: bash
+        env:
+          REQUESTED_SEED: ${{ inputs.seed }}
+          REQUESTED_SCALE: ${{ inputs.scale }}
+        run: |
+          seed="$REQUESTED_SEED"
+          if ! [[ "$seed" =~ ^-?[0-9]{1,9}$ ]]; then seed=$(( (RANDOM << 15) | RANDOM )); fi
+          scale="$REQUESTED_SCALE"
+          if ! [[ "$scale" =~ ^[0-9]{1,4}$ ]]; then scale=50; fi
+          echo "seed=$seed" >> "$GITHUB_OUTPUT"
+          echo "scale=$scale" >> "$GITHUB_OUTPUT"
+          echo "Seed $seed, scale $scale" | tee -a "$GITHUB_STEP_SUMMARY"
+
+      - name: Fuzz
+        env:
+          WATCHLATTICE_FUZZ_SEED: ${{ steps.seed.outputs.seed }}
+          WATCHLATTICE_FUZZ_SCALE: ${{ steps.seed.outputs.scale }}
+        run: dotnet test tests/WatchLattice.Fuzz.Tests --no-build -c Release --logger trx --results-directory TestResults
+
+      - name: Upload test results
+        if: always()
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+        with:
+          name: fuzz-results-${{ matrix.os }}
+          path: TestResults/*.trx
+          if-no-files-found: ignore

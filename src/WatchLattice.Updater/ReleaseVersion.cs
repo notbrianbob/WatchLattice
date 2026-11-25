@@ -6,8 +6,9 @@ namespace WatchLattice.Updater;
 /// <summary>A semantic version (major.minor.patch[-prerelease]) as used by release tags.</summary>
 public sealed record ReleaseVersion(int Major, int Minor, int Patch, string? Prerelease = null) : IComparable<ReleaseVersion>
 {
+    // [0-9] rather than \d, which also matches digits from other scripts that int.Parse then refuses.
     private static readonly Regex Pattern = new(
-        @"^v?(0|[1-9]\d{0,8})\.(0|[1-9]\d{0,8})\.(0|[1-9]\d{0,8})(?:-([0-9A-Za-z-]+(?:\.[0-9A-Za-z-]+)*))?(?:\+[0-9A-Za-z.-]+)?$",
+        @"\Av?(0|[1-9][0-9]{0,8})\.(0|[1-9][0-9]{0,8})\.(0|[1-9][0-9]{0,8})(?:-([0-9A-Za-z-]+(?:\.[0-9A-Za-z-]+)*))?(?:\+[0-9A-Za-z.-]+)?\z",
         RegexOptions.CultureInvariant);
 
     public static ReleaseVersion Development { get; } = new(0, 0, 0, "dev");

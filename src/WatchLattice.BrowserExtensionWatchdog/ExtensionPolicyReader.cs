@@ -183,7 +183,9 @@ public sealed class WindowsExtensionPolicyReader : IExtensionPolicyReader
     {
         try
         {
-            using var document = JsonDocument.Parse(json, new JsonDocumentOptions { AllowTrailingCommas = true, CommentHandling = JsonCommentHandling.Skip });
+            // As bytes: a registry string can hold half of a surrogate pair, which the text overload refuses with an ArgumentException.
+            using var document = JsonDocument.Parse(System.Text.Encoding.UTF8.GetBytes(json),
+                new JsonDocumentOptions { AllowTrailingCommas = true, CommentHandling = JsonCommentHandling.Skip });
             if (document.RootElement.ValueKind != JsonValueKind.Object)
             {
                 return Array.Empty<PolicyEntry>();
@@ -198,12 +200,12 @@ public sealed class WindowsExtensionPolicyReader : IExtensionPolicyReader
                     "normal_installed" => SettingsNormalKind,
                     _ => null,
                 };
-                if (kind is null || item.Name == "*" || item.Name.StartsWith("update_url:", StringComparison.Ordinal))
+                if (kind is null || item.NameOrNull() is not { } ids || ids == "*" || ids.StartsWith("update_url:", StringComparison.Ordinal))
                 {
                     continue;
                 }
                 var location = item.Value.GetStringOrNull("update_url") ?? item.Value.GetStringOrNull("install_url");
-                foreach (var id in item.Name.Split(',', StringSplitOptions.TrimEntries | StringSplitOptions.RemoveEmptyEntries))
+                foreach (var id in ids.Split(',', StringSplitOptions.TrimEntries | StringSplitOptions.RemoveEmptyEntries))
                 {
                     entries.Add(new PolicyEntry(browser, scope, scopeName, kind, id, location));
                 }

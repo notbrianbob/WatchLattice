@@ -84,7 +84,7 @@ public static class ChromiumProfileReader
             {
                 foreach (var profile in cache.EnumerateObject())
                 {
-                    names[profile.Name] = profile.Value.GetStringOrNull("name");
+                    if (profile.NameOrNull() is { } folder) names[folder] = profile.Value.GetStringOrNull("name");
                 }
             }
         }
@@ -108,8 +108,8 @@ public static class ChromiumProfileReader
             {
                 foreach (var entry in entries.EnumerateObject().Where(e => e.Value.ValueKind == JsonValueKind.Object))
                 {
-                    // Cloned so the entry outlives its document.
-                    settings[entry.Name] = entry.Value.Clone();
+                    // An ID that is not valid text is not one the browser can load. Cloned so the entry outlives its document.
+                    if (entry.NameOrNull() is { } id) settings[id] = entry.Value.Clone();
                 }
             }
         }
@@ -130,7 +130,7 @@ public static class ChromiumProfileReader
             return null;
         }
 
-        var manifest = entry.TryGetProperty("manifest", out var m) && m.ValueKind == JsonValueKind.Object ? m : (JsonElement?)null;
+        var manifest = entry.TryGet("manifest", out var m) && m.ValueKind == JsonValueKind.Object ? m : (JsonElement?)null;
         using var installed = ReadInstalledManifest(profileFolder, id, entry.GetStringOrNull("path"));
         var name = Localize(manifest?.GetStringOrNull("name"), installed)
                    ?? Localize(installed?.Manifest.GetStringOrNull("name"), installed);
@@ -152,13 +152,13 @@ public static class ChromiumProfileReader
         };
 
         var enabled = entry.GetIntOrNull("state") != 0 && !HasDisableReasons(entry);
-        return new InstalledExtension(id, string.IsNullOrWhiteSpace(name) ? id : name.Trim(), version, source, enabled, detail);
+        return new InstalledExtension(id, BoundedJson.DisplayName(name, id), version, source, enabled, detail);
     }
 
     /// <summary>Chromium records why an extension is disabled as a bit field (older versions) or a list.</summary>
     private static bool HasDisableReasons(JsonElement entry)
     {
-        if (!entry.TryGetProperty("disable_reasons", out var reasons))
+        if (!entry.TryGet("disable_reasons", out var reasons))
         {
             return false;
         }
@@ -188,6 +188,8 @@ public static class ChromiumProfileReader
             string? folder = null;
             if (!string.IsNullOrWhiteSpace(path))
             {
+                // The path comes from a file the user can edit; never follow it to another computer.
+                if (BoundedJson.IsRemoteOrDevicePath(path)) return null;
                 folder = Path.IsPathRooted(path)
                     ? path
                     : Path.Join(profileFolder, "Extensions", path.Replace('\\', Path.DirectorySeparatorChar));
@@ -216,7 +218,8 @@ public static class ChromiumProfileReader
     /// <summary>Resolves a <c>__MSG_name__</c> placeholder from the extension's default locale.</summary>
     private static string? Localize(string? value, InstalledManifest? installed)
     {
-        if (value is null || !value.StartsWith("__MSG_", StringComparison.Ordinal) || !value.EndsWith("__", StringComparison.Ordinal))
+        // "__MSG_" + a key + "__": anything shorter, such as "__MSG__", has no key and is just a name.
+        if (value is null || value.Length <= 8 || !value.StartsWith("__MSG_", StringComparison.Ordinal) || !value.EndsWith("__", StringComparison.Ordinal))
         {
             return value;
         }
@@ -235,7 +238,7 @@ public static class ChromiumProfileReader
             }
             foreach (var message in messages.RootElement.EnumerateObject())
             {
-                if (string.Equals(message.Name, key, StringComparison.OrdinalIgnoreCase))
+                if (string.Equals(message.NameOrNull(), key, StringComparison.OrdinalIgnoreCase))
                 {
                     return message.Value.GetStringOrNull("message");
                 }

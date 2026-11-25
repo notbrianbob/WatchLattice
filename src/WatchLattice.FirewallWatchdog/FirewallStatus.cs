@@ -106,8 +106,9 @@ public static class FirewallStatusParser
                 RulesError = String(root, "RulesError"),
             };
         }
-        catch (JsonException ex)
+        catch (Exception ex) when (ex is JsonException or InvalidOperationException or ArgumentException)
         {
+            // Not JSON, or JSON holding text that cannot be read (half of a surrogate pair, a broken \u escape).
             return FirewallStatus.Unavailable($"Could not parse firewall status: {ex.Message}");
         }
     }

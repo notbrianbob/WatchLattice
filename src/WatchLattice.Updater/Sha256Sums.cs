@@ -20,6 +20,7 @@ public static class Sha256Sums
             if (!match.Success) throw new InvalidDataException("The checksum file has a malformed line.");
             var name = match.Groups[2].Value.Trim();
             if (name.StartsWith("./", StringComparison.Ordinal)) name = name[2..];
+            if (name.Length == 0) throw new InvalidDataException("The checksum file has a line that names no file.");
             var hash = match.Groups[1].Value.ToLowerInvariant();
             if (result.TryGetValue(name, out var existing) && existing != hash)
                 throw new InvalidDataException($"The checksum file lists {name} twice with different hashes.");
@@ -30,7 +31,10 @@ public static class Sha256Sums
 
     public static string Compute(Stream stream) => Convert.ToHexString(SHA256.HashData(stream)).ToLowerInvariant();
 
+    /// <summary>True when both are the same SHA-256 in hex, in either case. Anything that is not 64 hex digits matches nothing.</summary>
     public static bool Matches(string actualHex, string expectedHex) =>
-        actualHex.Length == 64 && expectedHex.Length == 64
+        IsHash(actualHex) && IsHash(expectedHex)
         && CryptographicOperations.FixedTimeEquals(Convert.FromHexString(actualHex), Convert.FromHexString(expectedHex));
+
+    private static bool IsHash(string text) => text.Length == 64 && text.All(char.IsAsciiHexDigit);
 }

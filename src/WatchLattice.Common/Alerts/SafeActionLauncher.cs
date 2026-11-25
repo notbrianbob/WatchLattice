@@ -15,7 +15,8 @@ public static partial class SafeActionLauncher
 {
     // A drive letter, a colon, a backslash, then path characters. No quotes,
     // no wildcards, no control characters, no forward slashes, no "..".
-    [GeneratedRegex(@"^[A-Za-z]:\\[^""*?<>|\x00-\x1f/]*$", RegexOptions.CultureInvariant)]
+    // \z, not $: in .NET, $ also matches just before a line break at the end.
+    [GeneratedRegex(@"\A[A-Za-z]:\\[^""*?<>|\x00-\x1f\x7f-\x9f/]*\z", RegexOptions.CultureInvariant)]
     private static partial Regex LocalPathPattern();
 
     /// <summary>

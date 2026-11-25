@@ -225,7 +225,8 @@ public sealed class WindowsPersistenceProvider : IPersistenceProvider
                 }
                 entries.Add(new(Path.GetFileName(path), $"File: {path}; SHA256: {Convert.ToHexString(hash.GetHashAndReset())}"));
             }
-            return new(id, entries);
+            // A folder can be made case-sensitive, and then hold a.lnk and A.lnk. Entry IDs ignore case everywhere else.
+            return new(id, PersistenceDiff.MergeSameIds(entries));
         }
         catch (DirectoryNotFoundException) { return new(id, Array.Empty<PersistenceEntry>()); }
         catch (Exception ex) when (ex is IOException or UnauthorizedAccessException or SecurityException)
@@ -386,7 +387,8 @@ public sealed class WindowsPersistenceProvider : IPersistenceProvider
 
     private static IReadOnlyList<PersistenceEntry> ParseEntries(string json, string what)
     {
-        var entries = JsonSerializer.Deserialize<PersistenceEntry[]>(json, new JsonSerializerOptions { PropertyNameCaseInsensitive = true });
+        // As UTF-8: the text overload throws ArgumentException for half of a surrogate pair.
+        var entries = JsonSerializer.Deserialize<PersistenceEntry[]>(Encoding.UTF8.GetBytes(json), new JsonSerializerOptions { PropertyNameCaseInsensitive = true });
         if (entries is null || entries.Any(e => e is null || string.IsNullOrWhiteSpace(e.Id) || e.Command is null)
             || entries.Select(e => e.Id).Distinct(StringComparer.OrdinalIgnoreCase).Count() != entries.Length)
             throw new InvalidDataException($"{what} inventory was incomplete or invalid.");

@@ -47,21 +47,29 @@ public static class FirefoxProfileReader
             var path = relative
                 ? Path.Join(firefoxFolder, configuredPath.Replace('/', Path.DirectorySeparatorChar).Replace('\\', Path.DirectorySeparatorChar))
                 : configuredPath;
+            var key = $"{Browsers.Firefox}|{userId}|{folderKey}";
+            var folder = folderKey.Split('/').Last() is { Length: > 0 } last && last.Trim().Length > 0 ? last : "(profile)";
+            var displayName = string.IsNullOrWhiteSpace(name) ? folder : name.Trim();
+            if (!relative && BoundedJson.IsRemoteOrDevicePath(path))
+            {
+                // profiles.ini is the user's own file. Reported instead of skipped, so the gap is visible.
+                profiles.Add(new BrowserProfile(key, Browsers.Firefox, userId, userName, folder, displayName, path, null,
+                    "The profile is on a network or device path, which is not opened."));
+                continue;
+            }
             if (!Directory.Exists(path))
             {
                 // Listed but never created, or deleted by hand: nothing is installed there.
                 continue;
             }
-            var key = $"{Browsers.Firefox}|{userId}|{folderKey}";
-            var folder = folderKey.Split('/').Last();
             try
             {
-                profiles.Add(new BrowserProfile(key, Browsers.Firefox, userId, userName, folder, name ?? folder, path,
+                profiles.Add(new BrowserProfile(key, Browsers.Firefox, userId, userName, folder, displayName, path,
                     ReadExtensions(path, maxFileBytes)));
             }
             catch (Exception ex) when (ex is IOException or UnauthorizedAccessException or JsonException or InvalidDataException)
             {
-                profiles.Add(new BrowserProfile(key, Browsers.Firefox, userId, userName, folder, name ?? folder, path, null, ex.Message));
+                profiles.Add(new BrowserProfile(key, Browsers.Firefox, userId, userName, folder, displayName, path, null, ex.Message));
             }
         }
         return profiles
@@ -137,9 +145,7 @@ public static class FirefoxProfileReader
                 continue;
             }
 
-            var source = addon.TryGetPath(out var telemetry, "installTelemetryInfo", "source") && telemetry.ValueKind == JsonValueKind.String
-                ? telemetry.GetString()
-                : null;
+            var source = addon.TryGetPath(out var telemetry, "installTelemetryInfo", "source") ? telemetry.StringOrNull() : null;
             var (kind, detail) = (location, source) switch
             {
                 (_, "enterprise-policy") => (ExtensionSource.Policy, "installed by policy"),
@@ -150,11 +156,10 @@ public static class FirefoxProfileReader
                 _ => (ExtensionSource.Other, source is null ? $"install location {location}" : $"installed from {source}"),
             };
 
-            var name = addon.TryGetPath(out var locale, "defaultLocale", "name") && locale.ValueKind == JsonValueKind.String
-                ? locale.GetString()
-                : addon.GetStringOrNull("name");
+            var name = (addon.TryGetPath(out var locale, "defaultLocale", "name") ? locale.StringOrNull() : null)
+                       ?? addon.GetStringOrNull("name");
             var enabled = addon.GetBoolOrNull("active") ?? addon.GetBoolOrNull("userDisabled") != true;
-            extensions.TryAdd(id, new InstalledExtension(id, string.IsNullOrWhiteSpace(name) ? id : name.Trim(),
+            extensions.TryAdd(id, new InstalledExtension(id, BoundedJson.DisplayName(name, id),
                 addon.GetStringOrNull("version"), kind, enabled, detail));
         }
         return extensions.Values.OrderBy(e => e.Id, StringComparer.Ordinal).ToList();

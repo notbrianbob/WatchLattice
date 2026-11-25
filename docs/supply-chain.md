@@ -90,6 +90,17 @@ now, and why:
 - **Branch-Protection.** Scorecard can't read branch protection settings
   with the default token. The result depends on the repository's settings.
 
+**Fuzzing.** For C#, Scorecard's fuzzing check looks for property-based
+tests written with FsCheck. The [fuzz tests](fuzzing.md) include a set driven
+by FsCheck, beside a larger set with its own input generator that Scorecard
+does not recognize. Neither is coverage-guided fuzzing of the kind OSS-Fuzz
+runs, and the fuzzing page says so. FsCheck is a test-only dependency: it is
+pinned like the other packages and is not in the release or its SBOM.
+
+The [OpenSSF Best Practices](https://www.bestpractices.dev/) badge is a
+separate, self-assessed questionnaire. Draft answers, with what is not met
+yet, are in [openssf-best-practices.md](openssf-best-practices.md).
+
 ## Honest limits
 
 - The SBOM describes what was packaged, not what is installed on your PC
@@ -98,5 +109,6 @@ now, and why:
   the commit that was pinned. Dependabot updates are reviewed like any
   other change.
 - None of this proves the source code is free of bugs. That is what CI's
-  tests, CodeQL, the [detection checks](../demos/detection-checks.md) and
-  the [threat model](threat-model.md) are for.
+  tests, the [fuzz tests](fuzzing.md), CodeQL, the
+  [detection checks](../demos/detection-checks.md) and the
+  [threat model](threat-model.md) are for.

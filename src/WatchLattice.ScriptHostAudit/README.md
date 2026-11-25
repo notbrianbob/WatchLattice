@@ -190,8 +190,11 @@ line's length and the record ID to look it up, and approving still works.
 Even with it on, values that look like passwords, tokens or keys
 (`-Password x`, `/p:x`, `token=x`, `https://user:pass@host`, `Bearer x`,
 `ConvertTo-SecureString "x"`) are shown as `[hidden]`, and the line says so.
-A secret passed as a plain word can't be recognized, so this lowers the risk
-without removing it.
+A quoted value is hidden together with anything joined to it
+(`password="abc"def`), and a quote that is never closed hides the rest of the
+line. A value that starts without a quote ends at the next one, so
+`password=abc"def"` still shows `"def"`. A secret passed as a plain word can't
+be recognized at all. This lowers the risk without removing it.
 
 ## Run
 
