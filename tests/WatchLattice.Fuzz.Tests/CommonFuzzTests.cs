@@ -50,7 +50,7 @@ public class CommonFuzzTests
         Fuzzer.Run(2500, r => Enumerable.Range(0, r.Next(1, 5)).Select(_ => Alert(r, () => r.Text(Markup, 5, 30))).ToArray(), alerts =>
         {
             var rows = AlertGrouping.Build(alerts, AlertReviewSet.Empty, group: false);
-            var csv = new StringWriter();
+            using var csv = new StringWriter();
             AlertExport.Write(csv, rows, AlertExportFormat.Csv, grouped: false, Now);
 
             var table = ParseCsv(csv.ToString());
@@ -69,7 +69,7 @@ public class CommonFuzzTests
                 Assert.Equal(alert.Id.ToString(), cells[11]);
             }
 
-            var json = new StringWriter();
+            using var json = new StringWriter();
             AlertExport.Write(json, rows, AlertExportFormat.Json, grouped: false, Now);
             using var document = JsonDocument.Parse(json.ToString());
             Assert.Equal(rows.Count, document.RootElement.GetProperty("rows").GetArrayLength());
@@ -361,10 +361,22 @@ public class CommonFuzzTests
             File.WriteAllBytes(feedPath, bytes);
             AlertSnapshot? feed = null;
             ActivitySnapshot? activity = null;
-            try { feed = AlertSnapshot.Read(feedPath, includeHeartbeat: false); }
-            catch (Exception ex) when (ex is JsonException or InvalidDataException) { }
-            try { activity = ActivitySnapshot.Read(feedPath); }
-            catch (Exception ex) when (ex is JsonException or InvalidDataException) { }
+            try
+            {
+                feed = AlertSnapshot.Read(feedPath, includeHeartbeat: false);
+            }
+            catch (Exception ex) when (ex is JsonException or InvalidDataException)
+            {
+                // The documented way to refuse a feed; the tray then shows that it can't be read.
+            }
+            try
+            {
+                activity = ActivitySnapshot.Read(feedPath);
+            }
+            catch (Exception ex) when (ex is JsonException or InvalidDataException)
+            {
+                // The same for the activity file.
+            }
             Assert.NotNull(TrayPreferences.Load(feedPath).Preferences);
             Assert.NotNull(CanaryManifest.Load(feedPath).Files);
             if (feed is null && activity is null) return;
@@ -378,8 +390,10 @@ public class CommonFuzzTests
             foreach (var grouped in new[] { true, false })
             {
                 var rows = AlertGrouping.Build(feed.Alerts, AlertReviewSet.Empty, grouped);
-                AlertExport.Write(new StringWriter(), rows, AlertExportFormat.Csv, grouped, Now);
-                AlertExport.Write(new StringWriter(), rows, AlertExportFormat.Json, grouped, Now);
+                using var csv = new StringWriter();
+                AlertExport.Write(csv, rows, AlertExportFormat.Csv, grouped, Now);
+                using var json = new StringWriter();
+                AlertExport.Write(json, rows, AlertExportFormat.Json, grouped, Now);
             }
             foreach (var alert in feed.Alerts)
             {
@@ -485,7 +499,9 @@ public class CommonFuzzTests
             for (var at = text.IndexOf(name, StringComparison.OrdinalIgnoreCase); at >= 0; at = text.IndexOf(name, at + 1, StringComparison.OrdinalIgnoreCase))
             {
                 var end = at + name.Length;
-                if (wholeWord && ((at > 0 && WordChar(text[at - 1])) || (end < text.Length && WordChar(text[end])))) continue;
+                var joinedBefore = at > 0 && WordChar(text[at - 1]);
+                var joinedAfter = end < text.Length && WordChar(text[end]);
+                if (wholeWord && (joinedBefore || joinedAfter)) continue;
                 Assert.Fail($"{Fuzzer.Literal(name)} was left in: {Fuzzer.Literal(text[Math.Max(0, at - 40)..Math.Min(text.Length, end + 40)])}");
             }
         }

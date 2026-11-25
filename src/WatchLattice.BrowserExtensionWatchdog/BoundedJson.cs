@@ -88,13 +88,10 @@ internal static class BoundedJson
         {
             // Look again, stepping over the names that cannot be read. The last match wins, as it does above.
             var found = false;
-            foreach (var property in element.EnumerateObject())
+            foreach (var property in element.EnumerateObject().Where(p => p.NameOrNull() == name))
             {
-                if (property.NameOrNull() == name)
-                {
-                    value = property.Value;
-                    found = true;
-                }
+                value = property.Value;
+                found = true;
             }
             return found;
         }

@@ -71,7 +71,7 @@ public class UpdaterFuzzTests
             // The text a version prints is the text that parses back to it, so the file name built from it names one release.
             Assert.Equal(version, ReleaseVersion.Parse(version.ToString()));
             Assert.Matches(@"\A[0-9A-Za-z.-]+\z", version.ToString());
-            Assert.Equal(0, version.CompareTo(version));
+            Assert.Equal(0, version.CompareTo(ReleaseVersion.Parse(version.ToString())));
             _ = version.IsDevelopmentBuild;
             _ = ReleaseLayout.PackageFileName(version);
         });

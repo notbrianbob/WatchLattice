@@ -277,7 +277,7 @@ public class PersistenceFuzzTests
             var registry = new FakeRegistry();
             foreach (var clsid in classes)
             {
-                foreach (var (scope, sid) in new[] { (ComScope.Machine64, (string?)null), (ComScope.Machine32, null), (ComScope.User, "S-1-5-21-1-2-3-1001") })
+                foreach (var (scope, sid) in new (ComScope Scope, string? Sid)[] { (ComScope.Machine64, null), (ComScope.Machine32, null), (ComScope.User, "S-1-5-21-1-2-3-1001") })
                 {
                     if (r.Chance(0.4)) continue;
                     registry.Entries[(scope, clsid, sid)] = new ComRegistration("HKLM\\" + clsid, r.Chance(0.8),
@@ -415,10 +415,12 @@ public class PersistenceFuzzTests
         if (parts.Count == 1) text.Append('\\');
         else if (r.Chance(0.1)) text.Append(r.Pick(".", " ", ". ."));
         var path = text.ToString();
-        foreach (var (folder, variable) in new[] { (@"C:\Windows", "%SystemRoot%"), (@"C:\Windows", "%WINDIR%"), (@"C:\Program Files (x86)", "%ProgramFiles(x86)%"), (@"C:\ProgramData", "%programdata%") })
-        {
-            if (r.Chance(0.3) && path.StartsWith(folder + "\\", StringComparison.Ordinal)) path = variable + path[folder.Length..];
-        }
+        // A folder written as the variable that names it, as installers often do.
+        var written = new (string Folder, string Variable)[] { (@"C:\Windows", "%SystemRoot%"), (@"C:\Windows", "%WINDIR%"), (@"C:\Program Files (x86)", "%ProgramFiles(x86)%"), (@"C:\ProgramData", "%programdata%") }
+            .Where(pair => r.Chance(0.3) && path.StartsWith(pair.Folder + "\\", StringComparison.Ordinal))
+            .Select(pair => pair.Variable + path[pair.Folder.Length..])
+            .FirstOrDefault();
+        path = written ?? path;
         if (r.Chance(0.15) && !path.StartsWith('%')) path = r.Pick(@"\\?\", @"\??\") + path;
         if (r.Chance(0.3)) path = "\"" + path + "\"";
         return r.Pick("", " ", "\t") + path + r.Pick("", " ");
