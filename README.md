@@ -2,7 +2,9 @@
 
 [![CI](https://github.com/notbrianbob/WatchLattice/actions/workflows/ci.yml/badge.svg)](https://github.com/notbrianbob/WatchLattice/actions/workflows/ci.yml)
 [![CodeQL](https://github.com/notbrianbob/WatchLattice/actions/workflows/codeql.yml/badge.svg)](https://github.com/notbrianbob/WatchLattice/actions/workflows/codeql.yml)
+[![Fuzz](https://github.com/notbrianbob/WatchLattice/actions/workflows/fuzz.yml/badge.svg)](https://github.com/notbrianbob/WatchLattice/actions/workflows/fuzz.yml)
 [![OpenSSF Scorecard](https://api.scorecard.dev/projects/github.com/notbrianbob/WatchLattice/badge)](https://scorecard.dev/viewer/?uri=github.com/notbrianbob/WatchLattice)
+[![Latest release](https://img.shields.io/github/v/release/notbrianbob/WatchLattice)](https://github.com/notbrianbob/WatchLattice/releases/latest)
 [![License: MIT](https://img.shields.io/badge/license-MIT-blue.svg)](LICENSE)
 ![.NET 10](https://img.shields.io/badge/.NET-10.0-512BD4)
 ![Platform: Windows 11](https://img.shields.io/badge/platform-Windows%2011-0078D6)
@@ -18,6 +20,25 @@ The tools are small and built for Windows 11, and they run **alongside**
 Defender, never instead of it. All of them run together inside one lightweight
 background service, the **WatchLattice hub**, and each one can be switched on
 or off in a single config file.
+
+**Start here:** [install a release](#install-a-release) ·
+[what each tool does](#tools) · [what it can't do](#honest-limits) ·
+[threat model](#threat-model) · [check a download](docs/supply-chain.md#checking-a-download) ·
+[build from source](#build-from-source) · [report a vulnerability](SECURITY.md)
+
+<!-- Screenshots: uncomment this block once the pictures listed in
+     docs/images/README.md are committed.
+
+## What it looks like
+
+| Dashboard | Alerts with guidance |
+|---|---|
+| ![The dashboard's Overview tab: hub and module status](docs/images/dashboard-overview.png) | ![The Alerts tab with one alert selected and its guidance](docs/images/dashboard-alerts.png) |
+
+| Security checkup | A critical alert |
+|---|---|
+| ![The read-only security checkup tab](docs/images/dashboard-checkup.png) | ![The window shown for a critical alert](docs/images/critical-alert.png) |
+-->
 
 ## Why complement Defender?
 
@@ -64,7 +85,9 @@ was found and fixed in the last review. Everything the hub reads that someone
 else can write (browser profiles, the hosts file, autostart entries, command
 lines, update metadata, settings) is covered by [fuzz tests](docs/fuzzing.md),
 which run on every pull request and at a larger scale every night. How
-releases are built, pinned and verified is in [supply chain](docs/supply-chain.md).
+releases are built, pinned and verified is in [supply chain](docs/supply-chain.md):
+GitHub Actions pinned to commits, NuGet packages pinned by content hash, an
+SBOM and a build provenance attestation with every release.
 
 ## Tools
 
@@ -156,9 +179,29 @@ rule for a missing program, and so on) and record whether the real module
 code reported it. CI runs them on a fresh Windows runner for every change to
 the modules.
 
-## Quick start
+## Getting started
 
-You need Windows 11 and the [.NET 10 SDK](https://dotnet.microsoft.com/download/dotnet/10.0).
+### Install a release
+
+You need Windows 11. Download the latest
+[release](https://github.com/notbrianbob/WatchLattice/releases/latest)
+zip, extract it, and double-click **Install.cmd**. It installs the hub as a
+service, starts the tray at sign-in, asks which folders to protect, and adds
+an uninstaller under Settings > Apps. Each release also has an MSI that
+installs the same thing with the defaults, for a double-click or unattended
+install. See [installing WatchLattice](docs/installing.md).
+
+Releases are not code-signed yet, so Windows SmartScreen may warn about an
+unrecognized app. Every release has a SHA-256 checksum, a software bill of
+materials and a build provenance attestation;
+[checking a download](docs/supply-chain.md#checking-a-download) shows how to
+confirm a file is the one CI built from this repository. What changed in
+each version is in [CHANGELOG.md](CHANGELOG.md).
+
+### Build from source
+
+You need the [.NET 10 SDK](https://dotnet.microsoft.com/download/dotnet/10.0).
+Windows 11 is the target; the solution also builds and tests on Linux.
 
 ```bash
 git clone https://github.com/notbrianbob/WatchLattice.git
@@ -178,16 +221,6 @@ See which modules are available and whether they are enabled:
 ```bash
 dotnet run -c Release --project src/WatchLattice.Hub -- --list-modules
 ```
-
-### Install a release
-
-Download the latest [release](https://github.com/notbrianbob/WatchLattice/releases)
-zip, extract it, and double-click **Install.cmd**. What changed in each
-version is in [CHANGELOG.md](CHANGELOG.md). It installs the hub as a
-service, starts the tray at sign-in, asks which folders to protect, and adds
-an uninstaller under Settings > Apps. Each release also has an MSI that
-installs the same thing with the defaults, for a double-click or unattended
-install. See [installing WatchLattice](docs/installing.md).
 
 ### Install as a Windows service from source
 
@@ -318,14 +351,18 @@ WatchLattice.sln
     ├── adding-a-tool.md              # How to write a new module
     ├── alerts-and-tray.md            # Shared alerts and tray deployment
     ├── attack-coverage.md            # MITRE ATT&CK techniques each alert maps to, and known gaps
+    ├── branch-protection.md          # The ruleset that protects main, and how to apply it
     ├── code-signing.md               # Signing releases through SignPath
     ├── dashboard.md                  # The dashboard and its settings editor
     ├── event-log.md                  # Alerts in the Windows Event Log, with event IDs
     ├── fuzzing.md                    # The fuzz tests: what they cover, how to run them, what they found
+    ├── images/                       # Screenshots for this README, with the list of what to capture
     ├── install-integrity.md          # The hub checking its own installed files
     ├── installing.md                 # Installing a release with Install.cmd or the MSI
     ├── openssf-best-practices.md     # Draft answers for the OpenSSF Best Practices badge
     ├── releasing.md                  # Cutting a release the updater can install
+    ├── supply-chain.md               # How releases are built, pinned and verified; the SBOM
+    ├── threat-model.md               # Threat model of WatchLattice itself
     └── windows-checks.md             # What to check by hand on Windows for each release
 ```
 

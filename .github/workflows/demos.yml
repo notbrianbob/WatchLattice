@@ -37,6 +37,7 @@ jobs:
     env:
       DOTNET_NOLOGO: true
       DOTNET_CLI_TELEMETRY_OPTOUT: true
+      RestoreLockedMode: true   # NuGet: only the packages in packages.lock.json, by hash
       SECONDS_PER_WINDOW: ${{ github.event.inputs.seconds || '60' }}
 
     steps:
@@ -83,6 +84,7 @@ jobs:
     env:
       DOTNET_NOLOGO: true
       DOTNET_CLI_TELEMETRY_OPTOUT: true
+      RestoreLockedMode: true   # NuGet: only the packages in packages.lock.json, by hash
 
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
