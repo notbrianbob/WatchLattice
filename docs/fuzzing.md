@@ -98,9 +98,10 @@ line redactor), and the tests check that the limit is what stops them.
 
 ## What it has found
 
-The first run, in November 2026, found the defects below. All were fixed in
-the same pull request, and each has a test in `FoundByFuzzingTests.cs` that
-fails on the old code. None was seen being used, and none let anyone run
+The first runs, in November 2026, found the defects below. All but one were
+fixed in the pull request that added the tests, and the last in a follow-up
+the same day. Each has a test in `FoundByFuzzingTests.cs` that fails on the
+old code. None was seen being used, and none let anyone run
 code or gain rights. Most would stop one module from reporting until the
 input changed, which for a monitoring tool means missed alerts.
 
@@ -145,6 +146,14 @@ input changed, which for a monitoring tool means missed alerts.
 - An approval token or extension ID with a line break after it was accepted,
   and so was an *Open file location* path with a trailing line break or a C1
   control character.
+- The updater only installs downloads from this repository's release page.
+  An address under that page whose path held a step up written as an escape
+  (`…/releases/download/..%5C`) passed that check: .NET resolves `../` and
+  `%2e%2e/` itself but keeps this spelling in the path. Such addresses are
+  now refused. This one was found by the first run at the nightly scale,
+  right after the others were merged, and fixed in a follow-up. The address
+  comes from GitHub's own API over HTTPS, and the download's checksum is
+  still verified, so this closes a gap in a second line of defense.
 
 **Something that should be hidden was not**
 

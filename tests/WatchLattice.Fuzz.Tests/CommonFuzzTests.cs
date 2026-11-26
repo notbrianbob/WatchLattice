@@ -255,7 +255,7 @@ public class CommonFuzzTests
                 var last = input.Alert.Message[(input.Alert.Message.LastIndexOf('\n') + 1)..];
                 Assert.Equal(BaselineApprovals.FingerprintLabel + ApprovedEntry.Prefix + entry.Sha256, last, ignoreCase: true);
                 Assert.Equal(ApprovedEntry.Stored(input.Alert.Resource!), entry.Resource);
-                Assert.True(entry.Matches(input.Alert.Resource, input.Value) == last.EndsWith(ApprovedEntry.Fingerprint(input.Value), StringComparison.Ordinal));
+                Assert.True(entry.Matches(input.Alert.Resource!, input.Value) == last.EndsWith(ApprovedEntry.Fingerprint(input.Value), StringComparison.Ordinal));
             }
 
             var token = BaselineApprovals.Encode(approval);
