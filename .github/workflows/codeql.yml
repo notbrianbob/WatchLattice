@@ -53,6 +53,8 @@ jobs:
           queries: security-and-quality
 
       - name: Build
+        env:
+          RestoreLockedMode: true   # NuGet: only the packages in packages.lock.json, by hash
         run: dotnet build -c Release
 
       - name: Perform CodeQL analysis
