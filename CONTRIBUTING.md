@@ -51,8 +51,15 @@ dotnet run -c Release --project src/WatchLattice.Hub
    see [docs/fuzzing.md](docs/fuzzing.md#adding-a-reader).
 4. Update the relevant README(s), including the Tools table in the top-level
    README when you add or change a tool.
-5. Make sure `dotnet build` and `dotnet test` pass. CI runs both on Windows and
+5. If you add or update a NuGet package, run `dotnet restore` and commit the
+   `packages.lock.json` files it changes. CI restores in locked mode and
+   fails when a lock file is out of date
+   ([why](docs/supply-chain.md#nuget-packages)).
+6. Make sure `dotnet build` and `dotnet test` pass. CI runs both on Windows and
    Linux, and CodeQL scans every pull request.
+
+`main` accepts changes only through a pull request with green CI; see
+[protecting main](docs/branch-protection.md).
 
 ## Adding a new tool
 

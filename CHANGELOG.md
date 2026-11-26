@@ -13,6 +13,13 @@ notes, followed by GitHub's generated list of pull requests. See
 
 ### Security
 
+- **NuGet packages are pinned by content hash.** Every project now has a
+  lock file with the exact version and hash of each package it uses, direct
+  or transitive, and CI and the release build restore only what those files
+  list. A package that differs from the reviewed one fails the build. See
+  [supply chain](docs/supply-chain.md#nuget-packages). Nothing changes in
+  the installed program: the package versions are the same as before.
+
 - **Fuzz tests for everything the hub reads that someone else can write.**
   A new test project gives browser profiles, the hosts file and proxy
   settings, autostart entries, command lines, update metadata, settings,

@@ -9,8 +9,10 @@ installed copy, see the [threat model](threat-model.md).
 - **Source.** A tag `vX.Y.Z` on `main` starts the
   [release workflow](../.github/workflows/release.yml) on a fresh
   GitHub-hosted Windows runner. Nothing is built on a personal machine.
-- **Dependencies.** NuGet packages are pinned to exact versions in the
-  project files and come only from nuget.org. The release is self-contained,
+- **Dependencies.** NuGet packages come only from nuget.org. Each one,
+  direct or transitive, is pinned to an exact version and content hash in a
+  lock file, and CI and the release build refuse anything else
+  ([NuGet packages](#nuget-packages)). The release is self-contained,
   so it bundles the .NET runtime installed by `actions/setup-dotnet` at the
   version in [global.json](../global.json).
 - **Build steps.** Every GitHub Action in every workflow is pinned to a full
@@ -22,6 +24,32 @@ installed copy, see the [threat model](threat-model.md).
 - **Permissions.** Workflows start from `contents: read`. Only the release
   job may write, and only what it needs: creating the release and signing
   its attestation.
+
+## NuGet packages
+
+Every project has a `packages.lock.json` beside it. It lists each package
+the project restores, including the ones pulled in by other packages, with
+its exact version and the SHA-512 hash of its contents.
+
+- Every workflow job that builds sets `RestoreLockedMode`, so NuGet restores
+  only what the lock files list. A package whose contents differ from the
+  committed hash, or a dependency that resolves to a different version than
+  the one reviewed, fails the build instead of being used.
+- A lock file changes only in a pull request, where the diff shows which
+  packages and hashes changed. Dependabot updates the lock files together
+  with the project files.
+- Tests keep this from eroding: every project must have a lock file, and
+  every workflow job that installs the .NET SDK must restore in locked mode.
+
+To change a package, edit the version in the project file, run
+`dotnet restore`, and commit the lock files it rewrites. A plain restore on
+a development machine is not locked, so that it can update them.
+
+What the lock files don't cover: the .NET SDK and the runtime the release
+bundles (installed by `actions/setup-dotnet` at the version in
+`global.json`), the WiX build SDK named in the MSI project (pinned by
+version), and the CycloneDX tool that writes the SBOM (pinned by version in
+`Write-Sbom.ps1`).
 
 ## What a release contains
 
@@ -87,8 +115,9 @@ now, and why:
 - **Code-Review** and **Contributors.** WatchLattice has one maintainer, so
   most changes are merged without a second person's review. Every change
   still goes through a pull request with CI.
-- **Branch-Protection.** Scorecard can't read branch protection settings
-  with the default token. The result depends on the repository's settings.
+- **Branch-Protection.** The rules for `main` are a ruleset, described in
+  [protecting main](branch-protection.md). The top tiers of this check need
+  an approving review from a second person, so the score stays partial.
 
 **Fuzzing.** For C#, Scorecard's fuzzing check looks for property-based
 tests written with FsCheck. The [fuzz tests](fuzzing.md) include a set driven
@@ -105,9 +134,9 @@ yet, are in [openssf-best-practices.md](openssf-best-practices.md).
 
 - The SBOM describes what was packaged, not what is installed on your PC
   now. The install integrity check covers that.
-- Pinning protects against a moved tag, not against a compromised action at
-  the commit that was pinned. Dependabot updates are reviewed like any
-  other change.
+- Pinning protects against a moved tag or a replaced package, not against
+  an action or package that was already compromised at the commit or hash
+  that was pinned. Dependabot updates are reviewed like any other change.
 - None of this proves the source code is free of bugs. That is what CI's
   tests, the [fuzz tests](fuzzing.md), CodeQL, the
   [detection checks](../demos/detection-checks.md) and the

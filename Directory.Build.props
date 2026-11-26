@@ -4,4 +4,17 @@
          development build, which the update checker leaves alone. -->
     <Version Condition="'$(Version)' == ''">0.0.0-dev</Version>
   </PropertyGroup>
+
+  <PropertyGroup>
+    <!-- Every project keeps a packages.lock.json: the exact version and
+         content hash of each NuGet package it restores, direct or transitive.
+         CI and the release build restore in locked mode (RestoreLockedMode in
+         each workflow's env), so a package that differs from the committed
+         hash fails the build instead of being used. win-x64 is listed because
+         the hub and tray are published for it, and a locked restore only
+         accepts runtimes the lock file already covers.
+         See docs/supply-chain.md#nuget-packages. -->
+    <RestorePackagesWithLockFile>true</RestorePackagesWithLockFile>
+    <RuntimeIdentifiers>win-x64</RuntimeIdentifiers>
+  </PropertyGroup>
 </Project>
