@@ -22,3 +22,7 @@ updates:
     directory: /
     schedule:
       interval: weekly
+    groups:
+      # One pull request a week for all action updates instead of one each.
+      actions:
+        patterns: ["*"]
