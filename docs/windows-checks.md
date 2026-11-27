@@ -3,7 +3,7 @@
 CI builds and tests everything on a Windows runner and installs a
 release-shaped package, but the dashboard windows, real Windows settings
 changes and a real update can only be checked on a Windows 11 PC. This is
-one list of those checks for the features added in 0.5.0 to 0.10.0, in an
+one list of those checks for the features added in 0.5.0 to 0.11.0, in an
 order that works on one machine. Each step links to the detailed version.
 
 Use a PC you can undo changes on. Every step below changes something
@@ -23,7 +23,8 @@ update host.
    [0.7.0 checks](#070). The 0.7.0 checks end by moving the PC to the MSI.
    Then upgrade that MSI install to 0.8.0 and do the [0.8.0 checks](#080),
    then update to 0.9.0 and do the [0.9.0 checks](#090), then update to
-   0.10.0 and do the [0.10.0 checks](#0100).
+   0.10.0 and do the [0.10.0 checks](#0100), then update to 0.11.0 and do
+   the [0.11.0 checks](#0110).
 
 ## 0.5.0
 
@@ -323,7 +324,7 @@ update host.
    again**: that line becomes **Fix** and the tab says *1 to fix*. Turn it
    back on. **Open virus protection settings** opens the right page.
 
-## Next release
+## 0.11.0
 
 1. **Export all data.** As a standard user, open the dashboard's Overview
    tab and choose **Export all data for AI review…**. No administrator

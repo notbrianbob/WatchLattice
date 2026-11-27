@@ -11,7 +11,14 @@ notes, followed by GitHub's generated list of pull requests. See
 
 ## [Unreleased]
 
+## [0.11.0] - 2026-11-27
+
 ### Security
+
+- **.NET libraries updated to 10.0.15.** The `Microsoft.Extensions.*`
+  packages and `System.Diagnostics.EventLog` the hub ships move from
+  10.0.13 to Microsoft's current servicing release, with the lock files
+  updated to match.
 
 - **NuGet packages are pinned by content hash.** Every project now has a
   lock file with the exact version and hash of each package it uses, direct
@@ -493,7 +500,8 @@ First release.
   (#13, #14)
 - CI, CodeQL and repository hygiene. (#2, #10)
 
-[Unreleased]: https://github.com/notbrianbob/WatchLattice/compare/v0.10.0...HEAD
+[Unreleased]: https://github.com/notbrianbob/WatchLattice/compare/v0.11.0...HEAD
+[0.11.0]: https://github.com/notbrianbob/WatchLattice/compare/v0.10.0...v0.11.0
 [0.10.0]: https://github.com/notbrianbob/WatchLattice/compare/v0.9.0...v0.10.0
 [0.9.0]: https://github.com/notbrianbob/WatchLattice/compare/v0.8.0...v0.9.0
 [0.8.0]: https://github.com/notbrianbob/WatchLattice/compare/v0.7.0...v0.8.0
